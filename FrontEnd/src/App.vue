@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import axios from 'axios'
+import DashboardDocente from './components/DashboardDocente.vue'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
@@ -67,6 +68,13 @@ function persistSession(accessToken, profile) {
   token.value = accessToken
   sessionStorage.setItem(sessionKey, accessToken)
   user.value = profile
+  
+  // === MODIFICAR O AUMENTAR ESTA LÓGICA ===
+  if (profile.rol === 'Docente') {
+    mode.value = 'dashboard-docente'
+  } else {
+    mode.value = 'dashboard-general' // O el estado por defecto que use tu compañero
+  }
 }
 
 function clearSession() {
@@ -161,171 +169,140 @@ function switchMode(nextMode) {
   resetMessages()
 }
 
-onMounted(loadProfile)
+onMounted(async () => {
+  if (!token.value) return
+  try {
+    const { data } = await api.get('/auth/me')
+    user.value = data.user
+    
+    if (data.user.rol === 'Docente') {
+      mode.value = 'dashboard-docente'
+    } else {
+      mode.value = 'dashboard-general'
+    }
+  } catch {
+    clearSession()
+  }
+})
 </script>
 
 <template>
-  <main class="auth-shell">
-    <section class="hero-panel">
-      <div class="brand">Universidad</div>
-      <h1>Módulo de autenticación seguro</h1>
-      <p>
-        Acceso con API protegida por Sanctum, contraseñas cifradas, throttling de intentos y
-        control por rol sobre la base de datos real del sistema.
-      </p>
-
-      <ul class="feature-list">
-        <li>Login con correo o CI</li>
-        <li>Registro automático como estudiante</li>
-        <li>Token por sesión en el navegador</li>
-      </ul>
-
-      <div class="highlight-card">
-        <span>Estado</span>
-        <strong>{{ isAuthenticated ? 'Autenticado' : 'Pendiente de acceso' }}</strong>
-      </div>
-    </section>
-
-    <section class="panel">
-      <div v-if="!isAuthenticated" class="card">
-        <div class="tabs">
-          <button type="button" :class="{ active: mode === 'login' }" @click="switchMode('login')">
-            Iniciar sesión
-          </button>
-          <button
-            type="button"
-            :class="{ active: mode === 'register' }"
-            @click="switchMode('register')"
-          >
-            Crear cuenta
-          </button>
+  <div v-if="!isAuthenticated" class="auth-shell-wrapper">
+    <main class="auth-shell">
+      
+      <section class="hero-panel">
+        <div class="brand">Universidad</div>
+        <h1>Módulo de autenticación seguro</h1>
+        <p>Acceso con API protegida por Sanctum, contraseñas cifradas, throttling de intentos y control por rol sobre la base de datos real del sistema.</p>
+        
+        <div class="highlight-card">
+          <span>Estado del Sistema</span>
+          <strong>Pendiente de acceso</strong>
         </div>
+      </section>
 
-        <div v-if="successMessage" class="alert success">{{ successMessage }}</div>
-        <div v-if="errorMessage" class="alert error">{{ errorMessage }}</div>
-
-        <form v-if="mode === 'login'" class="form-grid" @submit.prevent="login">
-          <label>
-            <span>Correo o CI</span>
-            <input v-model.trim="loginForm.login" type="text" autocomplete="username" required />
-          </label>
-
-          <label>
-            <span>Contraseña</span>
-            <input
-              v-model="loginForm.password"
-              type="password"
-              autocomplete="current-password"
-              required
-            />
-          </label>
-
-          <button class="primary" type="submit" :disabled="loading">
-            {{ loading ? 'Validando...' : 'Entrar' }}
-          </button>
-        </form>
-
-        <form v-else class="form-grid" @submit.prevent="register">
-          <div class="two-cols">
-            <label>
-              <span>Primer nombre</span>
-              <input v-model.trim="registerForm.nombre1" type="text" required />
-            </label>
-            <label>
-              <span>Segundo nombre</span>
-              <input v-model.trim="registerForm.nombre2" type="text" />
-            </label>
+      <section class="panel">
+        <div class="card">
+          <div class="tabs">
+            <button :class="{ active: mode === 'login' }" @click="mode = 'login'">Iniciar sesión</button>
+            <button :class="{ active: mode === 'register' }" @click="mode = 'register'">Crear cuenta</button>
           </div>
+          
+          <div v-if="errorMessage" class="alert error">{{ errorMessage }}</div>
 
-          <div class="two-cols">
-            <label>
-              <span>Primer apellido</span>
-              <input v-model.trim="registerForm.apellido1" type="text" required />
-            </label>
-            <label>
-              <span>Segundo apellido</span>
-              <input v-model.trim="registerForm.apellido2" type="text" />
-            </label>
-          </div>
+          <form v-if="mode === 'login'" class="form-grid" @submit.prevent="login">
+            <label><span>Correo o CI</span><input v-model.trim="loginForm.login" type="text" required /></label>
+            <label><span>Contraseña</span><input v-model="loginForm.password" type="password" required /></label>
+            <button class="primary" type="submit" :disabled="loading">{{ loading ? 'Validando...' : 'Entrar' }}</button>
+          </form>
 
-          <div class="two-cols">
-            <label>
-              <span>CI</span>
-              <input v-model.trim="registerForm.ci" type="text" required />
-            </label>
-            <label>
-              <span>Correo</span>
-              <input v-model.trim="registerForm.correo" type="email" required />
-            </label>
-          </div>
-
-          <div class="two-cols">
-            <label>
-              <span>Contraseña</span>
-              <input
-                v-model="registerForm.password"
-                type="password"
-                autocomplete="new-password"
-                minlength="8"
-                required
-              />
-            </label>
-            <label>
-              <span>Confirmar contraseña</span>
-              <input
-                v-model="registerForm.password_confirmation"
-                type="password"
-                autocomplete="new-password"
-                minlength="8"
-                required
-              />
-            </label>
-          </div>
-
-          <button class="primary" type="submit" :disabled="loading">
-            {{ loading ? 'Creando...' : 'Registrar estudiante' }}
-          </button>
-        </form>
-      </div>
-
-      <div v-else class="card dashboard">
-        <div class="dashboard-head">
-          <div>
-            <span class="eyebrow">Sesión activa</span>
-            <h2>{{ fullName }}</h2>
-          </div>
-          <span class="role-badge" :data-tone="badgeTone">{{ roleName }}</span>
+          <form v-else class="form-grid" @submit.prevent="register">
+            <div class="two-cols">
+              <label><span>Primer nombre</span><input v-model.trim="registerForm.nombre1" type="text" required /></label>
+              <label><span>Segundo nombre</span><input v-model.trim="registerForm.nombre2" type="text" /></label>
+            </div>
+            <div class="two-cols">
+              <label><span>Primer apellido</span><input v-model.trim="registerForm.apellido1" type="text" required /></label>
+              <label><span>Segundo apellido</span><input v-model.trim="registerForm.apellido2" type="text" /></label>
+            </div>
+            <div class="two-cols">
+              <label><span>CI</span><input v-model.trim="registerForm.ci" type="text" required /></label>
+              <label><span>Correo</span><input v-model.trim="registerForm.correo" type="email" required /></label>
+            </div>
+            <div class="two-cols">
+              <label><span>Contraseña</span><input v-model="registerForm.password" type="password" required /></label>
+              <label><span>Confirmar</span><input v-model="registerForm.password_confirmation" type="password" required /></label>
+            </div>
+            <button class="primary" type="submit" :disabled="loading">Registrar cuenta</button>
+          </form>
         </div>
+      </section>
 
-        <div class="info-grid">
-          <article>
-            <span>Correo</span>
-            <strong>{{ user.correo }}</strong>
-          </article>
-          <article>
-            <span>CI</span>
-            <strong>{{ user.ci }}</strong>
-          </article>
-          <article>
-            <span>Registro</span>
-            <strong>{{ user.fechaRegistro || 'No disponible' }}</strong>
-          </article>
-          <article>
-            <span>Estado</span>
-            <strong>{{ user.estado ? 'Activo' : 'Inactivo' }}</strong>
-          </article>
+    </main>
+  </div>
+
+  <div v-else class="authenticated-full-workspace">
+    
+    <div v-if="user?.rol === 'Docente'" class="full-screen-app-container">
+      <DashboardDocente 
+        :user="user"
+        :api="api"
+        :badgeTone="badgeTone"
+        @logout="logout"
+      />
+    </div>
+
+    <div v-else class="student-fullscreen-wrapper">
+      <main class="student-minimal-layout">
+        <div class="dashboard card">
+          <div class="dashboard-head">
+            <div>
+              <span class="eyebrow">Sesión académica activa</span>
+              <h2>{{ user?.nombre1 }} {{ user?.apellido1 }}</h2>
+            </div>
+            <span class="role-badge" :data-tone="badgeTone">{{ user?.rol || 'Estudiante' }}</span>
+          </div>
+          <div class="info-grid">
+            <article><span>Correo Electrónico</span><strong>{{ user?.correo }}</strong></article>
+            <article><span>Documento de Identidad</span><strong>{{ user?.ci }}</strong></article>
+          </div>
+          <button class="secondary" type="button" @click="logout">Cerrar sesión del sistema</button>
         </div>
+      </main>
+    </div>
 
-        <div v-if="successMessage" class="alert success">{{ successMessage }}</div>
-        <div v-if="errorMessage" class="alert error">{{ errorMessage }}</div>
-
-        <button class="secondary" type="button" :disabled="loading" @click="logout">
-          {{ loading ? 'Cerrando...' : 'Cerrar sesión' }}
-        </button>
-      </div>
-    </section>
-  </main>
+  </div>
 </template>
+
+<style scoped>
+.auth-shell-wrapper,
+.authenticated-full-workspace {
+  width: 100vw;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.full-screen-app-container {
+  width: 100%;
+  min-height: 100vh;
+  background: transparent;
+}
+
+.student-fullscreen-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  min-height: 100vh;
+  padding: 2rem;
+}
+.student-minimal-layout {
+  width: 100%;
+  max-width: 600px;
+}
+</style>
 
 <style>
 :root {
