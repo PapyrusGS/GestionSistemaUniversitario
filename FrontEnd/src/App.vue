@@ -26,17 +26,6 @@ const loginForm = reactive({
   password: '',
 })
 
-const registerForm = reactive({
-  nombre1: '',
-  nombre2: '',
-  apellido1: '',
-  apellido2: '',
-  ci: '',
-  correo: '',
-  password: '',
-  password_confirmation: '',
-})
-
 api.interceptors.request.use((config) => {
   if (token.value) {
     config.headers.Authorization = `Bearer ${token.value}`
@@ -106,11 +95,13 @@ function parseError(error, fallback) {
 
 async function loadProfile() {
   if (!token.value) return
+
   try {
     const { data } = await api.get('/auth/me')
-    user.value = data.user
+    const payload = data.data ?? data
+    user.value = payload.user
 
-    if (data.user.rol === 'Docente') {
+    if (payload.user.rol === 'Docente') {
       mode.value = 'dashboard-docente'
     } else {
       mode.value = 'dashboard-general'
@@ -126,25 +117,11 @@ async function login() {
 
   try {
     const { data } = await api.post('/auth/login', loginForm)
-    persistSession(data.token, data.user)
-    successMessage.value = 'Sesión iniciada correctamente.'
+    const payload = data.data ?? data
+    persistSession(payload.token, payload.user)
+    successMessage.value = data.message || 'Sesion iniciada correctamente.'
   } catch (error) {
-    errorMessage.value = parseError(error, 'No pudimos iniciar sesión.')
-  } finally {
-    loading.value = false
-  }
-}
-
-async function register() {
-  loading.value = true
-  resetMessages()
-
-  try {
-    const { data } = await api.post('/auth/register', registerForm)
-    persistSession(data.token, data.user)
-    successMessage.value = 'Cuenta creada y sesión iniciada.'
-  } catch (error) {
-    errorMessage.value = parseError(error, 'No pudimos registrar la cuenta.')
+    errorMessage.value = parseError(error, 'No pudimos iniciar sesion.')
   } finally {
     loading.value = false
   }
@@ -157,7 +134,7 @@ async function logout() {
   try {
     await api.post('/auth/logout')
   } catch {
-    // Si el token ya expiró o fue revocado, igual limpiamos la sesión local.
+    // Si el token ya expiro o fue revocado, igual limpiamos la sesion local.
   } finally {
     clearSession()
     loading.value = false
@@ -165,30 +142,23 @@ async function logout() {
   }
 }
 
-function switchMode(nextMode) {
-  mode.value = nextMode
-  resetMessages()
-}
-
 onMounted(loadProfile)
 </script>
 
 <template>
-  <!-- ── UNAUTHENTICATED: Login / Register ─────────────────────────────── -->
   <div v-if="!isAuthenticated" class="auth-shell-wrapper">
     <main class="auth-shell">
       <section class="hero-panel">
         <div class="brand">Universidad</div>
-        <h1>Módulo de autenticación seguro</h1>
+        <h1>Modulo de autenticacion seguro</h1>
         <p>
-          Acceso con API protegida por Sanctum, contraseñas cifradas, throttling de intentos y
+          Acceso con API protegida por Sanctum, contrasenas cifradas, throttling de intentos y
           control por rol sobre la base de datos real del sistema.
         </p>
 
         <ul class="feature-list">
           <li>Login con correo o CI</li>
-          <li>Registro automático como estudiante</li>
-          <li>Token por sesión en el navegador</li>
+          <li>Token por sesion en el navegador</li>
         </ul>
 
         <div class="highlight-card">
@@ -199,26 +169,17 @@ onMounted(loadProfile)
 
       <section class="panel">
         <div class="card">
-          <div class="tabs">
-            <button type="button" :class="{ active: mode === 'login' }" @click="switchMode('login')">
-              Iniciar sesión
-            </button>
-            <button type="button" :class="{ active: mode === 'register' }" @click="switchMode('register')">
-              Crear cuenta
-            </button>
-          </div>
-
           <div v-if="successMessage" class="alert success">{{ successMessage }}</div>
           <div v-if="errorMessage" class="alert error">{{ errorMessage }}</div>
 
-          <form v-if="mode === 'login'" class="form-grid" @submit.prevent="login">
+          <form class="form-grid" @submit.prevent="login">
             <label>
               <span>Correo o CI</span>
               <input v-model.trim="loginForm.login" type="text" autocomplete="username" required />
             </label>
 
             <label>
-              <span>Contraseña</span>
+              <span>Contrasena</span>
               <input
                 v-model="loginForm.password"
                 type="password"
@@ -231,100 +192,30 @@ onMounted(loadProfile)
               {{ loading ? 'Validando...' : 'Entrar' }}
             </button>
           </form>
-
-          <form v-else class="form-grid" @submit.prevent="register">
-            <div class="two-cols">
-              <label>
-                <span>Primer nombre</span>
-                <input v-model.trim="registerForm.nombre1" type="text" required />
-              </label>
-              <label>
-                <span>Segundo nombre</span>
-                <input v-model.trim="registerForm.nombre2" type="text" />
-              </label>
-            </div>
-
-            <div class="two-cols">
-              <label>
-                <span>Primer apellido</span>
-                <input v-model.trim="registerForm.apellido1" type="text" required />
-              </label>
-              <label>
-                <span>Segundo apellido</span>
-                <input v-model.trim="registerForm.apellido2" type="text" />
-              </label>
-            </div>
-
-            <div class="two-cols">
-              <label>
-                <span>CI</span>
-                <input v-model.trim="registerForm.ci" type="text" required />
-              </label>
-              <label>
-                <span>Correo</span>
-                <input v-model.trim="registerForm.correo" type="email" required />
-              </label>
-            </div>
-
-            <div class="two-cols">
-              <label>
-                <span>Contraseña</span>
-                <input
-                  v-model="registerForm.password"
-                  type="password"
-                  autocomplete="new-password"
-                  minlength="8"
-                  required
-                />
-              </label>
-              <label>
-                <span>Confirmar contraseña</span>
-                <input
-                  v-model="registerForm.password_confirmation"
-                  type="password"
-                  autocomplete="new-password"
-                  minlength="8"
-                  required
-                />
-              </label>
-            </div>
-
-            <button class="primary" type="submit" :disabled="loading">
-              {{ loading ? 'Creando...' : 'Registrar estudiante' }}
-            </button>
-          </form>
         </div>
       </section>
     </main>
   </div>
 
-  <!-- ── AUTHENTICATED: Docente dashboard (compañero) ─────────────────── -->
   <div v-else-if="user?.rol === 'Docente'" class="authenticated-full-workspace">
     <div class="full-screen-app-container">
-      <DashboardDocente
-        :user="user"
-        :api="api"
-        :badgeTone="badgeTone"
-        @logout="logout"
-      />
+      <DashboardDocente :user="user" :api="api" :badgeTone="badgeTone" @logout="logout" />
     </div>
   </div>
 
-  <!-- ── AUTHENTICATED: Administrador / Estudiante dashboard ──────────── -->
-  <div v-else class="authenticated-full-workspace">
+  <div v-else-if="user?.rol === 'Administrador'" class="authenticated-full-workspace">
     <main class="auth-shell" :class="{ 'full-width-shell': showUserManagement }">
       <section class="hero-panel" v-show="!showUserManagement">
         <div class="brand">Universidad</div>
-        <h1>Módulo de autenticación seguro</h1>
+        <h1>Modulo de autenticacion seguro</h1>
         <p>
-          Acceso con API protegida por Sanctum, contraseñas cifradas, throttling de intentos y
+          Acceso con API protegida por Sanctum, contrasenas cifradas, throttling de intentos y
           control por rol sobre la base de datos real del sistema.
         </p>
 
         <ul class="feature-list">
           <li>Login con correo o CI</li>
-          <li>Registro automático como estudiante</li>
-          <li>Token por sesión en el navegador</li>
+          <li>Token por sesion en el navegador</li>
         </ul>
 
         <div class="highlight-card">
@@ -337,7 +228,7 @@ onMounted(loadProfile)
         <div class="card dashboard" :class="{ 'wide-card': showUserManagement }">
           <div class="dashboard-head">
             <div>
-              <span class="eyebrow">Sesión activa</span>
+              <span class="eyebrow">Sesion activa</span>
               <h2>{{ fullName }}</h2>
             </div>
             <div style="display: flex; gap: 0.5rem; align-items: center;">
@@ -354,12 +245,10 @@ onMounted(loadProfile)
             </div>
           </div>
 
-          <!-- User Management panel (solo Administrador) -->
           <div v-if="showUserManagement" style="margin-top: 1rem; width: 100%;">
             <UserManagement :api="api" />
           </div>
 
-          <!-- Profile info grid -->
           <div v-else class="info-grid">
             <article>
               <span>Correo</span>
@@ -384,7 +273,71 @@ onMounted(loadProfile)
 
           <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem; width: 100%;">
             <button class="secondary" type="button" :disabled="loading" @click="logout">
-              {{ loading ? 'Cerrando...' : 'Cerrar sesión' }}
+              {{ loading ? 'Cerrando...' : 'Cerrar sesion' }}
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div v-else class="authenticated-full-workspace">
+    <main class="auth-shell">
+      <section class="hero-panel">
+        <div class="brand">Universidad</div>
+        <h1>Panel de estudiante</h1>
+        <p>
+          Tu sesión está activa. Desde aquí podrás consultar tu información personal y, cuando
+          se agreguen los módulos correspondientes, acceder a tu historial académico, inscripciones
+          y notas.
+        </p>
+
+        <ul class="feature-list">
+          <li>Acceso restringido por rol</li>
+          <li>Vista de solo lectura</li>
+        </ul>
+
+        <div class="highlight-card">
+          <span>Estado</span>
+          <strong>Autenticado como estudiante</strong>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="card dashboard">
+          <div class="dashboard-head">
+            <div>
+              <span class="eyebrow">Sesion activa</span>
+              <h2>{{ fullName }}</h2>
+            </div>
+            <span class="role-badge" :data-tone="badgeTone">{{ roleName }}</span>
+          </div>
+
+          <div class="info-grid">
+            <article>
+              <span>Correo</span>
+              <strong>{{ user.correo }}</strong>
+            </article>
+            <article>
+              <span>CI</span>
+              <strong>{{ user.ci }}</strong>
+            </article>
+            <article>
+              <span>Registro</span>
+              <strong>{{ user.fechaRegistro || 'No disponible' }}</strong>
+            </article>
+            <article>
+              <span>Estado</span>
+              <strong>{{ user.estado ? 'Activo' : 'Inactivo' }}</strong>
+            </article>
+          </div>
+
+          <div v-if="successMessage" class="alert success">{{ successMessage }}</div>
+          <div v-if="errorMessage" class="alert error">{{ errorMessage }}</div>
+
+          <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem; width: 100%;">
+            <button class="secondary" type="button" :disabled="loading" @click="logout">
+              {{ loading ? 'Cerrando...' : 'Cerrar sesion' }}
             </button>
           </div>
         </div>
@@ -588,45 +541,8 @@ button {
   grid-template-columns: 1fr;
 }
 
-.tabs {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  padding: 0.35rem;
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 1rem;
-}
-
-.tabs button {
-  border: 0;
-  border-radius: 0.8rem;
-  padding: 0.85rem 1rem;
-  color: var(--muted);
-  background: transparent;
-  transition:
-    transform 0.2s ease,
-    background 0.2s ease,
-    color 0.2s ease;
-}
-
-.tabs button.active {
-  color: var(--text);
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(125, 211, 252, 0.16));
-}
-
-.tabs button:hover {
-  transform: translateY(-1px);
-}
-
 .form-grid {
   display: grid;
-  gap: 1rem;
-}
-
-.two-cols {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
 }
 
@@ -795,7 +711,6 @@ input:focus {
     border-radius: 1.4rem;
   }
 
-  .two-cols,
   .info-grid {
     grid-template-columns: 1fr;
   }

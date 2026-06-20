@@ -22,7 +22,7 @@ async function obtenerCursos() {
   errorMessage.value = ''
   try {
     const { data } = await props.api.get('/docente/cursos')
-    cursos.value = data 
+    cursos.value = data.data ?? data
   } catch (error) {
     errorMessage.value = 'No se pudieron cargar tus cursos asignados.'
   } finally {
@@ -36,7 +36,7 @@ async function verDetalleCurso(curso) {
   modoDocente.value = 'detalle'
   try {
     const { data } = await props.api.get(`/cursos-materias/${curso.idCursoMateria}/estudiantes`)
-    estudiantesInscritos.value = data
+    estudiantesInscritos.value = data.data ?? data
   } catch (error) {
     errorMessage.value = 'Error al obtener alumnos inscritos de este curso.'
   } finally {

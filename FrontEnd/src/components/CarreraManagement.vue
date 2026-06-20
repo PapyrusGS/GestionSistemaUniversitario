@@ -31,7 +31,7 @@ async function fetchCarreras() {
   clearMessages()
   try {
     const { data } = await props.api.get('/carreras')
-    carreras.value = data.carreras
+    carreras.value = (data.data ?? data).carreras
   } catch {
     errorMessage.value = 'No se pudieron cargar las carreras.'
   } finally {
@@ -52,13 +52,15 @@ async function submitForm() {
         descripcion: form.descripcion,
       }))
       const idx = carreras.value.findIndex(c => c.idCarrera === form.idCarrera)
-      if (idx !== -1) carreras.value[idx] = data.carrera
+      const payload = data.data ?? data
+      if (idx !== -1) carreras.value[idx] = payload.carrera
     } else {
       ;({ data } = await props.api.post('/carreras', {
         nombre:      form.nombre,
         descripcion: form.descripcion,
       }))
-      carreras.value.push(data.carrera)
+      const payload = data.data ?? data
+      carreras.value.push(payload.carrera)
     }
 
     successMessage.value = data.message
@@ -84,7 +86,8 @@ async function confirmDisable() {
   try {
     const { data } = await props.api.delete(`/carreras/${confirmTarget.value.idCarrera}`)
     const idx = carreras.value.findIndex(c => c.idCarrera === confirmTarget.value.idCarrera)
-    if (idx !== -1) carreras.value[idx] = data.carrera
+    const payload = data.data ?? data
+    if (idx !== -1) carreras.value[idx] = payload.carrera
     successMessage.value = data.message
   } catch (error) {
     errorMessage.value =

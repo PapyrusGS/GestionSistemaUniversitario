@@ -32,7 +32,7 @@ async function fetchUsers() {
   loading.value = true
   try {
     const { data } = await props.api.get('/users')
-    users.value = data.users
+    users.value = (data.data ?? data).users
   } catch (error) {
     console.error('Error fetching users:', error)
     errorMessage.value = 'No se pudieron cargar los usuarios.'
@@ -44,7 +44,7 @@ async function fetchUsers() {
 async function fetchRoles() {
   try {
     const { data } = await props.api.get('/roles')
-    roles.value = data.roles
+    roles.value = (data.data ?? data).roles
   } catch (error) {
     console.error('Error fetching roles:', error)
   }
@@ -74,8 +74,9 @@ async function submitForm() {
 
   try {
     const { data } = await props.api.post('/users', form)
+    const payload = data.data ?? data
     successMessage.value = data.message || 'Usuario registrado correctamente.'
-    users.value.push(data.user)
+    users.value.push(payload.user)
     resetForm()
   } catch (error) {
     const response = error.response?.data
