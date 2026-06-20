@@ -11,17 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('pensums', function (Blueprint $table) {
-            $table->id('idPensum');
+        Schema::create('horarios', function (Blueprint $table) {
+            $table->id('idHorario');
             
-            // Llave foránea que conecta con la tabla carreras
-            $table->foreignId('idCarrera')->constrained('carreras', 'idCarrera')->onDelete('cascade');
             
-            $table->string('nombre', 255);
-            $table->integer('numMaterias');
-            $table->integer('numSemestres');
-            $table->dateTime('fechaRegistro')->useCurrent();
-            $table->boolean('estado')->default(true);
+            $table->integer('diaSemana'); // Ej: 1 para Lunes, 2 para Martes...
+            $table->time('horaInicio');
+            $table->time('horaFin');
             
             // Campos de auditoría
             $table->dateTime('fechaA')->nullable();
@@ -34,6 +30,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('pensums');
+        Schema::dropIfExists('horario');
     }
 };

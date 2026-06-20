@@ -15,9 +15,8 @@ return new class extends Migration
             $table->id('idEstudianteCarrera');
             
             // Llaves foráneas (Asumiendo que los estudiantes están en la tabla 'usuarios')
-            $table->foreignId('idEstudiante')->constrained('usuarios', 'idUsuario')->onDelete('cascade');
+            $table->foreignId('idEstudiante')->constrained('estudiantes', 'idEstudiante')->onDelete('cascade');
             $table->foreignId('idCarrera')->constrained('carreras', 'idCarrera')->onDelete('cascade');
-            $table->foreignId('idModalidad')->constrained('modalidades', 'idModalidad')->onDelete('cascade');
             
             $table->dateTime('fechaRegistro')->useCurrent();
             $table->boolean('estado')->default(true);

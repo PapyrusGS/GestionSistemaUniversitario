@@ -17,10 +17,12 @@ return new class extends Migration
             // Llaves foráneas conectadas a sus respectivas tablas
             $table->foreignId('idCurso')->constrained('cursos', 'idCurso')->onDelete('cascade');
             $table->foreignId('idMateria')->constrained('materias', 'idMateria')->onDelete('cascade');
-            $table->foreignId('idTurno')->constrained('turnos', 'idTurno')->onDelete('cascade');
             
             // Asumiendo que el docente está registrado en la tabla 'usuarios'
             $table->foreignId('idDocente')->constrained('usuarios', 'idUsuario')->onDelete('cascade');
+
+            $table->foreignId('idPeriodo')->constrained('periodos', 'idPeriodo')->onDelete('cascade');
+
             
             $table->dateTime('fechaInicio');
             $table->dateTime('fechaFin');

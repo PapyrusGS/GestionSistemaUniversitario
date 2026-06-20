@@ -12,12 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('cursos', function (Blueprint $table) {
-            $table->id('idCurso');
+            $table->string('idCurso', 100)->primary(); 
             
-            // Llave foránea conectada a la tabla turnos
-            $table->foreignId('idTurno')->constrained('turnos', 'idTurno')->onDelete('cascade');
-            
-            $table->dateTime('fechaRegistro')->useCurrent();
+            $table->integer('capacidad');
             $table->boolean('estado')->default(true);
             
             // Campos de auditoría

@@ -22,6 +22,7 @@ return new class extends Migration
             $table->string('apellido1', 255);
             $table->string('apellido2', 255)->nullable();
             $table->string('ci', 255)->unique(); // El CI suele ser único
+            $table->string('fechaNacimiento', date('Y-m-d')); // Puede ser opcional
             $table->string('correo', 255)->unique();
             $table->string('password', 255);
             $table->dateTime('fechaRegistro')->useCurrent(); // Toma la fecha actual por defecto

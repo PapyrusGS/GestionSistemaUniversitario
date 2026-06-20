@@ -11,11 +11,11 @@ return new class extends Migration
      */
    public function up(): void
     {
-        Schema::create('inscripciones', function (Blueprint $table) {
+        Schema::create('estudiantemateria', function (Blueprint $table) {
             $table->id('idInscripcion');
             
             // Llaves foráneas (idCursoMateria asumirá una tabla externa 'cursos_materias' u otra similar cuando la crees)
-            $table->foreignId('idEstudiante')->constrained('usuarios', 'idUsuario')->onDelete('cascade');
+            $table->foreignId('idEstudiante')->constrained('estudiantes', 'idEstudiante')->onDelete('cascade');
             $table->unsignedBigInteger('idCursoMateria'); // Si ya tienes la tabla curso_materia, puedes agregar el ->constrained()
             
             $table->dateTime('fecha')->useCurrent();

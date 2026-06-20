@@ -16,12 +16,12 @@ return new class extends Migration
             
             // Llaves foráneas a Carrera y Pensum
             $table->foreignId('idCarrera')->constrained('carreras', 'idCarrera')->onDelete('cascade');
-            $table->foreignId('idPensum')->constrained('pensums', 'idPensum')->onDelete('cascade');
             
             // Relación recursiva (Prerrequisito). Nullable por si no tiene materia previa.
             $table->foreignId('idMateriaPrevia')->nullable()->constrained('materias', 'idMateria')->onDelete('set null');
             
             $table->string('nombre', 255);
+            $table->string('semestre')->unique();
             $table->dateTime('fechaRegistro')->useCurrent();
             $table->boolean('estado')->default(true);
             

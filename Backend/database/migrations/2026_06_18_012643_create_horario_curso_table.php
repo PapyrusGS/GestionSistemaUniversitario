@@ -11,13 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('modalidades', function (Blueprint $table) {
-            $table->id('idModalidad');
-            $table->string('nombre', 255);
-            $table->integer('duracionSemanas');
-            $table->integer('maxMaterias');
-            $table->dateTime('fechaRegistro')->useCurrent();
-            $table->boolean('estado')->default(true);
+        Schema::create('horariocurso', function (Blueprint $table) {
+            $table->id('idHorarioCurso');
+            
+            
+            $table->foreignId('idHorario')->constrained('horarios', 'idHorario')->onDelete('cascade');
+            $table->foreignId('idCurso')->constrained('cursos', 'idCurso')->onDelete('cascade');
             
             // Campos de auditoría
             $table->dateTime('fechaA')->nullable();
@@ -30,6 +29,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('modalidades');
+        Schema::dropIfExists('horario');
     }
 };
