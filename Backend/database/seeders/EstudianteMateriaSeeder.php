@@ -5,15 +5,16 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
-class InscripcionSeeder extends Seeder
+class EstudianteMateriaSeeder extends Seeder
 {
     public function run(): void
     {
-        DB::table('inscripciones')->insert([
+        DB::table('estudiantemateria')->insert([
+            // 1. Inscripción a Introducción a la Programación (idCursoMateria: 1)
             [
                 'idInscripcion' => 1,
-                'idEstudiante' => 3,     // ID de Williams
-                'idCursoMateria' => 1,   // Introducción a la Programación
+                'idEstudiante' => 1,     // ID 1 de la tabla 'estudiante' (Williams)
+                'idCursoMateria' => 1,   // Grupo de Programación
                 'fecha' => now(),
                 'estado' => true,
                 'fechaA' => now(),
@@ -22,10 +23,11 @@ class InscripcionSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now()
             ],
+            // 2. Inscripción a Cálculo I (idCursoMateria: 2)
             [
                 'idInscripcion' => 2,
-                'idEstudiante' => 3,
-                'idCursoMateria' => 2,   // Cálculo I
+                'idEstudiante' => 1,
+                'idCursoMateria' => 2,   // Grupo de Cálculo I
                 'fecha' => now(),
                 'estado' => true,
                 'fechaA' => now(),
@@ -34,10 +36,11 @@ class InscripcionSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now()
             ],
+            // 3. Inscripción a Álgebra Lineal (idCursoMateria: 3)
             [
                 'idInscripcion' => 3,
-                'idEstudiante' => 3,
-                'idCursoMateria' => 3,   // Álgebra Lineal
+                'idEstudiante' => 1,
+                'idCursoMateria' => 3,   // Grupo de Álgebra Lineal
                 'fecha' => now(),
                 'estado' => true,
                 'fechaA' => now(),
@@ -46,10 +49,11 @@ class InscripcionSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now()
             ],
+            // 4. Inscripción a Física General (idCursoMateria: 4)
             [
                 'idInscripcion' => 4,
-                'idEstudiante' => 3,
-                'idCursoMateria' => 4,   // Física General
+                'idEstudiante' => 1,
+                'idCursoMateria' => 4,   // Grupo de Física General
                 'fecha' => now(),
                 'estado' => true,
                 'fechaA' => now(),
@@ -58,10 +62,11 @@ class InscripcionSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now()
             ],
+            // 5. Inscripción a Sistemas de Computación (idCursoMateria: 5)
             [
                 'idInscripcion' => 5,
-                'idEstudiante' => 3,
-                'idCursoMateria' => 5,   // Sistemas de Computación
+                'idEstudiante' => 1,
+                'idCursoMateria' => 5,   // Grupo de Sistemas de Computación
                 'fecha' => now(),
                 'estado' => true,
                 'fechaA' => now(),
@@ -70,10 +75,11 @@ class InscripcionSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now()
             ],
+            // 6. Inscripción a Taller de Expresión Oral y Escrita (idCursoMateria: 6)
             [
                 'idInscripcion' => 6,
-                'idEstudiante' => 3,
-                'idCursoMateria' => 6,   // Taller de Expresión Oral y Escrita
+                'idEstudiante' => 1,
+                'idCursoMateria' => 6,   // Grupo de Taller de Expresión
                 'fecha' => now(),
                 'estado' => true,
                 'fechaA' => now(),

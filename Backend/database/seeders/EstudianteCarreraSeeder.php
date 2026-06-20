@@ -12,9 +12,8 @@ class EstudianteCarreraSeeder extends Seeder
         DB::table('estudiante_carrera')->insert([
             [
                 'idEstudianteCarrera' => 1,
-                'idEstudiante' => 3, // ID de nuestro usuario estudiante (Williams)
+                'idEstudiante' => 1, // ID de nuestro usuario estudiante (Williams)
                 'idCarrera' => 1,    // Ingeniería de Sistemas
-                'idModalidad' => 1,  // Semestral
                 'fechaRegistro' => now(),
                 'estado' => true,
                 

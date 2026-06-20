@@ -4,6 +4,8 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Database\Seeders\MateriaIngenieriaComercialSeeder;
+
 
 class DatabaseSeeder extends Seeder
 {
@@ -18,17 +20,20 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RolSeeder::class,
             UsuarioSeeder::class,
+            EstudianteDetalleSeeder::class,
             CarreraSeeder::class,     // Depende de que el admin ya exista para la auditoría
             MateriaSistemaSeeder::class,
             MateriaAdministracionSeeder::class,
             MateriaContaduriaSeeder::class,
             MateriaDerechoSeeder::class,
             MateriaIngenieriaComercialSeeder::class,
+            PeriodoSeeder::class,       // Crea los periodos (idPeriodo: 1)
+            HorarioSeeder::class,       // Crea los horarios base
+            CursoSeeder::class,         // Crea las aulas string (CUR-001...)
+            HorarioCursoSeeder::class,  // Mapea la cuadrícula de ocupación de aulas
             EstudianteCarreraSeeder::class,
-            TurnoDetalleSeeder::class,
-            CursoSeeder::class,
             CursoMateriaSeeder::class,
-            InscripcionSeeder::class
+            EstudianteMateriaSeeder::class
         ]);
     }
 }

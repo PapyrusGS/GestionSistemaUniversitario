@@ -21,7 +21,6 @@ return new class extends Migration
             $table->string('nombreMadre', 255)->nullable(); // nullable por si no tienen segundo nombre
             $table->string('apellidoPadre', 255);
             $table->string('apellidoMadre', 255)->nullable();
-            $table->string('ci', 255)->unique(); // El CI suele ser único
             $table->string('numeroPadre', 50)->nullable();
             $table->string('numeroMadre', 50)->nullable();
             

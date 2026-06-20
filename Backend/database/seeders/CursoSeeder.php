@@ -11,9 +11,20 @@ class CursoSeeder extends Seeder
     {
         DB::table('cursos')->insert([
             [
-                'idCurso' => 1,
-                'idTurno' => 1, // Mañana
-                'fechaRegistro' => now(),
+                'idCurso' => 'CUR-001',
+                'capacidad' => 40,
+                'estado' => true,
+                
+                // Campos de auditoría
+                'fechaA' => now(),
+                'UsuarioA' => '1',
+                'estadoA' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'idCurso' => 'CUR-002',
+                'capacidad' => 40,
                 'estado' => true,
                 'fechaA' => now(),
                 'UsuarioA' => '1',
@@ -22,9 +33,8 @@ class CursoSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'idCurso' => 2,
-                'idTurno' => 1, // Mañana
-                'fechaRegistro' => now(),
+                'idCurso' => 'CUR-003',
+                'capacidad' => 40,
                 'estado' => true,
                 'fechaA' => now(),
                 'UsuarioA' => '1',
@@ -33,9 +43,8 @@ class CursoSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'idCurso' => 3,
-                'idTurno' => 1, // Mañana
-                'fechaRegistro' => now(),
+                'idCurso' => 'CUR-004',
+                'capacidad' => 40,
                 'estado' => true,
                 'fechaA' => now(),
                 'UsuarioA' => '1',
@@ -44,9 +53,8 @@ class CursoSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'idCurso' => 4,
-                'idTurno' => 1, // Mañana
-                'fechaRegistro' => now(),
+                'idCurso' => 'CUR-005',
+                'capacidad' => 40,
                 'estado' => true,
                 'fechaA' => now(),
                 'UsuarioA' => '1',
@@ -55,20 +63,8 @@ class CursoSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'idCurso' => 5,
-                'idTurno' => 1, // Mañana
-                'fechaRegistro' => now(),
-                'estado' => true,
-                'fechaA' => now(),
-                'UsuarioA' => '1',
-                'estadoA' => true,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'idCurso' => 6,
-                'idTurno' => 1, // Mañana
-                'fechaRegistro' => now(),
+                'idCurso' => 'CUR-006',
+                'capacidad' => 40,
                 'estado' => true,
                 'fechaA' => now(),
                 'UsuarioA' => '1',

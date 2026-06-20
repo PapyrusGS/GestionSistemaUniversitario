@@ -12,16 +12,17 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('materias', function (Blueprint $table) {
-            $table->id('idMateria');
+            $table->string('idMateria', 100)->primary();    
+        
             
             // Llaves foráneas a Carrera y Pensum
             $table->foreignId('idCarrera')->constrained('carreras', 'idCarrera')->onDelete('cascade');
             
-            // Relación recursiva (Prerrequisito). Nullable por si no tiene materia previa.
-            $table->foreignId('idMateriaPrevia')->nullable()->constrained('materias', 'idMateria')->onDelete('set null');
+            $table->string('idMateriaPrevia', 100)->nullable();
+            $table->foreign('idMateriaPrevia')->nullable()->references('idMateria')->on('materias')->onDelete('cascade');  
             
             $table->string('nombre', 255);
-            $table->string('semestre')->unique();
+            $table->string('semestre', 10);
             $table->dateTime('fechaRegistro')->useCurrent();
             $table->boolean('estado')->default(true);
             
