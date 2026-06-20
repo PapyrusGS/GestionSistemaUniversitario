@@ -1,4 +1,4 @@
-CREATE TABLE `TUsuario` (
+CREATE TABLE `usuarios` (
   `idUSuario` int PRIMARY KEY AUTO_INCREMENT,
   `idRol` int,
   `nombre1` varchar(255),
@@ -16,7 +16,7 @@ CREATE TABLE `TUsuario` (
   `estadoA` bit
 );
 
-CREATE TABLE `TReportes` (
+CREATE TABLE `reportes` (
   `idReporte` int PRIMARY KEY AUTO_INCREMENT,
   `tipo` varchar(255),
   `filtros` varchar(255),
@@ -27,7 +27,7 @@ CREATE TABLE `TReportes` (
   `estadoA` bit
 );
 
-CREATE TABLE `TEstudiante` (
+CREATE TABLE `estudiante` (
   `idEstudiante` int PRIMARY KEY AUTO_INCREMENT,
   `idUsuario` int,
   `nombrePadre` varchar(255),
@@ -38,7 +38,7 @@ CREATE TABLE `TEstudiante` (
   `numeroPadre` varchar(50)
 );
 
-CREATE TABLE `TRol` (
+CREATE TABLE `rol` (
   `idRol` int PRIMARY KEY AUTO_INCREMENT,
   `nombre` varchar(255),
   `descripcion` varchar(255),
@@ -48,7 +48,7 @@ CREATE TABLE `TRol` (
   `estadoA` bit
 );
 
-CREATE TABLE `TCarrera` (
+CREATE TABLE `carrera` (
   `idCarrera` int PRIMARY KEY AUTO_INCREMENT,
   `nombre` varchar(255),
   `descripcion` varchar(255),
@@ -59,7 +59,7 @@ CREATE TABLE `TCarrera` (
   `estadoA` bit
 );
 
-CREATE TABLE `TMateria` (
+CREATE TABLE `materia` (
   `idMateria` int PRIMARY KEY AUTO_INCREMENT,
   `idCarrera` int,
   `idMateriaPrevia` int,
@@ -72,7 +72,7 @@ CREATE TABLE `TMateria` (
   `estadoA` bit
 );
 
-CREATE TABLE `TEstudianteCarrera` (
+CREATE TABLE `estudiante_carrera` (
   `idEstudianteCarrera` int PRIMARY KEY AUTO_INCREMENT,
   `idEstudiante` int,
   `idCarrera` int,
@@ -83,7 +83,7 @@ CREATE TABLE `TEstudianteCarrera` (
   `estadoA` bit
 );
 
-CREATE TABLE `TEstudianteMateria` (
+CREATE TABLE `estudiantemateria` (
   `idInscripcion` int PRIMARY KEY AUTO_INCREMENT,
   `idEstudiante` int,
   `idCursoMateria` int,
@@ -94,7 +94,7 @@ CREATE TABLE `TEstudianteMateria` (
   `estadoA` bit
 );
 
-CREATE TABLE `TCurso` (
+CREATE TABLE `curso` (
   `idCurso` varchar(100) PRIMARY KEY,
   `capacidad` int,
   `estado` bit,
@@ -103,7 +103,7 @@ CREATE TABLE `TCurso` (
   `estadoA` bit
 );
 
-CREATE TABLE `THorarioCurso` (
+CREATE TABLE `horariocurso` (
   `idHorarioCurso` int PRIMARY KEY AUTO_INCREMENT,
   `idCurso` int,
   `idHorario` int,
@@ -112,7 +112,7 @@ CREATE TABLE `THorarioCurso` (
   `estadoA` bit
 );
 
-CREATE TABLE `THorario` (
+CREATE TABLE `horario` (
   `idHorario` int PRIMARY KEY AUTO_INCREMENT,
   `diaSemana` int,
   `horaInicio` time,
@@ -122,7 +122,7 @@ CREATE TABLE `THorario` (
   `estadoA` bit
 );
 
-CREATE TABLE `TCursoMateria` (
+CREATE TABLE `cursos_materias` (
   `idCursoMateria` int PRIMARY KEY AUTO_INCREMENT,
   `idCurso` int,
   `idMateria` int,
@@ -138,7 +138,7 @@ CREATE TABLE `TCursoMateria` (
   `estadoA` bit
 );
 
-CREATE TABLE `TPeriodo` (
+CREATE TABLE `periodo` (
   `idPeriodo` int PRIMARY KEY AUTO_INCREMENT,
   `nombre` varchar(255) NOT NULL,
   `fechaInicioSemestre` date,
@@ -146,7 +146,7 @@ CREATE TABLE `TPeriodo` (
   `estado` bit NOT NULL DEFAULT 1
 );
 
-CREATE TABLE `TNota` (
+CREATE TABLE `notas` (
   `idNota` int PRIMARY KEY AUTO_INCREMENT,
   `idInscripcion` int,
   `nota` decimal,
@@ -158,7 +158,7 @@ CREATE TABLE `TNota` (
   `estadoA` bit
 );
 
-CREATE TABLE `TSAuditoria` (
+CREATE TABLE `auditorias` (
   `IdAuditoria` int PRIMARY KEY AUTO_INCREMENT,
   `TablaNombre` varchar(100),
   `RegistroId` int,

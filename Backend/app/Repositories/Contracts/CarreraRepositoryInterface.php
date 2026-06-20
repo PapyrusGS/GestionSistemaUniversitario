@@ -2,14 +2,19 @@
 
 namespace App\Repositories\Contracts;
 
-use App\Models\Carrera;
 use Illuminate\Support\Collection;
 
 interface CarreraRepositoryInterface
 {
     public function allOrdered(): Collection;
 
-    public function create(array $data): Carrera;
+    public function activeForSelect(): Collection;
 
-    public function findOrFail(int $id): Carrera;
+    public function create(array $data): array;
+
+    public function update(int $id, array $data): array;
+
+    public function destroy(int $id): array;
+
+    public function findOrFail(int $id): array;
 }

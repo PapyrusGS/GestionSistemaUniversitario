@@ -1,4 +1,7 @@
 Trabaja con arquitectura MVC + el patrón estructural Repository-Service y manejar respuestas API JSON estandarizadas, al usar las routes para api asegurate de usar api_rol segun lo que te solicite
 
+Trabaja tambien con procedimientos almacenados en vez de consultas directas de laravel con us ORM, estructura la migración utilizando DB::unprepared() para el bloque SQL del procedimiento, y asegúrate de incluir las cláusulas DROP PROCEDURE IF EXISTS correspondientes tanto en el up() como en el down() para evitar errores si la migración se vuelve a correr.
+
 
 Usen esto para mantener estructurado todo con esto de laravel y eso :p
+

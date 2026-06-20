@@ -2,6 +2,8 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import axios from 'axios'
 import DashboardDocente from './components/DashboardDocente.vue'
+import CarreraManagement from './components/CarreraManagement.vue'
+import MateriaManagement from './components/MateriaManagement.vue'
 import UserManagement from './components/UserManagement.vue'
 
 const api = axios.create({
@@ -19,7 +21,7 @@ const token = ref(sessionStorage.getItem(sessionKey) || '')
 const user = ref(null)
 const successMessage = ref('')
 const errorMessage = ref('')
-const showUserManagement = ref(false)
+const adminSection = ref('perfil')
 
 const loginForm = reactive({
   login: '',
@@ -69,7 +71,7 @@ function clearSession() {
   token.value = ''
   sessionStorage.removeItem(sessionKey)
   user.value = null
-  showUserManagement.value = false
+  adminSection.value = 'perfil'
 }
 
 function resetMessages() {
@@ -204,8 +206,8 @@ onMounted(loadProfile)
   </div>
 
   <div v-else-if="user?.rol === 'Administrador'" class="authenticated-full-workspace">
-    <main class="auth-shell" :class="{ 'full-width-shell': showUserManagement }">
-      <section class="hero-panel" v-show="!showUserManagement">
+    <main class="auth-shell" :class="{ 'full-width-shell': adminSection !== 'perfil' }">
+      <section class="hero-panel" v-show="adminSection === 'perfil'">
         <div class="brand">Universidad</div>
         <h1>Modulo de autenticacion seguro</h1>
         <p>
@@ -225,28 +227,59 @@ onMounted(loadProfile)
       </section>
 
       <section class="panel">
-        <div class="card dashboard" :class="{ 'wide-card': showUserManagement }">
+        <div class="card dashboard" :class="{ 'wide-card': adminSection !== 'perfil' }">
           <div class="dashboard-head">
             <div>
               <span class="eyebrow">Sesion activa</span>
               <h2>{{ fullName }}</h2>
             </div>
-            <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
               <button
-                v-if="roleName === 'Administrador'"
                 class="secondary"
                 type="button"
                 style="padding: 0.5rem 1rem; font-size: 0.85rem;"
-                @click="showUserManagement = !showUserManagement"
+                @click="adminSection = 'perfil'"
               >
-                {{ showUserManagement ? 'Ver Perfil' : 'Gestionar Usuarios' }}
+                Ver perfil
+              </button>
+              <button
+                class="secondary"
+                type="button"
+                style="padding: 0.5rem 1rem; font-size: 0.85rem;"
+                @click="adminSection = 'usuarios'"
+              >
+                Usuarios
+              </button>
+              <button
+                class="secondary"
+                type="button"
+                style="padding: 0.5rem 1rem; font-size: 0.85rem;"
+                @click="adminSection = 'carreras'"
+              >
+                Carreras
+              </button>
+              <button
+                class="secondary"
+                type="button"
+                style="padding: 0.5rem 1rem; font-size: 0.85rem;"
+                @click="adminSection = 'materias'"
+              >
+                Materias
               </button>
               <span class="role-badge" :data-tone="badgeTone">{{ roleName }}</span>
             </div>
           </div>
 
-          <div v-if="showUserManagement" style="margin-top: 1rem; width: 100%;">
+          <div v-if="adminSection === 'usuarios'" style="margin-top: 1rem; width: 100%;">
             <UserManagement :api="api" />
+          </div>
+
+          <div v-else-if="adminSection === 'carreras'" style="margin-top: 1rem; width: 100%;">
+            <CarreraManagement :api="api" />
+          </div>
+
+          <div v-else-if="adminSection === 'materias'" style="margin-top: 1rem; width: 100%;">
+            <MateriaManagement :api="api" />
           </div>
 
           <div v-else class="info-grid">

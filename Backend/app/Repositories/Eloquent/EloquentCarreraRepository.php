@@ -2,27 +2,63 @@
 
 namespace App\Repositories\Eloquent;
 
-use App\Models\Carrera;
 use App\Repositories\Contracts\CarreraRepositoryInterface;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Collection;
 
 class EloquentCarreraRepository implements CarreraRepositoryInterface
 {
     public function allOrdered(): Collection
     {
-        return Carrera::query()
-            ->orderByDesc('estado')
-            ->orderBy('nombre')
-            ->get();
+        return collect(DB::select('CALL sp_carreras_list()'))->map(fn ($row) => (array) $row);
     }
 
-    public function create(array $data): Carrera
+    public function activeForSelect(): Collection
     {
-        return Carrera::query()->create($data);
+        return collect(DB::select('CALL sp_carreras_active()'))->map(fn ($row) => (array) $row);
     }
 
-    public function findOrFail(int $id): Carrera
+    public function create(array $data): array
     {
-        return Carrera::query()->findOrFail($id);
+        $rows = DB::select('CALL sp_carreras_store(?, ?)', [
+            $data['nombre'],
+            $data['descripcion'] ?? null,
+        ]);
+
+        if ($rows === []) {
+            throw (new ModelNotFoundException())->setModel('Carrera');
+        }
+
+        return (array) $rows[0];
+    }
+
+    public function update(int $id, array $data): array
+    {
+        DB::select('CALL sp_carreras_update(?, ?, ?)', [
+            $id,
+            $data['nombre'],
+            $data['descripcion'] ?? null,
+        ]);
+
+        return $this->findOrFail($id);
+    }
+
+    public function destroy(int $id): array
+    {
+        DB::select('CALL sp_carreras_disable(?)', [$id]);
+
+        return $this->findOrFail($id);
+    }
+
+    public function findOrFail(int $id): array
+    {
+        $rows = DB::select('CALL sp_carreras_find(?)', [$id]);
+
+        if ($rows === []) {
+            throw (new ModelNotFoundException())->setModel('Carrera', [$id]);
+        }
+
+        return (array) $rows[0];
     }
 }
