@@ -16,8 +16,8 @@ return new class extends Migration
             
             
             $table->foreignId('idHorario')->constrained('horarios', 'idHorario')->onDelete('cascade');
-            $table->foreignId('idCurso')->constrained('cursos', 'idCurso')->onDelete('cascade');
-            
+            $table->string('idCurso', 100);
+            $table->foreign('idCurso')->references('idCurso')->on('cursos')->onDelete('cascade');            
             // Campos de auditoría
             $table->dateTime('fechaA')->nullable();
             $table->string('UsuarioA', 255)->nullable();
@@ -29,6 +29,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('horario');
+        Schema::dropIfExists('horariocurso');
     }
 };

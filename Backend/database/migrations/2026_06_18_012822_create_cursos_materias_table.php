@@ -15,7 +15,8 @@ return new class extends Migration
             $table->id('idCursoMateria');
             
             // Llaves foráneas conectadas a sus respectivas tablas
-            $table->foreignId('idCurso')->constrained('cursos', 'idCurso')->onDelete('cascade');
+            $table->string('idCurso', 100);
+            $table->foreign('idCurso')->references('idCurso')->on('cursos')->onDelete('cascade');
             $table->foreignId('idMateria')->constrained('materias', 'idMateria')->onDelete('cascade');
             
             // Asumiendo que el docente está registrado en la tabla 'usuarios'
@@ -23,7 +24,7 @@ return new class extends Migration
 
             $table->foreignId('idPeriodo')->constrained('periodos', 'idPeriodo')->onDelete('cascade');
 
-            
+
             $table->dateTime('fechaInicio');
             $table->dateTime('fechaFin');
             $table->integer('maxInscritos');

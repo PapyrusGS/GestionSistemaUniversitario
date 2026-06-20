@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id('idNota');
             
             // Llave foránea conectada a inscripciones (corrigiendo el typo 'idIncripcion' a 'idInscripcion')
-            $table->foreignId('idInscripcion')->constrained('estudiantematerias', 'idInscripcion')->onDelete('cascade');
+            $table->foreignId('idInscripcion')->constrained('estudiantemateria', 'idInscripcion')->onDelete('cascade');
             
             $table->decimal('nota', 8, 2); 
             $table->dateTime('fechaRegistro')->useCurrent();
