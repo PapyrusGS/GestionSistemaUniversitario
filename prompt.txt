@@ -1,0 +1,4 @@
+Trabaja con arquitectura MVC + el patrón estructural Repository-Service y manejar respuestas API JSON estandarizadas, al usar las routes para api asegurate de usar api_rol segun lo que te solicite
+
+
+Usen esto para mantener estructurado todo con esto de laravel y eso :p
