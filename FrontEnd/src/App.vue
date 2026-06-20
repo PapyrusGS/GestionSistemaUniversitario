@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import axios from 'axios'
+import UserManagement from './components/UserManagement.vue'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
@@ -17,6 +18,7 @@ const token = ref(sessionStorage.getItem(sessionKey) || '')
 const user = ref(null)
 const successMessage = ref('')
 const errorMessage = ref('')
+const showUserManagement = ref(false)
 
 const loginForm = reactive({
   login: '',
@@ -73,6 +75,7 @@ function clearSession() {
   token.value = ''
   sessionStorage.removeItem(sessionKey)
   user.value = null
+  showUserManagement.value = false
 }
 
 function resetMessages() {
@@ -165,8 +168,8 @@ onMounted(loadProfile)
 </script>
 
 <template>
-  <main class="auth-shell">
-    <section class="hero-panel">
+  <main class="auth-shell" :class="{ 'full-width-shell': showUserManagement }">
+    <section class="hero-panel" v-show="!showUserManagement">
       <div class="brand">Universidad</div>
       <h1>Módulo de autenticación seguro</h1>
       <p>
@@ -288,16 +291,32 @@ onMounted(loadProfile)
         </form>
       </div>
 
-      <div v-else class="card dashboard">
+      <div v-else class="card dashboard" :class="{ 'wide-card': showUserManagement }">
         <div class="dashboard-head">
           <div>
             <span class="eyebrow">Sesión activa</span>
             <h2>{{ fullName }}</h2>
           </div>
-          <span class="role-badge" :data-tone="badgeTone">{{ roleName }}</span>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <button
+              v-if="roleName === 'Administrador'"
+              class="secondary"
+              type="button"
+              style="padding: 0.5rem 1rem; font-size: 0.85rem;"
+              @click="showUserManagement = !showUserManagement"
+            >
+              {{ showUserManagement ? 'Ver Perfil' : 'Gestionar Usuarios' }}
+            </button>
+            <span class="role-badge" :data-tone="badgeTone">{{ roleName }}</span>
+          </div>
         </div>
 
-        <div class="info-grid">
+        <!-- Conditionally render UserManagement or the profile Info Grid -->
+        <div v-if="showUserManagement" style="margin-top: 1rem; width: 100%;">
+          <UserManagement :api="api" />
+        </div>
+
+        <div v-else class="info-grid">
           <article>
             <span>Correo</span>
             <strong>{{ user.correo }}</strong>
@@ -319,9 +338,11 @@ onMounted(loadProfile)
         <div v-if="successMessage" class="alert success">{{ successMessage }}</div>
         <div v-if="errorMessage" class="alert error">{{ errorMessage }}</div>
 
-        <button class="secondary" type="button" :disabled="loading" @click="logout">
-          {{ loading ? 'Cerrando...' : 'Cerrar sesión' }}
-        </button>
+        <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem; width: 100%;">
+          <button class="secondary" type="button" :disabled="loading" @click="logout">
+            {{ loading ? 'Cerrando...' : 'Cerrar sesión' }}
+          </button>
+        </div>
       </div>
     </section>
   </main>
@@ -494,6 +515,15 @@ button {
   width: min(100%, 44rem);
   border-radius: 1.8rem;
   padding: 1.4rem;
+  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card.wide-card {
+  width: min(100%, 75rem);
+}
+
+.auth-shell.full-width-shell {
+  grid-template-columns: 1fr;
 }
 
 .tabs {
