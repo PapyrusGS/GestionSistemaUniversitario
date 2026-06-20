@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import axios from 'axios'
+import DashboardDocente from './components/DashboardDocente.vue'
 import UserManagement from './components/UserManagement.vue'
 
 const api = axios.create({
@@ -40,7 +41,6 @@ api.interceptors.request.use((config) => {
   if (token.value) {
     config.headers.Authorization = `Bearer ${token.value}`
   }
-
   return config
 })
 
@@ -50,7 +50,6 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       clearSession()
     }
-
     return Promise.reject(error)
   },
 )
@@ -69,6 +68,12 @@ function persistSession(accessToken, profile) {
   token.value = accessToken
   sessionStorage.setItem(sessionKey, accessToken)
   user.value = profile
+
+  if (profile.rol === 'Docente') {
+    mode.value = 'dashboard-docente'
+  } else {
+    mode.value = 'dashboard-general'
+  }
 }
 
 function clearSession() {
@@ -100,13 +105,16 @@ function parseError(error, fallback) {
 }
 
 async function loadProfile() {
-  if (!token.value) {
-    return
-  }
-
+  if (!token.value) return
   try {
     const { data } = await api.get('/auth/me')
     user.value = data.user
+
+    if (data.user.rol === 'Docente') {
+      mode.value = 'dashboard-docente'
+    } else {
+      mode.value = 'dashboard-general'
+    }
   } catch {
     clearSession()
   }
@@ -120,7 +128,6 @@ async function login() {
     const { data } = await api.post('/auth/login', loginForm)
     persistSession(data.token, data.user)
     successMessage.value = 'Sesión iniciada correctamente.'
-    mode.value = 'login'
   } catch (error) {
     errorMessage.value = parseError(error, 'No pudimos iniciar sesión.')
   } finally {
@@ -136,7 +143,6 @@ async function register() {
     const { data } = await api.post('/auth/register', registerForm)
     persistSession(data.token, data.user)
     successMessage.value = 'Cuenta creada y sesión iniciada.'
-    mode.value = 'login'
   } catch (error) {
     errorMessage.value = parseError(error, 'No pudimos registrar la cuenta.')
   } finally {
@@ -168,185 +174,241 @@ onMounted(loadProfile)
 </script>
 
 <template>
-  <main class="auth-shell" :class="{ 'full-width-shell': showUserManagement }">
-    <section class="hero-panel" v-show="!showUserManagement">
-      <div class="brand">Universidad</div>
-      <h1>Módulo de autenticación seguro</h1>
-      <p>
-        Acceso con API protegida por Sanctum, contraseñas cifradas, throttling de intentos y
-        control por rol sobre la base de datos real del sistema.
-      </p>
+  <!-- ── UNAUTHENTICATED: Login / Register ─────────────────────────────── -->
+  <div v-if="!isAuthenticated" class="auth-shell-wrapper">
+    <main class="auth-shell">
+      <section class="hero-panel">
+        <div class="brand">Universidad</div>
+        <h1>Módulo de autenticación seguro</h1>
+        <p>
+          Acceso con API protegida por Sanctum, contraseñas cifradas, throttling de intentos y
+          control por rol sobre la base de datos real del sistema.
+        </p>
 
-      <ul class="feature-list">
-        <li>Login con correo o CI</li>
-        <li>Registro automático como estudiante</li>
-        <li>Token por sesión en el navegador</li>
-      </ul>
+        <ul class="feature-list">
+          <li>Login con correo o CI</li>
+          <li>Registro automático como estudiante</li>
+          <li>Token por sesión en el navegador</li>
+        </ul>
 
-      <div class="highlight-card">
-        <span>Estado</span>
-        <strong>{{ isAuthenticated ? 'Autenticado' : 'Pendiente de acceso' }}</strong>
-      </div>
-    </section>
-
-    <section class="panel">
-      <div v-if="!isAuthenticated" class="card">
-        <div class="tabs">
-          <button type="button" :class="{ active: mode === 'login' }" @click="switchMode('login')">
-            Iniciar sesión
-          </button>
-          <button
-            type="button"
-            :class="{ active: mode === 'register' }"
-            @click="switchMode('register')"
-          >
-            Crear cuenta
-          </button>
+        <div class="highlight-card">
+          <span>Estado</span>
+          <strong>{{ isAuthenticated ? 'Autenticado' : 'Pendiente de acceso' }}</strong>
         </div>
+      </section>
 
-        <div v-if="successMessage" class="alert success">{{ successMessage }}</div>
-        <div v-if="errorMessage" class="alert error">{{ errorMessage }}</div>
-
-        <form v-if="mode === 'login'" class="form-grid" @submit.prevent="login">
-          <label>
-            <span>Correo o CI</span>
-            <input v-model.trim="loginForm.login" type="text" autocomplete="username" required />
-          </label>
-
-          <label>
-            <span>Contraseña</span>
-            <input
-              v-model="loginForm.password"
-              type="password"
-              autocomplete="current-password"
-              required
-            />
-          </label>
-
-          <button class="primary" type="submit" :disabled="loading">
-            {{ loading ? 'Validando...' : 'Entrar' }}
-          </button>
-        </form>
-
-        <form v-else class="form-grid" @submit.prevent="register">
-          <div class="two-cols">
-            <label>
-              <span>Primer nombre</span>
-              <input v-model.trim="registerForm.nombre1" type="text" required />
-            </label>
-            <label>
-              <span>Segundo nombre</span>
-              <input v-model.trim="registerForm.nombre2" type="text" />
-            </label>
+      <section class="panel">
+        <div class="card">
+          <div class="tabs">
+            <button type="button" :class="{ active: mode === 'login' }" @click="switchMode('login')">
+              Iniciar sesión
+            </button>
+            <button type="button" :class="{ active: mode === 'register' }" @click="switchMode('register')">
+              Crear cuenta
+            </button>
           </div>
 
-          <div class="two-cols">
-            <label>
-              <span>Primer apellido</span>
-              <input v-model.trim="registerForm.apellido1" type="text" required />
-            </label>
-            <label>
-              <span>Segundo apellido</span>
-              <input v-model.trim="registerForm.apellido2" type="text" />
-            </label>
-          </div>
+          <div v-if="successMessage" class="alert success">{{ successMessage }}</div>
+          <div v-if="errorMessage" class="alert error">{{ errorMessage }}</div>
 
-          <div class="two-cols">
+          <form v-if="mode === 'login'" class="form-grid" @submit.prevent="login">
             <label>
-              <span>CI</span>
-              <input v-model.trim="registerForm.ci" type="text" required />
+              <span>Correo o CI</span>
+              <input v-model.trim="loginForm.login" type="text" autocomplete="username" required />
             </label>
-            <label>
-              <span>Correo</span>
-              <input v-model.trim="registerForm.correo" type="email" required />
-            </label>
-          </div>
 
-          <div class="two-cols">
             <label>
               <span>Contraseña</span>
               <input
-                v-model="registerForm.password"
+                v-model="loginForm.password"
                 type="password"
-                autocomplete="new-password"
-                minlength="8"
+                autocomplete="current-password"
                 required
               />
             </label>
-            <label>
-              <span>Confirmar contraseña</span>
-              <input
-                v-model="registerForm.password_confirmation"
-                type="password"
-                autocomplete="new-password"
-                minlength="8"
-                required
-              />
-            </label>
-          </div>
 
-          <button class="primary" type="submit" :disabled="loading">
-            {{ loading ? 'Creando...' : 'Registrar estudiante' }}
-          </button>
-        </form>
-      </div>
-
-      <div v-else class="card dashboard" :class="{ 'wide-card': showUserManagement }">
-        <div class="dashboard-head">
-          <div>
-            <span class="eyebrow">Sesión activa</span>
-            <h2>{{ fullName }}</h2>
-          </div>
-          <div style="display: flex; gap: 0.5rem; align-items: center;">
-            <button
-              v-if="roleName === 'Administrador'"
-              class="secondary"
-              type="button"
-              style="padding: 0.5rem 1rem; font-size: 0.85rem;"
-              @click="showUserManagement = !showUserManagement"
-            >
-              {{ showUserManagement ? 'Ver Perfil' : 'Gestionar Usuarios' }}
+            <button class="primary" type="submit" :disabled="loading">
+              {{ loading ? 'Validando...' : 'Entrar' }}
             </button>
-            <span class="role-badge" :data-tone="badgeTone">{{ roleName }}</span>
+          </form>
+
+          <form v-else class="form-grid" @submit.prevent="register">
+            <div class="two-cols">
+              <label>
+                <span>Primer nombre</span>
+                <input v-model.trim="registerForm.nombre1" type="text" required />
+              </label>
+              <label>
+                <span>Segundo nombre</span>
+                <input v-model.trim="registerForm.nombre2" type="text" />
+              </label>
+            </div>
+
+            <div class="two-cols">
+              <label>
+                <span>Primer apellido</span>
+                <input v-model.trim="registerForm.apellido1" type="text" required />
+              </label>
+              <label>
+                <span>Segundo apellido</span>
+                <input v-model.trim="registerForm.apellido2" type="text" />
+              </label>
+            </div>
+
+            <div class="two-cols">
+              <label>
+                <span>CI</span>
+                <input v-model.trim="registerForm.ci" type="text" required />
+              </label>
+              <label>
+                <span>Correo</span>
+                <input v-model.trim="registerForm.correo" type="email" required />
+              </label>
+            </div>
+
+            <div class="two-cols">
+              <label>
+                <span>Contraseña</span>
+                <input
+                  v-model="registerForm.password"
+                  type="password"
+                  autocomplete="new-password"
+                  minlength="8"
+                  required
+                />
+              </label>
+              <label>
+                <span>Confirmar contraseña</span>
+                <input
+                  v-model="registerForm.password_confirmation"
+                  type="password"
+                  autocomplete="new-password"
+                  minlength="8"
+                  required
+                />
+              </label>
+            </div>
+
+            <button class="primary" type="submit" :disabled="loading">
+              {{ loading ? 'Creando...' : 'Registrar estudiante' }}
+            </button>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ── AUTHENTICATED: Docente dashboard (compañero) ─────────────────── -->
+  <div v-else-if="user?.rol === 'Docente'" class="authenticated-full-workspace">
+    <div class="full-screen-app-container">
+      <DashboardDocente
+        :user="user"
+        :api="api"
+        :badgeTone="badgeTone"
+        @logout="logout"
+      />
+    </div>
+  </div>
+
+  <!-- ── AUTHENTICATED: Administrador / Estudiante dashboard ──────────── -->
+  <div v-else class="authenticated-full-workspace">
+    <main class="auth-shell" :class="{ 'full-width-shell': showUserManagement }">
+      <section class="hero-panel" v-show="!showUserManagement">
+        <div class="brand">Universidad</div>
+        <h1>Módulo de autenticación seguro</h1>
+        <p>
+          Acceso con API protegida por Sanctum, contraseñas cifradas, throttling de intentos y
+          control por rol sobre la base de datos real del sistema.
+        </p>
+
+        <ul class="feature-list">
+          <li>Login con correo o CI</li>
+          <li>Registro automático como estudiante</li>
+          <li>Token por sesión en el navegador</li>
+        </ul>
+
+        <div class="highlight-card">
+          <span>Estado</span>
+          <strong>Autenticado</strong>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="card dashboard" :class="{ 'wide-card': showUserManagement }">
+          <div class="dashboard-head">
+            <div>
+              <span class="eyebrow">Sesión activa</span>
+              <h2>{{ fullName }}</h2>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+              <button
+                v-if="roleName === 'Administrador'"
+                class="secondary"
+                type="button"
+                style="padding: 0.5rem 1rem; font-size: 0.85rem;"
+                @click="showUserManagement = !showUserManagement"
+              >
+                {{ showUserManagement ? 'Ver Perfil' : 'Gestionar Usuarios' }}
+              </button>
+              <span class="role-badge" :data-tone="badgeTone">{{ roleName }}</span>
+            </div>
+          </div>
+
+          <!-- User Management panel (solo Administrador) -->
+          <div v-if="showUserManagement" style="margin-top: 1rem; width: 100%;">
+            <UserManagement :api="api" />
+          </div>
+
+          <!-- Profile info grid -->
+          <div v-else class="info-grid">
+            <article>
+              <span>Correo</span>
+              <strong>{{ user.correo }}</strong>
+            </article>
+            <article>
+              <span>CI</span>
+              <strong>{{ user.ci }}</strong>
+            </article>
+            <article>
+              <span>Registro</span>
+              <strong>{{ user.fechaRegistro || 'No disponible' }}</strong>
+            </article>
+            <article>
+              <span>Estado</span>
+              <strong>{{ user.estado ? 'Activo' : 'Inactivo' }}</strong>
+            </article>
+          </div>
+
+          <div v-if="successMessage" class="alert success">{{ successMessage }}</div>
+          <div v-if="errorMessage" class="alert error">{{ errorMessage }}</div>
+
+          <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem; width: 100%;">
+            <button class="secondary" type="button" :disabled="loading" @click="logout">
+              {{ loading ? 'Cerrando...' : 'Cerrar sesión' }}
+            </button>
           </div>
         </div>
-
-        <!-- Conditionally render UserManagement or the profile Info Grid -->
-        <div v-if="showUserManagement" style="margin-top: 1rem; width: 100%;">
-          <UserManagement :api="api" />
-        </div>
-
-        <div v-else class="info-grid">
-          <article>
-            <span>Correo</span>
-            <strong>{{ user.correo }}</strong>
-          </article>
-          <article>
-            <span>CI</span>
-            <strong>{{ user.ci }}</strong>
-          </article>
-          <article>
-            <span>Registro</span>
-            <strong>{{ user.fechaRegistro || 'No disponible' }}</strong>
-          </article>
-          <article>
-            <span>Estado</span>
-            <strong>{{ user.estado ? 'Activo' : 'Inactivo' }}</strong>
-          </article>
-        </div>
-
-        <div v-if="successMessage" class="alert success">{{ successMessage }}</div>
-        <div v-if="errorMessage" class="alert error">{{ errorMessage }}</div>
-
-        <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem; width: 100%;">
-          <button class="secondary" type="button" :disabled="loading" @click="logout">
-            {{ loading ? 'Cerrando...' : 'Cerrar sesión' }}
-          </button>
-        </div>
-      </div>
-    </section>
-  </main>
+      </section>
+    </main>
+  </div>
 </template>
+
+<style scoped>
+.auth-shell-wrapper,
+.authenticated-full-workspace {
+  width: 100vw;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.full-screen-app-container {
+  width: 100%;
+  min-height: 100vh;
+  background: transparent;
+}
+</style>
 
 <style>
 :root {
