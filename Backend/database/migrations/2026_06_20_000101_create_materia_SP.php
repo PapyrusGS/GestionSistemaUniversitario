@@ -15,8 +15,16 @@ return new class extends Migration
         DB::unprepared('DROP PROCEDURE IF EXISTS sp_materias_disable');
 
         DB::unprepared(<<<SQL
-CREATE PROCEDURE sp_materias_list()
+CREATE PROCEDURE sp_materias_list(
+    IN p_idCarrera BIGINT UNSIGNED,
+    IN p_busqueda VARCHAR(255),
+    IN p_semestre INT
+)
 BEGIN
+    DECLARE v_busqueda VARCHAR(255);
+
+    SET v_busqueda = NULLIF(TRIM(p_busqueda), '');
+
     SELECT
         m.idMateria,
         m.idCarrera,
@@ -31,6 +39,12 @@ BEGIN
     INNER JOIN carreras c ON c.idCarrera = m.idCarrera
     LEFT JOIN materias p
         ON p.idMateria COLLATE utf8mb4_unicode_ci = m.idMateriaPrevia COLLATE utf8mb4_unicode_ci
+    WHERE (p_idCarrera IS NULL OR m.idCarrera = p_idCarrera)
+      AND (p_semestre IS NULL OR m.semestre = p_semestre)
+      AND (
+            v_busqueda IS NULL
+            OR m.idMateria COLLATE utf8mb4_unicode_ci LIKE CONCAT('%', v_busqueda, '%')
+          )
     ORDER BY m.estado DESC, m.idCarrera, m.semestre, m.nombre;
 END
 SQL);

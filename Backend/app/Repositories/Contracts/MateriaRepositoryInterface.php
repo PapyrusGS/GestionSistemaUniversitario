@@ -7,7 +7,7 @@ use Illuminate\Support\Collection;
 
 interface MateriaRepositoryInterface
 {
-    public function allOrdered(): Collection;
+    public function allOrdered(array $filters = []): Collection;
 
     public function active(): Collection;
 

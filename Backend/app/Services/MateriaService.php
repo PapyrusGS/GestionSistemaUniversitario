@@ -14,9 +14,9 @@ class MateriaService
     ) {
     }
 
-    public function index(): Collection
+    public function index(array $filters = []): Collection
     {
-        return $this->materias->allOrdered()->map(fn (array $materia) => $this->payload($materia));
+        return $this->materias->allOrdered($filters)->map(fn (array $materia) => $this->payload($materia));
     }
 
     public function formData(): array

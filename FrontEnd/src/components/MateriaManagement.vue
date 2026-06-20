@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 const props = defineProps({
   api: {
@@ -11,6 +11,11 @@ const props = defineProps({
 const materias = ref([])
 const carreras = ref([])
 const materiasActivas = ref([])
+const filtros = reactive({
+  carrera: '',
+  codigo: '',
+  semestre: '',
+})
 const loading = ref(false)
 const submitting = ref(false)
 const showModal = ref(false)
@@ -18,6 +23,7 @@ const isEditing = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
 const errors = ref({})
+let searchTimeout = null
 
 const form = reactive({
   idMateria: '',
@@ -27,7 +33,7 @@ const form = reactive({
   semestre: '',
 })
 
-const prerequisitosFiltrados = computed(() => {
+const prerequisitosFiltrados = () => {
   if (!form.idCarrera) {
     return materiasActivas.value.filter((materia) => materia.idMateria !== form.idMateria)
   }
@@ -37,7 +43,7 @@ const prerequisitosFiltrados = computed(() => {
   return materiasActivas.value.filter((materia) => {
     return Number(materia.idCarrera) === carreraId && materia.idMateria !== form.idMateria
   })
-})
+}
 
 function resetMessages() {
   successMessage.value = ''
@@ -85,8 +91,22 @@ async function fetchMateriaData() {
   resetMessages()
 
   try {
+    const params = {}
+
+    if (filtros.carrera) {
+      params.carrera = filtros.carrera
+    }
+
+    if (filtros.codigo) {
+      params.q = filtros.codigo
+    }
+
+    if (filtros.semestre) {
+      params.semestre = filtros.semestre
+    }
+
     const [materiasResponse, formDataResponse] = await Promise.all([
-      props.api.get('/materias'),
+      props.api.get('/materias', { params }),
       props.api.get('/materias/form-data'),
     ])
 
@@ -172,6 +192,31 @@ async function disableMateria(materia) {
   }
 }
 
+function resetFilters() {
+  filtros.carrera = ''
+  filtros.codigo = ''
+  filtros.semestre = ''
+}
+
+watch(
+  () => [filtros.carrera, filtros.codigo, filtros.semestre],
+  () => {
+    if (searchTimeout) {
+      clearTimeout(searchTimeout)
+    }
+
+    searchTimeout = setTimeout(() => {
+      fetchMateriaData()
+    }, 350)
+  }
+)
+
+onBeforeUnmount(() => {
+  if (searchTimeout) {
+    clearTimeout(searchTimeout)
+  }
+})
+
 onMounted(fetchMateriaData)
 </script>
 
@@ -191,9 +236,41 @@ onMounted(fetchMateriaData)
     <div class="table-card">
       <div class="table-head">
         <h4>Materias registradas</h4>
-        <button class="secondary" type="button" :disabled="loading" @click="fetchMateriaData">
-          {{ loading ? 'Cargando...' : 'Actualizar' }}
-        </button>
+        <div class="head-actions">
+          <button class="secondary" type="button" @click="resetFilters">Limpiar filtros</button>
+        </div>
+      </div>
+
+      <div class="filters-grid">
+        <label>
+          <span>Buscar por carrera</span>
+          <select v-model="filtros.carrera">
+            <option value="">Todas las carreras</option>
+            <option v-for="carrera in carreras" :key="carrera.idCarrera" :value="String(carrera.idCarrera)">
+              {{ carrera.nombre }}
+            </option>
+          </select>
+        </label>
+
+        <label>
+          <span>Buscar por codigo</span>
+          <input
+            v-model.trim="filtros.codigo"
+            type="text"
+            placeholder="Ej: SIS-100"
+          />
+        </label>
+
+        <label>
+          <span>Buscar por semestre</span>
+          <input
+            v-model.trim="filtros.semestre"
+            type="number"
+            min="1"
+            max="20"
+            placeholder="Ej: 3"
+          />
+        </label>
       </div>
 
       <div class="table-wrap">
@@ -309,7 +386,7 @@ onMounted(fetchMateriaData)
               <select v-model="form.idMateriaPrevia" :disabled="submitting">
                 <option value="">Sin prerrequisito</option>
                 <option
-                  v-for="materia in prerequisitosFiltrados"
+                  v-for="materia in prerequisitosFiltrados()"
                   :key="materia.idMateria"
                   :value="materia.idMateria"
                 >
@@ -380,6 +457,20 @@ onMounted(fetchMateriaData)
 .table-head h4 {
   margin: 0;
   color: var(--primary);
+}
+
+.head-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+  border-bottom: 1px solid rgba(180, 204, 255, 0.08);
 }
 
 .table-wrap {
@@ -560,6 +651,10 @@ select {
   .modal-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .filters-grid {
+    grid-template-columns: 1fr;
   }
 
   .two-cols {

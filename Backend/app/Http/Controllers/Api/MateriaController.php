@@ -15,10 +15,14 @@ class MateriaController extends Controller
     ) {
     }
 
-    public function index(): JsonResponse
+    public function index(\Illuminate\Http\Request $request): JsonResponse
     {
         return ApiResponse::success(
-            ['materias' => $this->materiaService->index()],
+            ['materias' => $this->materiaService->index([
+                'idCarrera' => $request->query('carrera'),
+                'busqueda' => $request->query('q'),
+                'semestre' => $request->query('semestre'),
+            ])],
             'Materias cargadas correctamente.'
         );
     }

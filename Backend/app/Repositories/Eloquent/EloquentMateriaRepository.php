@@ -9,9 +9,16 @@ use Illuminate\Support\Collection;
 
 class EloquentMateriaRepository implements MateriaRepositoryInterface
 {
-    public function allOrdered(): Collection
+    public function allOrdered(array $filters = []): Collection
     {
-        return collect(DB::select('CALL sp_materias_list()'))->map(fn ($row) => (array) $row);
+        return collect(DB::select(
+            'CALL sp_materias_list(?, ?, ?)',
+            [
+                $filters['idCarrera'] ?? null,
+                $filters['busqueda'] ?? null,
+                $filters['semestre'] ?? null,
+            ]
+        ))->map(fn ($row) => (array) $row);
     }
 
     public function active(): Collection
