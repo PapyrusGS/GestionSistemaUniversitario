@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import axios from 'axios'
 import DashboardDocente from './components/DashboardDocente.vue'
 import CarreraManagement from './components/CarreraManagement.vue'
+import CursoManagement from './components/CursoManagement.vue'
 import MateriaManagement from './components/MateriaManagement.vue'
 import UserManagement from './components/UserManagement.vue'
 
@@ -266,6 +267,14 @@ onMounted(loadProfile)
               >
                 Materias
               </button>
+              <button
+                class="secondary"
+                type="button"
+                style="padding: 0.5rem 1rem; font-size: 0.85rem;"
+                @click="adminSection = 'cursos'"
+              >
+                Cursos
+              </button>
               <span class="role-badge" :data-tone="badgeTone">{{ roleName }}</span>
             </div>
           </div>
@@ -280,6 +289,10 @@ onMounted(loadProfile)
 
           <div v-else-if="adminSection === 'materias'" style="margin-top: 1rem; width: 100%;">
             <MateriaManagement :api="api" />
+          </div>
+
+          <div v-else-if="adminSection === 'cursos'" style="margin-top: 1rem; width: 100%;">
+            <CursoManagement :api="api" />
           </div>
 
           <div v-else class="info-grid">
