@@ -87,7 +87,7 @@ async function confirmDisable() {
     const { data } = await props.api.delete(`/carreras/${confirmTarget.value.idCarrera}`)
     const idx = carreras.value.findIndex(c => c.idCarrera === confirmTarget.value.idCarrera)
     const payload = data.data ?? data
-    if (idx !== -1) carreras.value[idx] = payload.carrera
+    if (idx !== -1) carreras.value.splice(idx, 1)
     successMessage.value = data.message
   } catch (error) {
     errorMessage.value =

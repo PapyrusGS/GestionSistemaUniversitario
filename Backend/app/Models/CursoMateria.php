@@ -38,4 +38,24 @@ class CursoMateria extends Model
             'estadoA' => 'boolean',
         ];
     }
+
+    public function curso()
+    {
+        return $this->belongsTo(Curso::class, 'idCurso', 'idCurso');
+    }
+
+    public function materia()
+    {
+        return $this->belongsTo(Materia::class, 'idMateria', 'idMateria');
+    }
+
+    public function docente()
+    {
+        return $this->belongsTo(User::class, 'idDocente', 'idUsuario');
+    }
+
+    public function inscripciones()
+    {
+        return $this->hasMany(Inscripcion::class, 'idCursoMateria', 'idCursoMateria');
+    }
 }

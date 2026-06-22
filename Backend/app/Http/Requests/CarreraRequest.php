@@ -25,6 +25,9 @@ class CarreraRequest extends FormRequest
         // On PUT/PATCH we need to ignore the current record's own nombre
         // so it can be "updated" to the same value without triggering unique violation.
         $carreraId = $this->route('carrera');
+        if ($carreraId instanceof \App\Models\Carrera) {
+            $carreraId = $carreraId->idCarrera;
+        }
 
         return [
             'nombre' => [
