@@ -1,5 +1,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import DocenteRegistrarNotas from './DocenteRegistrarNotas.vue'
+import DocenteRendimiento from './DocenteRendimiento.vue'
+import DocenteReporteNotas from './DocenteReporteNotas.vue'
+
 
 const props = defineProps({
   user: Object,
@@ -74,7 +78,20 @@ onMounted(obtenerCursos)
           <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
           Cursos Asignados
         </button>
+        <button :class="{ active: modoDocente === 'registrar_notas' }" @click="cambiarVista('registrar_notas')">
+          <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+          Registrar Calificaciones
+        </button>
+        <button :class="{ active: modoDocente === 'rendimiento' }" @click="cambiarVista('rendimiento')">
+          <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"></path><path d="M12 20V4"></path><path d="M6 20v-6"></path></svg>
+          Ver Rendimiento
+        </button>
+        <button :class="{ active: modoDocente === 'reporte_notas' }" @click="cambiarVista('reporte_notas')">
+          <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line></svg>
+          Reporte de Notas
+        </button>
       </nav>
+
 
       <div class="sidebar-footer">
         <button class="btn-logout-minimal" @click="emit('logout')">
@@ -199,6 +216,20 @@ onMounted(obtenerCursos)
             </div>
           </div>
         </div>
+
+        <div v-else-if="modoDocente === 'registrar_notas'" class="fade-in-view">
+          <DocenteRegistrarNotas :user="user" :api="api" :badgeTone="badgeTone" />
+        </div>
+
+        <div v-else-if="modoDocente === 'rendimiento'" class="fade-in-view">
+          <DocenteRendimiento :user="user" :api="api" :badgeTone="badgeTone" />
+        </div>
+
+        <div v-else-if="modoDocente === 'reporte_notas'" class="fade-in-view">
+          <DocenteReporteNotas :user="user" :api="api" :badgeTone="badgeTone" />
+        </div>
+
+
 
       </section>
     </main>

@@ -12,5 +12,5 @@ Route::prefix('auth')->group(function () {
 });
 
 require __DIR__.'/api_admin.php';
-require __DIR__.'/docente_api.php';
+require __DIR__.'/api_docente.php';
 require __DIR__.'/estudiantes_api.php';
