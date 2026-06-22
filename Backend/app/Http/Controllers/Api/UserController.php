@@ -4,41 +4,66 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreUserRequest;
-use App\Support\ApiResponse;
-use App\Services\UserService;
+use App\Models\User;
+use App\Models\Rol;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
-    public function __construct(
-        private readonly UserService $userService,
-    ) {
-    }
-
-    public function roles(): JsonResponse
-    {
-        return ApiResponse::success(
-            ['roles' => $this->userService->roles()],
-            'Roles cargados correctamente.'
-        );
-    }
-
+    /**
+     * Devuelve todos los usuarios cargando el rol (Eager Loading) para evitar N+1.
+     */
     public function index(): JsonResponse
     {
-        return ApiResponse::success(
-            ['users' => $this->userService->index()],
-            'Usuarios cargados correctamente.'
-        );
+        $users = User::with('rol')->get();
+
+        return response()->json([
+            'users' => $users->map(function ($user) {
+                return [
+                    'idUsuario' => $user->idUsuario,
+                    'nombreCompleto' => $user->nombreCompleto,
+                    'correo' => $user->correo,
+                    'rol' => $user->rol ? $user->rol->nombre : 'Sin rol',
+                    'estado' => $user->estado,
+                ];
+            })
+        ]);
     }
 
+    /**
+     * Registra un nuevo usuario encriptando su contraseña.
+     */
     public function store(StoreUserRequest $request): JsonResponse
     {
-        $user = $this->userService->store($request->validated());
+        $data = $request->validated();
 
-        return ApiResponse::success(
-            ['user' => $user],
-            'Usuario registrado correctamente.',
-            201
-        );
+        // Encriptar contraseña
+        $data['password'] = Hash::make($data['password']);
+
+        $user = User::create($data);
+
+        return response()->json([
+            'message' => 'Usuario registrado correctamente.',
+            'user' => [
+                'idUsuario' => $user->idUsuario,
+                'nombreCompleto' => $user->nombreCompleto,
+                'correo' => $user->correo,
+                'rol' => $user->rol()->first()->nombre ?? 'Sin rol',
+                'estado' => $user->estado,
+            ]
+        ], 201);
+    }
+
+    /**
+     * Lista los roles activos disponibles para asignación en los select del frontend.
+     */
+    public function roles(): JsonResponse
+    {
+        $roles = Rol::where('estado', true)->get(['idRol', 'nombre']);
+
+        return response()->json([
+            'roles' => $roles
+        ]);
     }
 }

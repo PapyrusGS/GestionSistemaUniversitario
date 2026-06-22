@@ -101,7 +101,7 @@ onMounted(() => {
   <div class="user-management">
     <div class="header-section">
       <h3>Gestión de Usuarios y Roles</h3>
-      <p class="subtitle">HU-ADM-02 (Registro de usuarios) y HU-ADM-03 (Asignación de roles)</p>
+      <p class="subtitle">Registro de usuarios y asignación de roles</p>
     </div>
 
     <div class="layout-grid">
