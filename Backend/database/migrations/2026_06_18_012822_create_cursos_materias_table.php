@@ -30,7 +30,6 @@ return new class extends Migration
 
             $table->dateTime('fechaInicio');
             $table->dateTime('fechaFin');
-            $table->integer('maxInscritos');
             $table->dateTime('fechaRegistro')->useCurrent();
             $table->boolean('estado')->default(true);
             

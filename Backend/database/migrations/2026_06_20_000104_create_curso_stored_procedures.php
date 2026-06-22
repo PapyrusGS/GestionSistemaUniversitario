@@ -70,7 +70,6 @@ BEGIN
         cm.idPeriodo,
         cm.fechaInicio,
         cm.fechaFin,
-        cm.maxInscritos,
         cm.fechaRegistro,
         CAST(cm.estado AS UNSIGNED) AS estado,
         m.nombre AS materia,
@@ -91,7 +90,6 @@ BEGIN
         cm.idPeriodo,
         cm.fechaInicio,
         cm.fechaFin,
-        cm.maxInscritos,
         cm.fechaRegistro,
         cm.estado,
         m.nombre,
@@ -112,7 +110,6 @@ BEGIN
         cm.idPeriodo,
         cm.fechaInicio,
         cm.fechaFin,
-        cm.maxInscritos,
         cm.fechaRegistro,
         CAST(cm.estado AS UNSIGNED) AS estado,
         m.nombre AS materia,
@@ -134,7 +131,6 @@ BEGIN
         cm.idPeriodo,
         cm.fechaInicio,
         cm.fechaFin,
-        cm.maxInscritos,
         cm.fechaRegistro,
         cm.estado,
         m.nombre,
@@ -148,9 +144,8 @@ CREATE PROCEDURE sp_cursos_store(
     IN p_idMateria VARCHAR(100),
     IN p_idDocente BIGINT UNSIGNED,
     IN p_idHorario BIGINT UNSIGNED,
-    IN p_idPeriodo BIGINT UNSIGNED,
-    IN p_maxInscritos INT
-)
+    IN p_idPeriodo BIGINT UNSIGNED
+    )
 BEGIN
     DECLARE v_idCurso VARCHAR(100);
     DECLARE v_fechaInicio DATE;
@@ -178,7 +173,6 @@ BEGIN
         updated_at
     ) VALUES (
         v_idCurso,
-        p_maxInscritos,
         1,
         NOW(),
         NULL,
@@ -194,7 +188,6 @@ BEGIN
         idPeriodo,
         fechaInicio,
         fechaFin,
-        maxInscritos,
         fechaRegistro,
         estado,
         fechaA,
@@ -209,7 +202,6 @@ BEGIN
         p_idPeriodo,
         v_fechaInicio,
         v_fechaFin,
-        p_maxInscritos,
         NOW(),
         1,
         NOW(),

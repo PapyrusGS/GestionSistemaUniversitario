@@ -22,7 +22,6 @@ BEGIN
         cm.idPeriodo,
         cm.fechaInicio,
         cm.fechaFin,
-        cm.maxInscritos,
         cm.fechaRegistro,
         CAST(cm.estado AS UNSIGNED) AS estado,
         ANY_VALUE(m.nombre) AS materia,
@@ -43,7 +42,6 @@ BEGIN
         cm.idPeriodo,
         cm.fechaInicio,
         cm.fechaFin,
-        cm.maxInscritos,
         cm.fechaRegistro,
         cm.estado
     ORDER BY cm.fechaRegistro DESC, cm.idCursoMateria DESC;
@@ -62,7 +60,6 @@ BEGIN
         cm.idPeriodo,
         cm.fechaInicio,
         cm.fechaFin,
-        cm.maxInscritos,
         cm.fechaRegistro,
         CAST(cm.estado AS UNSIGNED) AS estado,
         ANY_VALUE(m.nombre) AS materia,
@@ -84,7 +81,6 @@ BEGIN
         cm.idPeriodo,
         cm.fechaInicio,
         cm.fechaFin,
-        cm.maxInscritos,
         cm.fechaRegistro,
         cm.estado
     LIMIT 1;
@@ -108,7 +104,6 @@ BEGIN
         cm.idPeriodo,
         cm.fechaInicio,
         cm.fechaFin,
-        cm.maxInscritos,
         cm.fechaRegistro,
         CAST(cm.estado AS UNSIGNED) AS estado,
         m.nombre AS materia,
@@ -129,7 +124,6 @@ BEGIN
         cm.idPeriodo,
         cm.fechaInicio,
         cm.fechaFin,
-        cm.maxInscritos,
         cm.fechaRegistro,
         cm.estado,
         m.nombre,
@@ -149,7 +143,6 @@ BEGIN
         cm.idPeriodo,
         cm.fechaInicio,
         cm.fechaFin,
-        cm.maxInscritos,
         cm.fechaRegistro,
         CAST(cm.estado AS UNSIGNED) AS estado,
         m.nombre AS materia,
@@ -171,7 +164,6 @@ BEGIN
         cm.idPeriodo,
         cm.fechaInicio,
         cm.fechaFin,
-        cm.maxInscritos,
         cm.fechaRegistro,
         cm.estado,
         m.nombre,

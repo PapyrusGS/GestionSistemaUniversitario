@@ -14,14 +14,20 @@ class EloquentCursoRepository implements CursoRepositoryInterface
         return collect(DB::select('CALL sp_cursos_list()'))->map(fn ($row) => (array) $row);
     }
 
+    public function activePhysicalForSelect(): Collection
+    {
+        return collect(DB::select('CALL sp_cursos_active()'))->map(fn ($row) => (array) $row);
+    }
+
     public function create(array $data): array
     {
-        $rows = DB::select('CALL sp_cursos_store(?, ?, ?, ?, ?)', [
+        $rows = DB::select('CALL sp_cursos_store(?, ?, ?, ?, ?, ?)', [
+            $data['idCurso'],
             $data['idMateria'],
             $data['idDocente'],
-            $data['idHorario'],
+            $data['idHorario1'],
+            $data['idHorario2'],
             $data['idPeriodo'],
-            $data['maxInscritos'],
         ]);
 
         if ($rows === []) {

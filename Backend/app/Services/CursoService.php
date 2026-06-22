@@ -28,6 +28,7 @@ class CursoService
     public function formData(): array
     {
         return [
+            'cursosFisicos' => $this->cursos->activePhysicalForSelect()->values(),
             'materias' => $this->materias->active()->values(),
             'docentes' => $this->docentes->activeForSelect()->values(),
             'horarios' => $this->horarios->activeForSelect()->values(),
@@ -51,7 +52,6 @@ class CursoService
             'idDocente' => (int) $curso['idDocente'],
             'idPeriodo' => (int) $curso['idPeriodo'],
             'idHorario' => $curso['idHorario'] ?? null,
-            'maxInscritos' => (int) $curso['maxInscritos'],
             'fechaInicio' => $curso['fechaInicio'] ?? null,
             'fechaFin' => $curso['fechaFin'] ?? null,
             'estado' => (bool) ($curso['estado'] ?? true),
