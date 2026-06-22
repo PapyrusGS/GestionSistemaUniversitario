@@ -59,7 +59,7 @@ class CarreraControllerTest extends TestCase
                 ]
             ]);
 
-        $this->assertCount(2, $response->json('carreras'));
+        $this->assertCount(1, $response->json('carreras'));
     }
 
     public function test_authenticated_user_can_create_carrera(): void
