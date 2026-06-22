@@ -6,6 +6,7 @@ import CarreraManagement from './components/CarreraManagement.vue'
 import CursoManagement from './components/CursoManagement.vue'
 import MateriaManagement from './components/MateriaManagement.vue'
 import UserManagement from './components/UserManagement.vue'
+import ReportesAdmin from './components/ReportesAdmin.vue'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
@@ -275,6 +276,14 @@ onMounted(loadProfile)
               >
                 Cursos
               </button>
+              <button
+                class="secondary"
+                type="button"
+                style="padding: 0.5rem 1rem; font-size: 0.85rem;"
+                @click="adminSection = 'reportes'"
+              >
+                Reportes
+              </button>
               <span class="role-badge" :data-tone="badgeTone">{{ roleName }}</span>
             </div>
           </div>
@@ -293,6 +302,10 @@ onMounted(loadProfile)
 
           <div v-else-if="adminSection === 'cursos'" style="margin-top: 1rem; width: 100%;">
             <CursoManagement :api="api" />
+          </div>
+
+          <div v-else-if="adminSection === 'reportes'" style="margin-top: 1rem; width: 100%;">
+            <ReportesAdmin :api="api" />
           </div>
 
           <div v-else class="info-grid">

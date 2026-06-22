@@ -43,4 +43,14 @@ class Inscripcion extends Model
     {
         return $this->belongsTo(CursoMateria::class, 'idCursoMateria', 'idCursoMateria');
     }
+
+    public function notas()
+    {
+        return $this->hasMany(Nota::class, 'idInscripcion', 'idInscripcion');
+    }
+
+    public function notaMasReciente()
+    {
+        return $this->hasOne(Nota::class, 'idInscripcion', 'idInscripcion')->latestOfMany('idNota');
+    }
 }
