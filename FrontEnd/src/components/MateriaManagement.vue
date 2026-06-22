@@ -20,6 +20,8 @@ const loading = ref(false)
 const submitting = ref(false)
 const showModal = ref(false)
 const isEditing = ref(false)
+const showConfirmModal = ref(false)
+const materiaToDisable = ref(null)
 const successMessage = ref('')
 const errorMessage = ref('')
 const errors = ref({})
@@ -167,11 +169,21 @@ async function submitForm() {
   }
 }
 
-async function disableMateria(materia) {
-  if (!confirm(`Deseas deshabilitar la materia ${materia.nombre}?`)) {
-    return
-  }
+function askDisableMateria(materia) {
+  materiaToDisable.value = materia
+  showConfirmModal.value = true
+}
 
+function cancelDisable() {
+  showConfirmModal.value = false
+  materiaToDisable.value = null
+}
+
+async function confirmDisableMateria() {
+  if (!materiaToDisable.value) return
+
+  const materia = materiaToDisable.value
+  showConfirmModal.value = false
   submitting.value = true
   resetMessages()
 
@@ -189,6 +201,7 @@ async function disableMateria(materia) {
     errorMessage.value = error.response?.data?.message || 'No se pudo deshabilitar la materia.'
   } finally {
     submitting.value = false
+    materiaToDisable.value = null
   }
 }
 
@@ -311,7 +324,7 @@ onMounted(fetchMateriaData)
                     class="icon-btn danger"
                     type="button"
                     :disabled="submitting"
-                    @click="disableMateria(materia)"
+                    @click="askDisableMateria(materia)"
                   >
                     Deshabilitar
                   </button>
@@ -407,6 +420,33 @@ onMounted(fetchMateriaData)
               </button>
             </div>
           </form>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Modal confirmación deshabilitar -->
+    <Teleport to="body">
+      <div v-if="showConfirmModal" class="backdrop" @mousedown.self="cancelDisable">
+        <div class="modal-card confirm-modal">
+          <div class="confirm-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <h4>Deshabilitar materia</h4>
+          <p class="confirm-name">{{ materiaToDisable?.nombre }} <code>{{ materiaToDisable?.idMateria }}</code></p>
+          <p class="confirm-warning">
+            Esta acción <strong>deshabilitará</strong> la materia del sistema. No se eliminará ningún dato
+            histórico, pero la materia dejará de estar disponible para nuevas ofertas de cursos.
+          </p>
+          <div class="confirm-actions">
+            <button class="secondary" type="button" :disabled="submitting" @click="cancelDisable">Cancelar</button>
+            <button class="danger-btn" type="button" :disabled="submitting" @click="confirmDisableMateria">
+              {{ submitting ? 'Deshabilitando...' : 'Confirmar deshabilitar' }}
+            </button>
+          </div>
         </div>
       </div>
     </Teleport>
@@ -660,5 +700,76 @@ select {
   .two-cols {
     grid-template-columns: 1fr;
   }
+}
+.confirm-modal {
+  max-width: 28rem;
+  text-align: center;
+  padding: 2rem 1.75rem;
+}
+
+.confirm-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+  margin-bottom: 1rem;
+}
+
+.confirm-modal h4 {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+}
+
+.confirm-name {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.confirm-name code {
+  font-size: 0.85rem;
+  margin-left: 0.25rem;
+}
+
+.confirm-warning {
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.55;
+  margin: 0 0 1.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  border-radius: 0.75rem;
+  text-align: left;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.danger-btn {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+  border-radius: 0.7rem;
+  padding: 0.55rem 1.25rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.danger-btn:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.28);
+}
+
+.danger-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

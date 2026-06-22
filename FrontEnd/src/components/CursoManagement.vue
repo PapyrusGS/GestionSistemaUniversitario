@@ -19,6 +19,8 @@ const submitting = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
 const errors = ref({})
+const showConfirmModal = ref(false)
+const cursoToDisable = ref(null)
 
 const form = reactive({
   idCurso: '',
@@ -134,11 +136,21 @@ async function submitForm() {
   }
 }
 
-async function disableCurso(curso) {
-  if (!confirm(`¿Deseas deshabilitar el curso de la materia ${curso.materia} en el aula ${curso.idCurso}?`)) {
-    return
-  }
+function askDisableCurso(curso) {
+  cursoToDisable.value = curso
+  showConfirmModal.value = true
+}
 
+function cancelDisableCurso() {
+  showConfirmModal.value = false
+  cursoToDisable.value = null
+}
+
+async function confirmDisableCurso() {
+  if (!cursoToDisable.value) return
+
+  const curso = cursoToDisable.value
+  showConfirmModal.value = false
   submitting.value = true
   resetMessages()
 
@@ -156,6 +168,7 @@ async function disableCurso(curso) {
     errorMessage.value = error.response?.data?.message || 'No se pudo deshabilitar el curso.'
   } finally {
     submitting.value = false
+    cursoToDisable.value = null
   }
 }
 
@@ -298,7 +311,7 @@ onMounted(fetchCursoData)
                       class="icon-btn danger"
                       type="button"
                       :disabled="submitting"
-                      @click="disableCurso(curso)"
+                      @click="askDisableCurso(curso)"
                     >
                       Deshabilitar
                     </button>
@@ -310,6 +323,37 @@ onMounted(fetchCursoData)
         </div>
       </section>
     </div>
+
+    <!-- Modal confirmación deshabilitar curso -->
+    <Teleport to="body">
+      <div v-if="showConfirmModal" class="backdrop" @mousedown.self="cancelDisableCurso">
+        <div class="confirm-modal">
+          <div class="confirm-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <h4>Deshabilitar curso</h4>
+          <p class="confirm-subject">
+            <strong>{{ cursoToDisable?.materia }}</strong>
+            <span> &mdash; Aula: <code>{{ cursoToDisable?.idCurso }}</code></span>
+          </p>
+          <p class="confirm-warning">
+            Esta acción <strong>deshabilitará</strong> este curso del sistema. Los estudiantes ya
+            inscritos y sus notas no se eliminarán, pero el curso dejará de estar disponible
+            para nuevas inscripciones.
+          </p>
+          <div class="confirm-actions">
+            <button class="secondary" type="button" :disabled="submitting" @click="cancelDisableCurso">Cancelar</button>
+            <button class="danger-btn" type="button" :disabled="submitting" @click="confirmDisableCurso">
+              {{ submitting ? 'Deshabilitando...' : 'Confirmar deshabilitar' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -477,5 +521,94 @@ code {
 .icon-btn.danger {
   border-color: rgba(239, 68, 68, 0.2);
   color: #fca5a5;
+}
+
+/* ---- Confirm Modal ---- */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  z-index: 40;
+}
+
+.confirm-modal {
+  width: min(100%, 28rem);
+  background: linear-gradient(180deg, rgba(14, 20, 41, 0.98), rgba(11, 16, 32, 0.96));
+  border: 1px solid var(--panel-border, rgba(180, 204, 255, 0.12));
+  border-radius: 1.4rem;
+  padding: 2rem 1.75rem;
+  text-align: center;
+}
+
+.confirm-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+  margin-bottom: 1rem;
+}
+
+.confirm-modal h4 {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+  color: var(--text, #e2e8f0);
+}
+
+.confirm-subject {
+  margin: 0 0 1rem;
+  font-size: 0.95rem;
+  color: var(--text, #e2e8f0);
+}
+
+.confirm-subject code {
+  background: rgba(255,255,255,0.06);
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.confirm-warning {
+  color: var(--muted, #94a3b8);
+  font-size: 0.875rem;
+  line-height: 1.55;
+  margin: 0 0 1.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  border-radius: 0.75rem;
+  text-align: left;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.danger-btn {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+  border-radius: 0.7rem;
+  padding: 0.55rem 1.25rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.danger-btn:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.28);
+}
+
+.danger-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

@@ -22,7 +22,7 @@ class ReporteController extends Controller
     public function filtros(): JsonResponse
     {
         $cursos = Curso::where('estado', 1)->get(['idCurso', 'idCurso as nombre']);
-        $materias = Materia::where('estado', 1)->get(['idMateria', 'nombre', 'sigla']);
+        $materias = Materia::where('estado', 1)->get(['idMateria', 'nombre', 'semestre']);
 
         return response()->json([
             'cursos' => $cursos,
@@ -57,12 +57,12 @@ class ReporteController extends Controller
 
         if ($tipo === 'materias') {
             $materias = Materia::where('estado', 1)->get();
-            $headings = ['ID Materia', 'Nombre', 'Sigla'];
+            $headings = ['ID Materia', 'Nombre', 'Semestre'];
             $data = $materias->map(function ($m) {
                 return [
                     $m->idMateria,
                     $m->nombre,
-                    $m->sigla,
+                    $m->semestre,
                 ];
             });
             return ['headings' => $headings, 'data' => $data];
@@ -74,14 +74,15 @@ class ReporteController extends Controller
             if ($idMateria) $query->where('idMateria', $idMateria);
             
             $cursos = $query->get();
-            $headings = ['ID Curso', 'Materia', 'Docente', 'Max Inscritos'];
+            $headings = ['ID Curso', 'Materia', 'Docente', 'Capacidad (Aula)', 'Max Inscritos'];
             $data = $cursos->map(function ($c) {
                 $doc = $c->docente;
                 return [
                     $c->idCurso,
                     $c->materia ? $c->materia->nombre : 'N/A',
                     $doc ? $doc->nombreCompleto : 'Sin Asignar',
-                    $c->maxInscritos,
+                    $c->curso ? $c->curso->capacidad : 'N/A',
+                    $c->maxInscritos ?? 'N/A',
                 ];
             });
             return ['headings' => $headings, 'data' => $data];
