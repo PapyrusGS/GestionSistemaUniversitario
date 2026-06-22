@@ -36,4 +36,15 @@ class EloquentCursoRepository implements CursoRepositoryInterface
 
         return (array) $rows[0];
     }
+
+    public function disable($id): array
+    {
+        $rows = DB::select('CALL sp_cursos_disable(?)', [$id]);
+
+        if ($rows === []) {
+            throw (new ModelNotFoundException())->setModel('CursoMateria', [$id]);
+        }
+
+        return (array) $rows[0];
+    }
 }

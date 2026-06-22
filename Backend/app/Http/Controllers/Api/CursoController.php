@@ -115,4 +115,14 @@ class CursoController extends Controller
             'estudiantes' => $estudiantes
         ], 'Inscripciones cargadas correctamente.');
     }
+
+    public function destroy($idCursoMateria): JsonResponse
+    {
+        $updated = $this->cursoService->destroy($idCursoMateria);
+
+        return ApiResponse::success(
+            ['curso' => $updated],
+            'Curso deshabilitado correctamente.'
+        );
+    }
 }

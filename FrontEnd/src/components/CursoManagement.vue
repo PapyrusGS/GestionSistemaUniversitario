@@ -134,6 +134,31 @@ async function submitForm() {
   }
 }
 
+async function disableCurso(curso) {
+  if (!confirm(`¿Deseas deshabilitar el curso de la materia ${curso.materia} en el aula ${curso.idCurso}?`)) {
+    return
+  }
+
+  submitting.value = true
+  resetMessages()
+
+  try {
+    const response = await props.api.delete(`/cursos/${curso.idCursoMateria}`)
+    const payload = payloadFromResponse(response.data)
+    const index = cursos.value.findIndex((item) => item.idCursoMateria === curso.idCursoMateria)
+
+    if (index !== -1) {
+      cursos.value[index] = payload.curso
+    }
+
+    successMessage.value = response.data.message || 'Curso deshabilitado correctamente.'
+  } catch (error) {
+    errorMessage.value = error.response?.data?.message || 'No se pudo deshabilitar el curso.'
+  } finally {
+    submitting.value = false
+  }
+}
+
 onMounted(fetchCursoData)
 </script>
 
@@ -248,13 +273,14 @@ onMounted(fetchCursoData)
                 <th>Horario</th>
                 <th>Periodo</th>
                 <th>Estado</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="cursos.length === 0">
                 <td colspan="7" class="empty-state">No hay cursos registrados.</td>
               </tr>
-              <tr v-for="curso in cursos" :key="curso.idCursoMateria">
+              <tr v-for="curso in cursos" :key="curso.idCursoMateria" :class="{ inactive: !curso.estado }">
                 <td><code>{{ curso.idCurso }}</code></td>
                 <td>{{ curso.materia || 'Sin materia' }}</td>
                 <td>{{ curso.docente || 'Sin docente' }}</td>
@@ -264,6 +290,19 @@ onMounted(fetchCursoData)
                   <span class="status-badge" :class="curso.estado ? 'active' : 'inactive'">
                     {{ curso.estado ? 'Activo' : 'Inactivo' }}
                   </span>
+                </td>
+                <td>
+                  <div class="actions">
+                    <button
+                      v-if="curso.estado"
+                      class="icon-btn danger"
+                      type="button"
+                      :disabled="submitting"
+                      @click="disableCurso(curso)"
+                    >
+                      Deshabilitar
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -414,5 +453,29 @@ code {
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+.inactive {
+  opacity: 0.55;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.icon-btn {
+  border: 1px solid rgba(180, 204, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  border-radius: 0.7rem;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+}
+
+.icon-btn.danger {
+  border-color: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
 }
 </style>

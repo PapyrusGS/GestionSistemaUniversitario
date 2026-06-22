@@ -11,4 +11,6 @@ interface CursoRepositoryInterface
     public function activePhysicalForSelect(): Collection;
 
     public function create(array $data): array;
+
+    public function disable($id): array;
 }

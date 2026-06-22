@@ -43,6 +43,11 @@ class CursoService
         return $this->payload($curso);
     }
 
+    public function destroy($id): array
+    {
+        return $this->payload($this->cursos->disable($id));
+    }
+
     private function payload(array $curso): array
     {
         return [

@@ -50,6 +50,36 @@ class CursoRequest extends FormRequest
             $docenteId = $this->input('idDocente');
             $periodId = $this->input('idPeriodo');
 
+            // 0. Validar estados activos
+            $materiaId = $this->input('idMateria');
+            if ($materiaId) {
+                $materia = \Illuminate\Support\Facades\DB::table('materias')->where('idMateria', $materiaId)->first();
+                if ($materia && !$materia->estado) {
+                    $validator->errors()->add('idMateria', 'La materia seleccionada está inactiva y no se puede usar para una nueva oferta.');
+                }
+            }
+
+            if ($cursoId) {
+                $cursoFisico = \Illuminate\Support\Facades\DB::table('cursos')->where('idCurso', $cursoId)->first();
+                if ($cursoFisico && !$cursoFisico->estado) {
+                    $validator->errors()->add('idCurso', 'El aula seleccionada está inactiva y no se puede usar para una nueva oferta.');
+                }
+            }
+
+            if ($docenteId) {
+                $docente = \Illuminate\Support\Facades\DB::table('usuarios')->where('idUsuario', $docenteId)->first();
+                if ($docente && !$docente->estado) {
+                    $validator->errors()->add('idDocente', 'El docente seleccionado está inactivo y no se puede usar para una nueva oferta.');
+                }
+            }
+
+            if ($periodId) {
+                $periodo = \Illuminate\Support\Facades\DB::table('periodos')->where('idPeriodo', $periodId)->first();
+                if ($periodo && !$periodo->estado) {
+                    $validator->errors()->add('idPeriodo', 'El periodo académico seleccionado está inactivo y no se puede usar para una nueva oferta.');
+                }
+            }
+
             if (!$h1Id || !$h2Id) {
                 return;
             }
