@@ -9,6 +9,7 @@ const props = defineProps({
 })
 
 const cursos = ref([])
+const cursosFisicos = ref([])
 const materias = ref([])
 const docentes = ref([])
 const horarios = ref([])
@@ -20,11 +21,12 @@ const errorMessage = ref('')
 const errors = ref({})
 
 const form = reactive({
+  idCurso: '',
   idMateria: '',
   idDocente: '',
-  idHorario: '',
+  idHorario1: '',
+  idHorario2: '',
   idPeriodo: '',
-  maxInscritos: '',
 })
 
 function payloadFromResponse(data) {
@@ -37,11 +39,12 @@ function resetMessages() {
 }
 
 function resetForm() {
+  form.idCurso = ''
   form.idMateria = ''
   form.idDocente = ''
-  form.idHorario = ''
-  form.idPeriodo = ''
-  form.maxInscritos = ''
+  form.idHorario1 = ''
+  form.idHorario2 = ''
+  form.idPeriodo = periodos.value.length > 0 ? String(periodos.value[0].idPeriodo) : ''
   errors.value = {}
 }
 
@@ -57,10 +60,15 @@ async function fetchCursoData() {
 
     cursos.value = payloadFromResponse(cursosResponse.data).cursos || []
     const formData = payloadFromResponse(formDataResponse.data)
+    cursosFisicos.value = formData.cursosFisicos || []
     materias.value = formData.materias || []
     docentes.value = formData.docentes || []
     horarios.value = formData.horarios || []
     periodos.value = formData.periodos || []
+
+    if (periodos.value.length > 0) {
+      form.idPeriodo = String(periodos.value[0].idPeriodo)
+    }
   } catch (error) {
     errorMessage.value = error.response?.data?.message || 'No se pudieron cargar los cursos.'
   } finally {
@@ -73,13 +81,40 @@ async function submitForm() {
   resetMessages()
   errors.value = {}
 
+  // Frontend Validation for Schedules
+  const h1 = horarios.value.find(h => String(h.idHorario) === String(form.idHorario1))
+  const h2 = horarios.value.find(h => String(h.idHorario) === String(form.idHorario2))
+
+  if (h1 && h2) {
+    if (String(h1.idHorario) === String(h2.idHorario)) {
+      errors.value.idHorario2 = ['Los dos horarios seleccionados deben ser diferentes.']
+      errorMessage.value = 'Por favor, corrige los errores del formulario.'
+      submitting.value = false
+      return
+    }
+    if (h1.diaSemana === h2.diaSemana) {
+      const t1End = h1.horaFin.substring(0, 5)
+      const t1Start = h1.horaInicio.substring(0, 5)
+      const t2End = h2.horaFin.substring(0, 5)
+      const t2Start = h2.horaInicio.substring(0, 5)
+
+      if (t1End !== t2Start && t2End !== t1Start) {
+        errors.value.idHorario2 = ['Los horarios del mismo día deben ser bloques continuos.']
+        errorMessage.value = 'Por favor, corrige los errores del formulario.'
+        submitting.value = false
+        return
+      }
+    }
+  }
+
   try {
     const response = await props.api.post('/cursos', {
+      idCurso: form.idCurso,
       idMateria: form.idMateria,
       idDocente: Number(form.idDocente),
-      idHorario: Number(form.idHorario),
+      idHorario1: Number(form.idHorario1),
+      idHorario2: Number(form.idHorario2),
       idPeriodo: Number(form.idPeriodo),
-      maxInscritos: Number(form.maxInscritos),
     })
 
     const payload = payloadFromResponse(response.data)
@@ -99,6 +134,31 @@ async function submitForm() {
   }
 }
 
+async function disableCurso(curso) {
+  if (!confirm(`¿Deseas deshabilitar el curso de la materia ${curso.materia} en el aula ${curso.idCurso}?`)) {
+    return
+  }
+
+  submitting.value = true
+  resetMessages()
+
+  try {
+    const response = await props.api.delete(`/cursos/${curso.idCursoMateria}`)
+    const payload = payloadFromResponse(response.data)
+    const index = cursos.value.findIndex((item) => item.idCursoMateria === curso.idCursoMateria)
+
+    if (index !== -1) {
+      cursos.value[index] = payload.curso
+    }
+
+    successMessage.value = response.data.message || 'Curso deshabilitado correctamente.'
+  } catch (error) {
+    errorMessage.value = error.response?.data?.message || 'No se pudo deshabilitar el curso.'
+  } finally {
+    submitting.value = false
+  }
+}
+
 onMounted(fetchCursoData)
 </script>
 
@@ -107,7 +167,7 @@ onMounted(fetchCursoData)
     <div class="header-section">
       <div>
         <h3>Creacion de Cursos</h3>
-        <p class="subtitle">HU-ADM-06 - Materia, docente, horario, cupo y regimen academico</p>
+        <p class="subtitle">HU-ADM-06 - Materia, docente, horario y regimen academico</p>
       </div>
       <button class="primary" type="button" :disabled="loading" @click="fetchCursoData">
         {{ loading ? 'Cargando...' : 'Actualizar' }}
@@ -121,6 +181,17 @@ onMounted(fetchCursoData)
       <section class="card-panel">
         <h4>Registrar curso</h4>
         <form class="course-form" @submit.prevent="submitForm">
+          <label>
+            <span>Curso / Aula *</span>
+            <select v-model="form.idCurso" required>
+              <option value="" disabled>Seleccione un curso/aula</option>
+              <option v-for="cf in cursosFisicos" :key="cf.idCurso" :value="cf.idCurso">
+                {{ cf.idCurso }} (Capacidad: {{ cf.capacidad }})
+              </option>
+            </select>
+            <small v-if="errors.idCurso" class="field-error">{{ errors.idCurso[0] }}</small>
+          </label>
+
           <label>
             <span>Materia *</span>
             <select v-model="form.idMateria" required>
@@ -144,32 +215,39 @@ onMounted(fetchCursoData)
           </label>
 
           <label>
-            <span>Horario *</span>
-            <select v-model="form.idHorario" required>
-              <option value="" disabled>Seleccione un horario</option>
+            <span>Horario 1 *</span>
+            <select v-model="form.idHorario1" required>
+              <option value="" disabled>Seleccione el horario 1</option>
               <option v-for="horario in horarios" :key="horario.idHorario" :value="String(horario.idHorario)">
                 {{ horario.descripcion }}
               </option>
             </select>
-            <small v-if="errors.idHorario" class="field-error">{{ errors.idHorario[0] }}</small>
+            <small v-if="errors.idHorario1" class="field-error">{{ errors.idHorario1[0] }}</small>
+          </label>
+
+          <label>
+            <span>Horario 2 *</span>
+            <select v-model="form.idHorario2" required>
+              <option value="" disabled>Seleccione el horario 2</option>
+              <option v-for="horario in horarios" :key="horario.idHorario" :value="String(horario.idHorario)">
+                {{ horario.descripcion }}
+              </option>
+            </select>
+            <small v-if="errors.idHorario2" class="field-error">{{ errors.idHorario2[0] }}</small>
           </label>
 
           <label>
             <span>Regimen academico *</span>
-            <select v-model="form.idPeriodo" required>
+            <select v-model="form.idPeriodo" disabled required>
               <option value="" disabled>Seleccione un periodo</option>
               <option v-for="periodo in periodos" :key="periodo.idPeriodo" :value="String(periodo.idPeriodo)">
-                {{ periodo.nombre }}
+                {{ periodo.nombre }} (Periodo actual)
               </option>
             </select>
             <small v-if="errors.idPeriodo" class="field-error">{{ errors.idPeriodo[0] }}</small>
           </label>
 
-          <label>
-            <span>Cupo *</span>
-            <input v-model.trim="form.maxInscritos" type="number" min="1" required />
-            <small v-if="errors.maxInscritos" class="field-error">{{ errors.maxInscritos[0] }}</small>
-          </label>
+      
 
           <div class="form-actions">
             <button class="secondary" type="button" @click="resetForm">Limpiar</button>
@@ -194,25 +272,37 @@ onMounted(fetchCursoData)
                 <th>Docente</th>
                 <th>Horario</th>
                 <th>Periodo</th>
-                <th>Cupo</th>
                 <th>Estado</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="cursos.length === 0">
                 <td colspan="7" class="empty-state">No hay cursos registrados.</td>
               </tr>
-              <tr v-for="curso in cursos" :key="curso.idCursoMateria">
+              <tr v-for="curso in cursos" :key="curso.idCursoMateria" :class="{ inactive: !curso.estado }">
                 <td><code>{{ curso.idCurso }}</code></td>
                 <td>{{ curso.materia || 'Sin materia' }}</td>
                 <td>{{ curso.docente || 'Sin docente' }}</td>
                 <td>{{ curso.horarioDetalle || 'Sin horario' }}</td>
                 <td>{{ curso.periodo || 'Sin periodo' }}</td>
-                <td>{{ curso.maxInscritos }}</td>
                 <td>
                   <span class="status-badge" :class="curso.estado ? 'active' : 'inactive'">
                     {{ curso.estado ? 'Activo' : 'Inactivo' }}
                   </span>
+                </td>
+                <td>
+                  <div class="actions">
+                    <button
+                      v-if="curso.estado"
+                      class="icon-btn danger"
+                      type="button"
+                      :disabled="submitting"
+                      @click="disableCurso(curso)"
+                    >
+                      Deshabilitar
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -363,5 +453,29 @@ code {
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+.inactive {
+  opacity: 0.55;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.icon-btn {
+  border: 1px solid rgba(180, 204, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  border-radius: 0.7rem;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+}
+
+.icon-btn.danger {
+  border-color: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
 }
 </style>

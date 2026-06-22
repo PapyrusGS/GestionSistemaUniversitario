@@ -28,8 +28,8 @@ Route::middleware(['auth:sanctum', 'role:Administrador'])->group(function () {
     Route::post('/cursos', [CursoController::class, 'store']);
     Route::put('/cursos/{cursoMateria}/asignar-docente', [CursoController::class, 'asignarDocente']);
     Route::get('/cursos/{cursoMateria}/inscripciones', [CursoController::class, 'inscripciones']);
-
     Route::get('/reportes/filtros', [ReporteController::class, 'filtros']);
     Route::get('/reportes', [ReporteController::class, 'index']);
     Route::get('/reportes/exportar', [ReporteController::class, 'exportar']);
+    Route::delete('/cursos/{idCursoMateria}', [CursoController::class, 'destroy']);
 });

@@ -2,6 +2,7 @@ Trabaja con arquitectura MVC + el patrón estructural Repository-Service y manej
 
 Trabaja tambien con procedimientos almacenados en vez de consultas directas de laravel con us ORM, estructura la migración utilizando DB::unprepared() para el bloque SQL del procedimiento, y asegúrate de incluir las cláusulas DROP PROCEDURE IF EXISTS correspondientes tanto en el up() como en el down() para evitar errores si la migración se vuelve a correr.
 
+De la misma forma separa la logica de backend y frontend, nada de mezclar codigo funcional en frontend.
 
 Usen esto para mantener estructurado todo con esto de laravel y eso :p
 

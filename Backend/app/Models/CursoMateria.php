@@ -20,7 +20,6 @@ class CursoMateria extends Model
         'idPeriodo',
         'fechaInicio',
         'fechaFin',
-        'maxInscritos',
         'fechaRegistro',
         'estado',
         'fechaA',
@@ -37,7 +36,6 @@ class CursoMateria extends Model
             'fechaA' => 'datetime',
             'estado' => 'boolean',
             'estadoA' => 'boolean',
-            'maxInscritos' => 'integer',
         ];
     }
 

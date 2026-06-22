@@ -30,9 +30,10 @@ class DatabaseSeeder extends Seeder
             PeriodoSeeder::class,       // Crea los periodos (idPeriodo: 1)
             HorarioSeeder::class,       // Crea los horarios base
             CursoSeeder::class,         // Crea las aulas string (CUR-001...)
-            HorarioCursoSeeder::class,  // Mapea la cuadrícula de ocupación de aulas
+              // Mapea la cuadrícula de ocupación de aulas
             EstudianteCarreraSeeder::class,
             CursoMateriaSeeder::class,
+            HorarioCursoSeeder::class,
             EstudianteMateriaSeeder::class
         ]);
     }

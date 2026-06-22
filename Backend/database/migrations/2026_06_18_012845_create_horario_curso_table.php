@@ -16,8 +16,8 @@ return new class extends Migration
             
             
             $table->foreignId('idHorario')->constrained('horarios', 'idHorario')->onDelete('cascade');
-            $table->string('idCurso', 100);
-            $table->foreign('idCurso')->references('idCurso')->on('cursos')->onDelete('cascade');            
+            $table->foreignId('idCursoMateria')->constrained('cursos_materias','idCursoMateria')->onDelete('cascade');
+
             // Campos de auditoría
             $table->dateTime('fechaA')->nullable();
             $table->string('UsuarioA', 255)->nullable();
