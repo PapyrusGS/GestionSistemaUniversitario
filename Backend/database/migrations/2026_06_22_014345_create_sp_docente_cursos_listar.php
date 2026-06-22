@@ -13,7 +13,6 @@ return new class extends Migration
     {
         // Eliminamos el procedimiento si ya existía para evitar colisiones de nombres
         DB::unprepared("DROP PROCEDURE IF EXISTS sp_docente_cursos_listar;");
-
         // Creamos el Stored Procedure adaptado estrictamente a tu diseño físico de tablas
         DB::unprepared("
             CREATE PROCEDURE sp_docente_cursos_listar(IN p_idDocente BIGINT UNSIGNED)
