@@ -4,53 +4,99 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CarreraRequest;
-use App\Support\ApiResponse;
-use App\Services\CarreraService;
+use App\Models\Carrera;
 use Illuminate\Http\JsonResponse;
 
 class CarreraController extends Controller
 {
-    public function __construct(
-        private readonly CarreraService $carreraService,
-    ) {
-    }
-
+    /**
+     * Devuelve únicamente las carreras activas (estado = true).
+     */
     public function index(): JsonResponse
     {
-        return ApiResponse::success(
-            ['carreras' => $this->carreraService->index()],
-            'Carreras cargadas correctamente.'
-        );
+        $carreras = Carrera::where('estado', true)->get();
+
+        return response()->json([
+            'carreras' => $carreras->map(function ($carrera) {
+                return [
+                    'idCarrera' => $carrera->idCarrera,
+                    'nombre' => $carrera->nombre,
+                    'descripcion' => $carrera->descripcion,
+                    'estado' => (bool)$carrera->estado,
+                    'fechaRegistro' => $carrera->fechaRegistro ? $carrera->fechaRegistro->format('Y-m-d H:i') : null,
+                ];
+            })
+        ]);
     }
 
+    /**
+     * Registra una nueva carrera.
+     */
     public function store(CarreraRequest $request): JsonResponse
     {
-        $carrera = $this->carreraService->store($request->validated());
+        $data = $request->validated();
+        $data['fechaRegistro'] = now();
+        $data['estado'] = true;
 
-        return ApiResponse::success(
-            ['carrera' => $carrera],
-            'Carrera registrada correctamente.',
-            201
-        );
+        $carrera = Carrera::create($data);
+
+        return response()->json([
+            'message' => 'Carrera registrada correctamente.',
+            'carrera' => [
+                'idCarrera' => $carrera->idCarrera,
+                'nombre' => $carrera->nombre,
+                'descripcion' => $carrera->descripcion,
+                'estado' => (bool)$carrera->estado,
+                'fechaRegistro' => $carrera->fechaRegistro ? $carrera->fechaRegistro->format('Y-m-d H:i') : null,
+            ]
+        ], 201);
     }
 
-    public function update(CarreraRequest $request, int $carrera): JsonResponse
+    /**
+     * Actualiza una carrera existente.
+     */
+    public function update(CarreraRequest $request, int $id): JsonResponse
     {
-        $carreraUpdated = $this->carreraService->update($carrera, $request->validated());
+        $carrera = Carrera::findOrFail($id);
+        $carrera->update($request->validated());
 
-        return ApiResponse::success(
-            ['carrera' => $carreraUpdated],
-            'Carrera actualizada correctamente.'
-        );
+        return response()->json([
+            'message' => 'Carrera actualizada correctamente.',
+            'carrera' => [
+                'idCarrera' => $carrera->idCarrera,
+                'nombre' => $carrera->nombre,
+                'descripcion' => $carrera->descripcion,
+                'estado' => (bool)$carrera->estado,
+                'fechaRegistro' => $carrera->fechaRegistro ? $carrera->fechaRegistro->format('Y-m-d H:i') : null,
+            ]
+        ]);
     }
 
-    public function destroy(int $carrera): JsonResponse
+    /**
+     * Deshabilita (borrado lógico) una carrera.
+     */
+    public function destroy(int $id): JsonResponse
     {
-        $carreraUpdated = $this->carreraService->destroy($carrera);
+        $carrera = Carrera::findOrFail($id);
 
-        return ApiResponse::success(
-            ['carrera' => $carreraUpdated],
-            'Carrera deshabilitada correctamente.'
-        );
+        if (!$carrera->estado) {
+            return response()->json([
+                'message' => 'La carrera ya se encuentra deshabilitada.'
+            ], 422);
+        }
+
+        $carrera->update(['estado' => false]);
+
+        return response()->json([
+            'message' => 'Carrera deshabilitada correctamente.',
+            'carrera' => [
+                'idCarrera' => $carrera->idCarrera,
+                'nombre' => $carrera->nombre,
+                'descripcion' => $carrera->descripcion,
+                'estado' => (bool)$carrera->estado,
+                'fechaRegistro' => $carrera->fechaRegistro ? $carrera->fechaRegistro->format('Y-m-d H:i') : null,
+            ]
+        ]);
     }
 }
+
