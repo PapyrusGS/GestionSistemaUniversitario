@@ -21,8 +21,15 @@ return new class extends Migration
                     cm.idMateria,
                     cm.fechaInicio,
                     cm.fechaFin,
-                    cm.maxInscritos,
+                    c.capacidad AS max_inscritos, -- Alias 1 para Vue
+                    c.capacidad AS cupo,          -- Alias 2 (Por si tu Vue busca 'cupo')
                     m.nombre AS materia_nombre,
+                    -- Conteo real de alumnos inscritos en el curso
+                    (
+                        SELECT COUNT(*) 
+                        FROM estudiantemateria em 
+                        WHERE em.idCursoMateria = cm.idCursoMateria AND em.estado = 1
+                    ) AS alumnos_count,
                     IFNULL(
                         (SELECT GROUP_CONCAT(CONCAT(h.diaSemana, ' (', TIME_FORMAT(h.horaInicio, '%H:%i'), '-', TIME_FORMAT(h.horaFin, '%H:%i'), ')') SEPARATOR ' / ')
                          FROM horariocurso hc
@@ -32,6 +39,7 @@ return new class extends Migration
                     ) AS turno_nombre
                 FROM cursos_materias cm
                 INNER JOIN materias m ON cm.idMateria = m.idMateria
+                INNER JOIN cursos c ON cm.idCurso = c.idCurso
                 WHERE cm.idDocente = p_idDocente AND cm.estado = 1;
             END;
         ");
