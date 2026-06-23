@@ -4,8 +4,7 @@ import DocenteRegistrarNotas from './DocenteRegistrarNotas.vue'
 import DocenteRendimiento from './DocenteRendimiento.vue'
 import DocenteReporteNotas from './DocenteReporteNotas.vue'
 
-
-// Propiedades flexibles para mitigar las advertencias del bundler de Vue
+// Propiedades flexibles que aceptan tanto Objetos como Funciones de Axios/API
 const props = defineProps({
   user: {
     type: Object,
@@ -41,10 +40,13 @@ async function obtenerCursos() {
   errorMessage.value = ''
   try {
     const response = await props.api.get('/docente/cursos')
-    if (response.data && response.data.status === 'success') {
+    
+    if (response.data && Array.isArray(response.data)) {
+      cursos.value = response.data
+    } else if (response.data && response.data.data) {
       cursos.value = response.data.data
     } else {
-      errorMessage.value = response.data.message || 'Error inesperado al cargar las materias asignadas.'
+      errorMessage.value = 'El servidor no retornó un listado de cursos válido.'
     }
   } catch (error) {
     console.error(error)
@@ -62,12 +64,24 @@ async function verDetalleCurso(curso) {
   loading.value = true
   modoDocente.value = 'detalle'
   errorMessage.value = ''
+  
+  const idCursoMateriaReal = curso.idCursoMateria || curso.id_curso_materia || curso.id || null;
+  
   try {
-    const response = await props.api.get(`/cursos-materias/${curso.idCursoMateria}/estudiantes`)
-    if (response.data && response.data.status === 'success') {
+    const response = await props.api.get('/docente/estudiantes', {
+      params: {
+        idCursoMateria: idCursoMateriaReal
+      }
+    })
+    
+    console.log("Estructura de estudiantes recibida:", response.data)
+    
+    if (response.data && Array.isArray(response.data)) {
+      estudiantesInscritos.value = response.data
+    } else if (response.data && response.data.data) {
       estudiantesInscritos.value = response.data.data
     } else {
-      errorMessage.value = response.data.message || 'Error al recuperar el listado de matriculados.'
+      errorMessage.value = 'Error al recuperar el listado de matriculados.'
     }
   } catch (error) {
     console.error(error)
@@ -81,7 +95,10 @@ async function verDetalleCurso(curso) {
  * Cálculo dinámico de capacidad global instalada
  */
 const totalEstudiantesMax = computed(() => {
-  return cursos.value.reduce((acc, c) => acc + (parseInt(c.maxInscritos) || 0), 0)
+  return cursos.value.reduce((acc, c) => {
+    const cupo = c.maxInscritos || c.max_inscritos || c.cupo_maximo || c.cupo || 0;
+    return acc + (parseInt(cupo) || 0);
+  }, 0)
 })
 
 function cambiarVista(vista) {
@@ -134,7 +151,6 @@ onMounted(() => {
         </button>
       </nav>
 
-
       <div class="sidebar-footer">
         <button class="btn-logout-minimal" @click="emit('logout')">
           <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -167,7 +183,7 @@ onMounted(() => {
         
         <div v-if="modoDocente === 'inicio'" class="fade-in-view">
           <div class="welcome-banner">
-            <h3>¡Bienvenido al Sistema de Gestión, {{ user?.nombre1 }}!</h3>
+            <h3>¡Bienvenido al Sistema de Gestión, {{ user?.nombre1 || user?.nombre }}!</h3>
             <p>Desde este entorno integrado puedes auditar en tiempo real tus listas de estudiantes matriculados, validar cupos asignados y revisar los horarios vigentes provistos por el departamento de sistemas.</p>
           </div>
 
@@ -220,12 +236,14 @@ onMounted(() => {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="curso in cursos" :key="curso.idCursoMateria">
-                    <td class="primary-cell">{{ curso.materia_nombre }}</td>
-                    <td><span class="badge-tag-turno">{{ curso.turno_nombre }}</span></td>
-                    <td class="text-muted">{{ curso.fechaInicio }}</td>
-                    <td class="text-muted">{{ curso.fechaFin }}</td>
-                    <td class="font-medium text-cyan">{{ curso.maxInscritos }} Estudiantes</td>
+                  <tr v-for="curso in cursos" :key="curso.idCursoMateria || curso.id_curso_materia || curso.id">
+                    <td class="primary-cell">{{ curso.materia_nombre || curso.nombre || curso.materia }}</td>
+                    <td><span class="badge-tag-turno">{{ curso.turno_nombre || curso.turno || curso.horario }}</span></td>
+                    <td class="text-muted">{{ curso.fechaInicio || curso.fecha_inicio || 'N/A' }}</td>
+                    <td class="text-muted">{{ curso.fechaFin || curso.fecha_fin || 'N/A' }}</td>
+                    <td class="font-medium text-cyan">
+                      {{ curso.maxInscritos || curso.max_inscritos || curso.cupo_maximo || curso.cupo || 0 }} Estudiantes
+                    </td>
                     <td class="txt-right">
                       <button class="action-row-btn" @click="verDetalleCurso(curso)">
                         Ver Alumnos
@@ -252,8 +270,8 @@ onMounted(() => {
                 Regresar a Materias
               </button>
               <div class="header-title-group">
-                <h4>{{ cursoSeleccionado?.materia_nombre }}</h4>
-                <span class="sub-badge">{{ cursoSeleccionado?.turno_nombre }}</span>
+                <h4>{{ cursoSeleccionado?.materia_nombre || cursoSeleccionado?.nombre || cursoSeleccionado?.materia }}</h4>
+                <span class="sub-badge">{{ cursoSeleccionado?.turno_nombre || cursoSeleccionado?.turno }}</span>
               </div>
             </div>
             <div class="table-responsive">
@@ -267,13 +285,30 @@ onMounted(() => {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="alumno in estudiantesInscritos" :key="alumno.id_estudiante">
-                    <td class="primary-cell font-mono">{{ alumno.ci }}</td>
-                    <td class="font-medium">
-                      {{ alumno.apellido1 }} {{ alumno.apellido2 || '' }}, {{ alumno.nombre1 }} {{ alumno.nombre2 || '' }}
+                  <tr v-for="alumno in estudiantesInscritos" :key="alumno.id_estudiante || alumno.id_inscripcion || alumno.id">
+                    <td class="primary-cell font-mono">
+                      {{ alumno.estudiante?.persona?.ci || alumno.estudiante?.ci || alumno.ci || alumno.documento || 'N/A' }}
                     </td>
-                    <td class="text-muted">{{ alumno.correo }}</td>
-                    <td class="text-muted">{{ alumno.fecha_inscripcion }}</td>
+                    
+                    <td class="font-medium">
+                      <template v-if="alumno.estudiante?.persona">
+                        {{ alumno.estudiante.persona.ap_paterno || '' }} {{ alumno.estudiante.persona.ap_materno || '' }}, {{ alumno.estudiante.persona.nombre || '' }}
+                      </template>
+                      <template v-else-if="alumno.estudiante_nombre || alumno.nombre_completo">
+                        {{ alumno.estudiante_nombre || alumno.nombre_completo }}
+                      </template>
+                      <template v-else>
+                        {{ alumno.apellido1 || alumno.paterno || '' }} {{ alumno.apellido2 || '' }}, {{ alumno.nombre1 || alumno.nombre || 'Estudiante' }}
+                      </template>
+                    </td>
+                    
+                    <td class="text-muted">
+                      {{ alumno.estudiante?.persona?.correo || alumno.estudiante?.correo || alumno.correo || alumno.email || 'Sin correo' }}
+                    </td>
+                    
+                    <td class="text-muted">
+                      {{ alumno.fecha_inscripcion || alumno.created_at || 'N/A' }}
+                    </td>
                   </tr>
                   <tr v-if="estudiantesInscritos.length === 0 && !loading">
                     <td colspan="4" class="empty-table-msg">Actualmente no existen alumnos matriculados en este grupo académico.</td>
@@ -296,18 +331,16 @@ onMounted(() => {
           <DocenteReporteNotas :user="user" :api="api" :badgeTone="badgeTone" />
         </div>
 
-
-
       </section>
     </main>
 
     <aside class="sidebar-profile-panel">
       <div class="profile-card-minimal">
         <div class="avatar-placeholder">
-          {{ user?.nombre1?.charAt(0) }}{{ user?.apellido1?.charAt(0) }}
+          {{ user?.nombre1?.charAt(0) || user?.nombre?.charAt(0) }}{{ user?.apellido1?.charAt(0) || user?.paterno?.charAt(0) }}
         </div>
         <div class="profile-meta">
-          <h5>{{ user?.nombre1 }} {{ user?.apellido1 }}</h5>
+          <h5>{{ user?.nombre1 || user?.nombre }} {{ user?.apellido1 || user?.paterno }}</h5>
           <span class="user-role-tag" :data-tone="badgeTone">{{ user?.rol || 'Docente' }}</span>
         </div>
       </div>
@@ -318,11 +351,11 @@ onMounted(() => {
         <h6>Metadata de Sesión</h6>
         <div class="widget-row">
           <span class="label">Correo institucional</span>
-          <span class="value text-ellipsis" :title="user?.correo">{{ user?.correo }}</span>
+          <span class="value text-ellipsis" :title="user?.correo || user?.email">{{ user?.correo || user?.email }}</span>
         </div>
         <div class="widget-row">
           <span class="label">Cédula de Identidad</span>
-          <span class="value">{{ user?.ci }}</span>
+          <span class="value">{{ user?.ci || user?.documento }}</span>
         </div>
         <div class="widget-row">
           <span class="label">Estado de Cuenta</span>

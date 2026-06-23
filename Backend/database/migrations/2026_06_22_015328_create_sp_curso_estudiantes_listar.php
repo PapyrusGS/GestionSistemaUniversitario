@@ -7,40 +7,49 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
-     * Instala el Stored Procedure de estudiantes apuntando al esquema real de usuarios.
      */
     public function up(): void
     {
-        // Eliminamos el procedimiento si ya existía para evitar colisiones de nombres
-        DB::unprepared("DROP PROCEDURE IF EXISTS sp_curso_estudiantes_listar;");
+        DB::unprepared("DROP PROCEDURE IF EXISTS sp_docente_cursos_listar;");
 
-        // Creamos el Stored Procedure adaptado estrictamente a tus tablas reales
         DB::unprepared("
-            CREATE PROCEDURE sp_curso_estudiantes_listar(IN p_idCursoMateria BIGINT UNSIGNED)
+            CREATE PROCEDURE sp_docente_cursos_listar(IN p_idDocente BIGINT UNSIGNED)
             BEGIN
                 SELECT 
-                    e.idEstudiante AS id_estudiante,
-                    u.ci,
-                    u.nombre1,
-                    u.nombre2,
-                    u.apellido1,
-                    u.apellido2,
-                    u.correo,
-                    DATE_FORMAT(em.created_at, '%Y-%m-%d') AS fecha_inscripcion
-                FROM estudiantemateria em
-                INNER JOIN estudiante e ON em.idEstudiante = e.idEstudiante
-                INNER JOIN usuarios u ON e.idUsuario = u.idUsuario
-                WHERE em.idCursoMateria = p_idCursoMateria AND em.estado = 1;
+                    cm.idCursoMateria,
+                    cm.idCurso,
+                    cm.idMateria,
+                    cm.fechaInicio,
+                    cm.fechaFin,
+                    c.capacidad AS max_inscritos, -- Alias 1 para Vue
+                    c.capacidad AS cupo,          -- Alias 2 (Por si tu Vue busca 'cupo')
+                    m.nombre AS materia_nombre,
+                    -- Conteo real de alumnos inscritos en el curso
+                    (
+                        SELECT COUNT(*) 
+                        FROM estudiantemateria em 
+                        WHERE em.idCursoMateria = cm.idCursoMateria AND em.estado = 1
+                    ) AS alumnos_count,
+                    IFNULL(
+                        (SELECT GROUP_CONCAT(CONCAT(h.diaSemana, ' (', TIME_FORMAT(h.horaInicio, '%H:%i'), '-', TIME_FORMAT(h.horaFin, '%H:%i'), ')') SEPARATOR ' / ')
+                         FROM horariocurso hc
+                         INNER JOIN horarios h ON hc.idHorario = h.idHorario
+                         WHERE hc.idCursoMateria = cm.idCursoMateria), 
+                        'Sin horario'
+                    ) AS turno_nombre
+                FROM cursos_materias cm
+                INNER JOIN materias m ON cm.idMateria = m.idMateria
+                INNER JOIN cursos c ON cm.idCurso = c.idCurso
+                WHERE cm.idDocente = p_idDocente AND cm.estado = 1;
             END;
         ");
     }
 
     /**
      * Reverse the migrations.
-     * Elimina el procedimiento si se realiza un rollback manual de las migraciones.
      */
     public function down(): void
     {
-        DB::unprepared("DROP PROCEDURE IF EXISTS sp_curso_estudiantes_listar;");
+        DB::unprepared("DROP PROCEDURE IF EXISTS sp_docente_cursos_listar;");
     }
 };

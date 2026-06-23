@@ -68,8 +68,27 @@ class NotaController extends Controller
     public function cursos(\Illuminate\Http\Request $request): JsonResponse
     {
         try {
-            $docenteId = $request->user()->idUsuario;
-            $cursos = \Illuminate\Support\Facades\DB::select('CALL sp_docente_cursos(?)', [$docenteId]);
+            // Obtenemos el usuario autenticado directamente del token
+            $user = $request->user();
+            $idUsuario = $user->idUsuario;
+
+            // Llamamos directamente al procedimiento pasándole el idUsuario
+            $cursos = \Illuminate\Support\Facades\DB::select('CALL sp_docente_cursos_listar(?)', [$idUsuario]);
+
+            // Forzamos compatibilidad absoluta de atributos para el componente Vue
+            foreach ($cursos as $curso) {
+                $valorCapacidad = $curso->max_inscritos ?? 0; 
+
+                // Inyectamos todas las variantes de nombres posibles para asegurar que Vue lo pinte
+                $curso->cupo          = $valorCapacidad;
+                $curso->maxInscritos  = $valorCapacidad; 
+                $curso->max_inscritos = $valorCapacidad;
+                $curso->cupo_maximo   = $valorCapacidad;
+                $curso->capacidad     = $valorCapacidad;
+                
+                $curso->alumnos       = $curso->alumnos_count ?? 0;
+            }
+
             return ApiResponse::success($cursos, 'Cursos cargados correctamente.');
         } catch (\Throwable $e) {
             return ApiResponse::error($e->getMessage(), null, 400);
@@ -83,7 +102,10 @@ class NotaController extends Controller
             if (!$idCursoMateria) {
                 return ApiResponse::error('El parámetro idCursoMateria es requerido.', null, 400);
             }
-            $estudiantes = \Illuminate\Support\Facades\DB::select('CALL sp_docente_estudiantes(?)', [$idCursoMateria]);
+            
+            // CORRECCIÓN: Llamamos exactamente al procedimiento que creó tu compañero
+            $estudiantes = \Illuminate\Support\Facades\DB::select('CALL sp_curso_estudiantes_listar(?)', [$idCursoMateria]);
+            
             return ApiResponse::success($estudiantes, 'Estudiantes cargados correctamente.');
         } catch (\Throwable $e) {
             return ApiResponse::error($e->getMessage(), null, 400);
