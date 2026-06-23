@@ -35,9 +35,7 @@ class StoreUserRequest extends FormRequest
                 'string',
                 Password::min(8)
                     ->letters()
-                    ->mixedCase()
-                    ->numbers()
-                    ->symbols(),
+                    ->numbers(),
             ],
         ];
     }
@@ -76,9 +74,7 @@ class StoreUserRequest extends FormRequest
             'password.string' => 'La contraseña debe ser una cadena de texto.',
             'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
             'password.letters' => 'La contraseña debe contener al menos una letra.',
-            'password.mixed' => 'La contraseña debe contener al menos una letra mayúscula y una minúscula.',
             'password.numbers' => 'La contraseña debe contener al menos un número.',
-            'password.symbols' => 'La contraseña debe contener al menos un símbolo.',
         ];
     }
 }

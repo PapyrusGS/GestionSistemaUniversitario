@@ -482,7 +482,7 @@ onMounted(fetchMateriaData)
 .table-card {
   border: 1px solid rgba(180, 204, 255, 0.08);
   border-radius: 1rem;
-  overflow: hidden;
+  overflow: auto;
   background: rgba(255, 255, 255, 0.02);
 }
 

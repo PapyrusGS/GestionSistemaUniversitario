@@ -112,6 +112,112 @@ class CursoMateriaSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now()
             ],
+
+            // ========================================================================
+            // 📚 SEGUNDO SEMESTRE – II-2026 (Periodo activo)
+            // ========================================================================
+            // 7. Programación I (idMateria: 'SIS-013', prerreq: SIS-007)
+            [
+                'idCursoMateria' => 7,
+                'idCurso' => 'CUR-102',
+                'idMateria' => 'SIS-013',
+                'idDocente' => 2,
+                'idPeriodo' => 2,
+                'fechaInicio' => '2026-07-27 00:00:00',
+                'fechaFin' => '2026-12-04 23:59:59',
+                'fechaRegistro' => now(),
+                'estado' => true,
+                'fechaA' => now(),
+                'UsuarioA' => '1',
+                'estadoA' => true,
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            // 8. Cálculo II (idMateria: 'SIS-014', prerreq: SIS-008)
+            [
+                'idCursoMateria' => 8,
+                'idCurso' => 'CUR-103',
+                'idMateria' => 'SIS-014',
+                'idDocente' => 2,
+                'idPeriodo' => 2,
+                'fechaInicio' => '2026-07-27 00:00:00',
+                'fechaFin' => '2026-12-04 23:59:59',
+                'fechaRegistro' => now(),
+                'estado' => true,
+                'fechaA' => now(),
+                'UsuarioA' => '1',
+                'estadoA' => true,
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            // 9. Matemáticas Discretas (idMateria: 'SIS-015', prerreq: SIS-009)
+            [
+                'idCursoMateria' => 9,
+                'idCurso' => 'CUR-104',
+                'idMateria' => 'SIS-015',
+                'idDocente' => 2,
+                'idPeriodo' => 2,
+                'fechaInicio' => '2026-07-27 00:00:00',
+                'fechaFin' => '2026-12-04 23:59:59',
+                'fechaRegistro' => now(),
+                'estado' => true,
+                'fechaA' => now(),
+                'UsuarioA' => '1',
+                'estadoA' => true,
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            // 10. Física de Semiconductores (idMateria: 'SIS-016', prerreq: SIS-010)
+            [
+                'idCursoMateria' => 10,
+                'idCurso' => 'CUR-105',
+                'idMateria' => 'SIS-016',
+                'idDocente' => 2,
+                'idPeriodo' => 2,
+                'fechaInicio' => '2026-07-27 00:00:00',
+                'fechaFin' => '2026-12-04 23:59:59',
+                'fechaRegistro' => now(),
+                'estado' => true,
+                'fechaA' => now(),
+                'UsuarioA' => '1',
+                'estadoA' => true,
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            // 11. Arquitectura de Computadoras (idMateria: 'SIS-017', prerreq: SIS-011)
+            [
+                'idCursoMateria' => 11,
+                'idCurso' => 'CUR-106',
+                'idMateria' => 'SIS-017',
+                'idDocente' => 2,
+                'idPeriodo' => 2,
+                'fechaInicio' => '2026-07-27 00:00:00',
+                'fechaFin' => '2026-12-04 23:59:59',
+                'fechaRegistro' => now(),
+                'estado' => true,
+                'fechaA' => now(),
+                'UsuarioA' => '1',
+                'estadoA' => true,
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            // 12. Metodología de la Investigación (idMateria: 'SIS-018', prerreq: SIS-012)
+            [
+                'idCursoMateria' => 12,
+                'idCurso' => 'CUR-107',
+                'idMateria' => 'SIS-018',
+                'idDocente' => 2,
+                'idPeriodo' => 2,
+                'fechaInicio' => '2026-07-27 00:00:00',
+                'fechaFin' => '2026-12-04 23:59:59',
+                'fechaRegistro' => now(),
+                'estado' => true,
+                'fechaA' => now(),
+                'UsuarioA' => '1',
+                'estadoA' => true,
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
         ]);
     }
 }

@@ -7,7 +7,6 @@ use App\Http\Requests\StoreUserRequest;
 use App\Models\User;
 use App\Models\Rol;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
@@ -37,9 +36,6 @@ class UserController extends Controller
     public function store(StoreUserRequest $request): JsonResponse
     {
         $data = $request->validated();
-
-        // Encriptar contraseña
-        $data['password'] = Hash::make($data['password']);
 
         $user = User::create($data);
 

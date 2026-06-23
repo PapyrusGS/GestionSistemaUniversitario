@@ -274,23 +274,22 @@ onMounted(cargarCursos)
 </template>
 
 <style scoped>
-.subtitle-text { font-size: 0.9rem; color: #64748b; margin-top: 0.2rem; }
+.subtitle-text { font-size: 0.9rem; color: #6b7280; margin-top: 0.2rem; }
 .mb-4 { margin-bottom: 1.5rem; }
 
-/* ── Panel superior de control ──────────────────────────────────── */
 .card-panel {
-  background: rgba(30, 41, 59, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: #fafafa;
+  border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 12px;
   padding: 1.5rem;
   height: fit-content;
 }
 .panel-header {
   margin-bottom: 1.25rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
   padding-bottom: 0.75rem;
 }
-.panel-header h4 { font-size: 1rem; font-weight: 600; color: #f1f5f9; }
+.panel-header h4 { font-size: 1rem; font-weight: 600; color: var(--color-black); }
 
 .generation-bar {
   display: flex;
@@ -306,13 +305,13 @@ onMounted(cargarCursos)
   flex: 1;
 }
 
-label { display: flex; flex-direction: column; font-size: 0.85rem; color: #94a3b8; font-weight: 600; }
+label { display: flex; flex-direction: column; font-size: 0.85rem; color: #6b7280; font-weight: 600; }
 label span { margin-bottom: 0.35rem; }
 
 select {
-  background: rgba(15, 23, 42, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #e2e8f0;
+  background: var(--color-white);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: var(--color-black);
   padding: 0.75rem 1rem;
   border-radius: 8px;
   width: 100%;
@@ -344,7 +343,6 @@ select:disabled { opacity: 0.5; cursor: not-allowed; }
 .primary-btn:hover:not(:disabled) { background: #0ea5e9; transform: translateY(-1px); }
 .primary-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-/* ── Grid de Cards de resumen ───────────────────────────────────── */
 .dashboard-cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -366,7 +364,7 @@ select:disabled { opacity: 0.5; cursor: not-allowed; }
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.04);
 }
 .metric-icon svg { width: 22px; height: 22px; }
 
@@ -375,27 +373,26 @@ select:disabled { opacity: 0.5; cursor: not-allowed; }
 .metric-info .val { font-size: 1.15rem; font-weight: 700; margin-top: 0.1rem; }
 
 .card-blue { background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.15); color: #38bdf8; }
-.card-blue .metric-info .val { color: #f1f5f9; }
+.card-blue .metric-info .val { color: var(--color-black); }
 
 .card-green { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.15); color: #4ade80; }
-.card-green .metric-info .val { color: #f1f5f9; }
+.card-green .metric-info .val { color: var(--color-black); }
 
 .card-purple { background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.15); color: #c084fc; }
-.card-purple .metric-info .val { color: #f1f5f9; }
+.card-purple .metric-info .val { color: var(--color-black); }
 
-/* ── Tabla y Acciones de exportación ──────────────────────────────── */
 .table-card-wrapper {
-  background: rgba(15, 23, 42, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--color-white);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 14px;
   overflow: hidden;
 }
 .table-card-header {
   padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(255, 255, 255, 0.01);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  background: transparent;
 }
-.table-card-header h4 { font-size: 1rem; font-weight: 600; color: #f1f5f9; }
+.table-card-header h4 { font-size: 1rem; font-weight: 600; color: var(--color-black); }
 
 .flex-header {
   display: flex;
@@ -446,27 +443,26 @@ select:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 .workspace-table th {
   padding: 1rem 1.5rem;
-  background: rgba(15, 23, 42, 0.2);
-  color: #64748b;
+  background: #fafafa;
+  color: #6b7280;
   font-size: 0.75rem;
   text-transform: uppercase;
   font-weight: 700;
   letter-spacing: 0.04em;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 .workspace-table td {
   padding: 1.1rem 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-  color: #cbd5e1;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+  color: #4b5563;
 }
-.workspace-table tr:hover td { background: rgba(255, 255, 255, 0.01); }
+.workspace-table tr:hover td { background: #fafafa; }
 
-.primary-cell { color: #f8fafc !important; }
+.primary-cell { color: var(--color-black) !important; }
 .font-medium  { font-weight: 500; }
-.font-mono    { font-family: monospace; font-size: 0.85rem; color: #38bdf8; }
+.font-mono    { font-family: monospace; font-size: 0.85rem; color: #6b7280; }
 .txt-center   { text-align: center; }
 
-/* Badges coloreados por estado */
 .badge-state {
   padding: 0.25rem 0.6rem;
   border-radius: 6px;
@@ -477,11 +473,10 @@ select:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 .badge-state.aprobado { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
 .badge-state.reprobado { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
-.badge-state.sin-registro { background: rgba(148, 163, 184, 0.1); color: #cbd5e1; }
+.badge-state.sin-registro { background: rgba(148, 163, 184, 0.1); color: #6b7280; }
 
-.empty-table-msg { text-align: center; color: #64748b; padding: 3rem !important; }
+.empty-table-msg { text-align: center; color: #6b7280; padding: 3rem !important; }
 
-/* ── Spinner ────────────────────────────────────────────────────── */
 .spinner-container {
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
@@ -494,10 +489,9 @@ select:disabled { opacity: 0.5; cursor: not-allowed; }
   border-top-color: #38bdf8;
   animation: spin 1s ease-in-out infinite;
 }
-.loading-text { font-size: 0.85rem; color: #64748b; }
+.loading-text { font-size: 0.85rem; color: #6b7280; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Alertas ────────────────────────────────────────────────────── */
 .alert-inline {
   padding: 0.75rem 1rem;
   border-radius: 8px;
@@ -521,7 +515,7 @@ select:disabled { opacity: 0.5; cursor: not-allowed; }
   align-items: center;
   padding: 4rem 2rem;
 }
-.text-muted { color: #64748b; font-size: 0.9rem; text-align: center; }
+.text-muted { color: #6b7280; font-size: 0.9rem; text-align: center; }
 
 .fade-in-view { animation: fadeIn 0.25s ease-out; }
 @keyframes fadeIn {

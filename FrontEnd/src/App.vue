@@ -819,10 +819,11 @@ button { cursor: pointer; }
 
 .uni-section-body {
   width: 100%;
-  flex: 1;               /* ocupa el espacio sobrante del dashboard-card */
-  min-height: 0;         /* permite que el hijo con overflow funcione */
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
 }
 
 .uni-info-grid {

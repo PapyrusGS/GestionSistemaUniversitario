@@ -323,7 +323,7 @@ onMounted(fetchCarreras)
   position: relative;
   border-radius: 1rem;
   border: 1px solid rgba(180, 204, 255, 0.08);
-  overflow: hidden;
+  overflow: auto;
 }
 
 .loading-overlay {

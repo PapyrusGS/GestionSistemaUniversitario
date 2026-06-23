@@ -206,23 +206,22 @@ onMounted(cargarCursos)
 </template>
 
 <style scoped>
-.subtitle-text { font-size: 0.9rem; color: #64748b; margin-top: 0.2rem; }
+.subtitle-text { font-size: 0.9rem; color: #6b7280; margin-top: 0.2rem; }
 .mb-4 { margin-bottom: 1.5rem; }
 
-/* ── Card panel selector ────────────────────────────────────────── */
 .card-panel {
-  background: rgba(30, 41, 59, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: #fafafa;
+  border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 12px;
   padding: 1.5rem;
   height: fit-content;
 }
 .panel-header {
   margin-bottom: 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
   padding-bottom: 0.75rem;
 }
-.panel-header h4 { font-size: 1rem; font-weight: 600; color: #f1f5f9; }
+.panel-header h4 { font-size: 1rem; font-weight: 600; color: var(--color-black); }
 
 .selector-container {
   display: flex;
@@ -232,9 +231,9 @@ onMounted(cargarCursos)
 .full-width { width: 100%; }
 
 select {
-  background: rgba(15, 23, 42, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #e2e8f0;
+  background: var(--color-white);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: var(--color-black);
   padding: 0.75rem 1rem;
   border-radius: 8px;
   width: 100%;
@@ -248,7 +247,6 @@ select:focus {
 }
 select:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* ── Grid de tarjetas analytics ────────────────────────────────── */
 .dashboard-cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -282,14 +280,13 @@ select:disabled { opacity: 0.5; cursor: not-allowed; }
 .metric-info .lbl { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.8; }
 .metric-info .val { font-size: 1.2rem; font-weight: 700; margin-top: 0.15rem; }
 
-/* Colores específicos solicitados */
 .card-green {
   background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.05));
   border: 1px solid rgba(34, 197, 94, 0.2);
   color: #4ade80;
 }
 .card-green .metric-icon { color: #4ade80; background: rgba(34, 197, 94, 0.1); }
-.card-green .metric-info .val { color: #f8fafc; }
+.card-green .metric-info .val { color: var(--color-black); }
 
 .card-red {
   background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.05));
@@ -297,7 +294,7 @@ select:disabled { opacity: 0.5; cursor: not-allowed; }
   color: #f87171;
 }
 .card-red .metric-icon { color: #f87171; background: rgba(239, 68, 68, 0.1); }
-.card-red .metric-info .val { color: #f8fafc; }
+.card-red .metric-info .val { color: var(--color-black); }
 
 .card-blue {
   background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(56, 189, 248, 0.05));
@@ -305,7 +302,7 @@ select:disabled { opacity: 0.5; cursor: not-allowed; }
   color: #38bdf8;
 }
 .card-blue .metric-icon { color: #38bdf8; background: rgba(56, 189, 248, 0.1); }
-.card-blue .metric-info .val { color: #f8fafc; }
+.card-blue .metric-info .val { color: var(--color-black); }
 
 .card-gray {
   background: linear-gradient(135deg, rgba(148, 163, 184, 0.15), rgba(148, 163, 184, 0.05));
@@ -313,9 +310,8 @@ select:disabled { opacity: 0.5; cursor: not-allowed; }
   color: #cbd5e1;
 }
 .card-gray .metric-icon { color: #cbd5e1; background: rgba(148, 163, 184, 0.1); }
-.card-gray .metric-info .val { color: #f8fafc; }
+.card-gray .metric-info .val { color: var(--color-black); }
 
-/* ── Progress bar visual ────────────────────────────────────────── */
 .search-style-header {
   display: flex;
   align-items: center;
@@ -363,10 +359,10 @@ select:disabled { opacity: 0.5; cursor: not-allowed; }
 .premium-progress-bar {
   display: flex;
   height: 10px;
-  background: rgba(255, 255, 255, 0.05);
+  background: #e5e7eb;
   border-radius: 9999px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.04);
 }
 .progress-fill {
   height: 100%;
@@ -375,7 +371,6 @@ select:disabled { opacity: 0.5; cursor: not-allowed; }
 .fill-green { background: #22c55e; }
 .fill-red { background: #ef4444; }
 
-/* ── Spinner de carga ───────────────────────────────────────────── */
 .spinner-container {
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
@@ -388,10 +383,9 @@ select:disabled { opacity: 0.5; cursor: not-allowed; }
   border-top-color: #38bdf8;
   animation: spin 1s ease-in-out infinite;
 }
-.loading-text { font-size: 0.85rem; color: #64748b; }
+.loading-text { font-size: 0.85rem; color: #6b7280; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Alertas e Informacionales ──────────────────────────────────── */
 .alert-inline {
   padding: 0.75rem 1rem;
   border-radius: 8px;
@@ -415,7 +409,7 @@ select:disabled { opacity: 0.5; cursor: not-allowed; }
   align-items: center;
   padding: 4rem 2rem;
 }
-.text-muted { color: #64748b; font-size: 0.9rem; text-align: center; }
+.text-muted { color: #6b7280; font-size: 0.9rem; text-align: center; }
 
 .fade-in-view { animation: fadeIn 0.25s ease-out; }
 @keyframes fadeIn {

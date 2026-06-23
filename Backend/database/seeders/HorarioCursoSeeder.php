@@ -54,8 +54,34 @@ class HorarioCursoSeeder extends Seeder
                 'idHorarioCurso' => 5, 'idCursoMateria' => '5', 'idHorario' => 25, // Viernes 09:20 - 11:10
                 'fechaA' => now(), 'UsuarioA' => '1', 'estadoA' => true, 'created_at' => now(), 'updated_at' => now()
             ],
-          
-            
+
+            // =========================================================================
+            // 🆕 SEGUNDO SEMESTRE – II-2026 (Periodo activo)
+            // =========================================================================
+            [
+                'idHorarioCurso' => 6, 'idCursoMateria' => '7',  'idHorario' => 1,  // Programación I → Lun 07:30
+                'fechaA' => now(), 'UsuarioA' => '1', 'estadoA' => true, 'created_at' => now(), 'updated_at' => now()
+            ],
+            [
+                'idHorarioCurso' => 7, 'idCursoMateria' => '8',  'idHorario' => 7,  // Cálculo II → Mar 07:30
+                'fechaA' => now(), 'UsuarioA' => '1', 'estadoA' => true, 'created_at' => now(), 'updated_at' => now()
+            ],
+            [
+                'idHorarioCurso' => 8, 'idCursoMateria' => '9',  'idHorario' => 13, // Matemáticas Discretas → Mié 07:30
+                'fechaA' => now(), 'UsuarioA' => '1', 'estadoA' => true, 'created_at' => now(), 'updated_at' => now()
+            ],
+            [
+                'idHorarioCurso' => 9, 'idCursoMateria' => '10', 'idHorario' => 19, // Física de Semiconductores → Jue 07:30
+                'fechaA' => now(), 'UsuarioA' => '1', 'estadoA' => true, 'created_at' => now(), 'updated_at' => now()
+            ],
+            [
+                'idHorarioCurso' => 10, 'idCursoMateria' => '11', 'idHorario' => 25, // Arquitectura de Computadoras → Vie 07:30
+                'fechaA' => now(), 'UsuarioA' => '1', 'estadoA' => true, 'created_at' => now(), 'updated_at' => now()
+            ],
+            [
+                'idHorarioCurso' => 11, 'idCursoMateria' => '12', 'idHorario' => 2,  // Metodología de la Investigación → Lun 09:20
+                'fechaA' => now(), 'UsuarioA' => '1', 'estadoA' => true, 'created_at' => now(), 'updated_at' => now()
+            ],
         ]);
     }
 }
