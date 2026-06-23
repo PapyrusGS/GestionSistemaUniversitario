@@ -28,7 +28,7 @@ BEGIN
             (SELECT GROUP_CONCAT(DISTINCT CONCAT('Dia ', h.diaSemana, ' ', TIME_FORMAT(h.horaInicio, '%H:%i'), '-', TIME_FORMAT(h.horaFin, '%H:%i')) SEPARATOR ', ')
              FROM horariocurso hc
              INNER JOIN horarios h ON h.idHorario = hc.idHorario
-             WHERE hc.idCursoMateria = cm.idCursoMateria), -- 🔥 AQUÍ ESTÁ EL CAMBIO
+             WHERE hc.idCursoMateria = cm.idCursoMateria), 
             'Sin Horario'
         ) AS turno_nombre
     FROM cursos_materias cm
@@ -53,7 +53,7 @@ BEGIN
     FROM estudiantemateria em
     INNER JOIN estudiante e ON e.idEstudiante = em.idEstudiante
     INNER JOIN usuarios u ON u.idUsuario = e.idUsuario
-    WHERE em.idCursoMateria = p_idCursoMateria AND em.estado = 'Inscrito';
+    WHERE em.idCursoMateria = p_idCursoMateria AND em.estado = 1;
 END
 SQL);
 
