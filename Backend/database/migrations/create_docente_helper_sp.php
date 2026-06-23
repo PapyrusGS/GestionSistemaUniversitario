@@ -22,14 +22,13 @@ BEGIN
         cm.idCurso,
         cm.idMateria,
         m.nombre AS materia_nombre,
-        cm.maxInscritos,
         DATE_FORMAT(cm.fechaInicio, '%Y-%m-%d') AS fechaInicio,
         DATE_FORMAT(cm.fechaFin, '%Y-%m-%d') AS fechaFin,
         COALESCE(
             (SELECT GROUP_CONCAT(DISTINCT CONCAT('Dia ', h.diaSemana, ' ', TIME_FORMAT(h.horaInicio, '%H:%i'), '-', TIME_FORMAT(h.horaFin, '%H:%i')) SEPARATOR ', ')
              FROM horariocurso hc
              INNER JOIN horarios h ON h.idHorario = hc.idHorario
-             WHERE hc.idCurso = cm.idCurso),
+             WHERE hc.idCursoMateria = cm.idCursoMateria), -- 🔥 AQUÍ ESTÁ EL CAMBIO
             'Sin Horario'
         ) AS turno_nombre
     FROM cursos_materias cm
@@ -78,6 +77,7 @@ BEGIN
     WHERE em.idCursoMateria = p_idCursoMateria;
 END
 SQL);
+
     }
 
     /**
