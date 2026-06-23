@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, computed } from 'vue'
 
 const props = defineProps({
   api: {
@@ -17,6 +17,14 @@ const submittings = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
 const errors = ref({})
+const filterRol = ref('')
+
+const filteredUsers = computed(() => {
+  if (!filterRol.value) {
+    return users.value
+  }
+  return users.value.filter(usr => usr.rol === filterRol.value)
+})
 
 const form = reactive({
   nombre1: '',
@@ -215,10 +223,18 @@ onMounted(() => {
       <section class="list-section card">
         <div class="list-header">
           <h4>Usuarios Registrados</h4>
-          <button class="secondary btn-refresh" type="button" @click="fetchUsers" :disabled="loading">
-            <span v-if="loading">Cargando...</span>
-            <span v-else>Actualizar</span>
-          </button>
+          <div class="list-actions">
+            <select v-model="filterRol" class="filter-select">
+              <option value="">Todos los roles</option>
+              <option value="Administrador">Administradores</option>
+              <option value="Docente">Docentes</option>
+              <option value="Estudiante">Estudiantes</option>
+            </select>
+            <button class="secondary btn-refresh" type="button" @click="fetchUsers" :disabled="loading">
+              <span v-if="loading">Cargando...</span>
+              <span v-else>Actualizar</span>
+            </button>
+          </div>
         </div>
 
         <div class="table-container">
@@ -233,10 +249,10 @@ onMounted(() => {
               </tr>
             </thead>
             <tbody>
-              <tr v-if="users.length === 0">
+              <tr v-if="filteredUsers.length === 0">
                 <td colspan="5" class="empty-state">No hay usuarios registrados.</td>
               </tr>
-              <tr v-for="usr in users" :key="usr.idUsuario">
+              <tr v-for="usr in filteredUsers" :key="usr.idUsuario">
                 <td>
                   <div class="user-name">
                     <strong>{{ usr.nombreCompleto }}</strong>
@@ -347,6 +363,33 @@ select option {
   margin: 0;
   border-bottom: none;
   padding-bottom: 0;
+}
+
+.list-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.filter-select {
+  padding: 0.45rem 2.2rem 0.45rem 0.8rem;
+  font-size: 0.85rem;
+  border: 1px solid rgba(180, 204, 255, 0.14);
+  border-radius: 0.6rem;
+  background: rgba(6, 10, 23, 0.72);
+  color: var(--text);
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23aab5d4'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  background-size: 1rem;
+  outline: none;
+  font-family: inherit;
+}
+
+.filter-select:focus {
+  border-color: rgba(125, 211, 252, 0.8);
 }
 
 .btn-refresh {
