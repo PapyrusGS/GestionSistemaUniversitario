@@ -10,6 +10,7 @@ const props = defineProps({
 
 const users = ref([])
 const roles = ref([])
+const careers = ref([])
 const loading = ref(false)
 const submittings = ref(false)
 
@@ -26,6 +27,7 @@ const form = reactive({
   correo: '',
   password: '',
   idRol: '',
+  idCarrera: '',
 })
 
 async function fetchUsers() {
@@ -50,6 +52,15 @@ async function fetchRoles() {
   }
 }
 
+async function fetchCareers() {
+  try {
+    const { data } = await props.api.get('/carreras')
+    careers.value = (data.data ?? data).carreras || []
+  } catch (error) {
+    console.error('Error fetching careers:', error)
+  }
+}
+
 function resetForm() {
   form.nombre1 = ''
   form.nombre2 = ''
@@ -59,6 +70,7 @@ function resetForm() {
   form.correo = ''
   form.password = ''
   form.idRol = ''
+  form.idCarrera = ''
   errors.value = {}
 }
 
@@ -67,16 +79,25 @@ function resetMessages() {
   errorMessage.value = ''
 }
 
+const isStudent = () => {
+  const selectedRol = roles.value.find(r => r.idRol === Number(form.idRol))
+  return selectedRol && selectedRol.nombre === 'Estudiante'
+}
+
 async function submitForm() {
   submittings.value = true
   resetMessages()
   errors.value = {}
 
   try {
-    const { data } = await props.api.post('/users', form)
-    const payload = data.data ?? data
+    const payload = { ...form }
+    if (!isStudent()) {
+      delete payload.idCarrera
+    }
+    const { data } = await props.api.post('/users', payload)
+    const resPayload = data.data ?? data
     successMessage.value = data.message || 'Usuario registrado correctamente.'
-    users.value.push(payload.user)
+    users.value.push(resPayload.user)
     resetForm()
   } catch (error) {
     const response = error.response?.data
@@ -94,6 +115,7 @@ async function submitForm() {
 onMounted(() => {
   fetchUsers()
   fetchRoles()
+  fetchCareers()
 })
 </script>
 
@@ -167,6 +189,20 @@ onMounted(() => {
               </select>
               <span v-if="errors.idRol" class="field-error">{{ errors.idRol[0] }}</span>
             </label>
+          </div>
+
+          <div v-if="isStudent()" class="two-cols">
+            <label>
+              <span>Carrera *</span>
+              <select v-model="form.idCarrera" required :disabled="submittings">
+                <option value="" disabled>Seleccione una carrera...</option>
+                <option v-for="carrera in careers" :key="carrera.idCarrera" :value="carrera.idCarrera">
+                  {{ carrera.nombre }}
+                </option>
+              </select>
+              <span v-if="errors.idCarrera" class="field-error">{{ errors.idCarrera[0] }}</span>
+            </label>
+            <div></div>
           </div>
 
           <button class="primary" type="submit" :disabled="submittings">

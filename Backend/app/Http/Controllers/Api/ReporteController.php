@@ -8,6 +8,7 @@ use App\Models\Inscripcion;
 use App\Models\Curso;
 use App\Models\Materia;
 use App\Models\User;
+use App\Models\Carrera;
 use App\Exports\ReporteExport;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -17,16 +18,18 @@ use Maatwebsite\Excel\Facades\Excel;
 class ReporteController extends Controller
 {
     /**
-     * Devuelve las listas de filtros disponibles (Cursos y Materias)
+     * Devuelve las listas de filtros disponibles (Cursos, Materias y Carreras)
      */
     public function filtros(): JsonResponse
     {
         $cursos = Curso::where('estado', 1)->get(['idCurso', 'idCurso as nombre']);
         $materias = Materia::where('estado', 1)->get(['idMateria', 'nombre', 'semestre']);
+        $carreras = Carrera::where('estado', 1)->get(['idCarrera', 'nombre']);
 
         return response()->json([
             'cursos' => $cursos,
-            'materias' => $materias
+            'materias' => $materias,
+            'carreras' => $carreras
         ]);
     }
 
@@ -38,6 +41,7 @@ class ReporteController extends Controller
         $tipo = $request->query('tipo', 'inscripciones'); // inscripciones, docentes, materias, cursos
         $idCurso = $request->query('curso');
         $idMateria = $request->query('materia');
+        $idCarrera = $request->query('carrera');
 
         if ($tipo === 'docentes') {
             $query = User::where('estado', 1)->whereHas('rol', function($q) {
@@ -56,13 +60,18 @@ class ReporteController extends Controller
         }
 
         if ($tipo === 'materias') {
-            $materias = Materia::where('estado', 1)->get();
-            $headings = ['ID Materia', 'Nombre', 'Semestre'];
+            $query = Materia::with('carrera')->where('estado', 1);
+            if ($idCarrera) {
+                $query->where('idCarrera', $idCarrera);
+            }
+            $materias = $query->get();
+            $headings = ['ID Materia', 'Nombre', 'Semestre', 'Carrera'];
             $data = $materias->map(function ($m) {
                 return [
                     $m->idMateria,
                     $m->nombre,
                     $m->semestre,
+                    $m->carrera ? $m->carrera->nombre : 'N/A',
                 ];
             });
             return ['headings' => $headings, 'data' => $data];

@@ -94,6 +94,17 @@
         </div>
       </div>
 
+      <!-- Filtros por Carrera (solo para catálogo de materias) -->
+      <div v-if="filtros.tipo === 'materias'" class="rw-filters">
+        <div class="rw-filter-group">
+          <label class="rw-label">Carrera</label>
+          <select v-model="filtros.carrera" class="rw-select">
+            <option value="">Todas las carreras</option>
+            <option v-for="car in listadoCarreras" :key="car.idCarrera" :value="car.idCarrera">{{ car.nombre }}</option>
+          </select>
+        </div>
+      </div>
+
       <!-- Botón Procesar -->
       <div class="rw-actions">
         <button class="rw-btn-primary" :disabled="loading" @click="cargarReporte">
@@ -164,11 +175,12 @@ const reporte    = ref([]);
 const headings   = ref([]);
 const listadoCursos   = ref([]);
 const listadoMaterias = ref([]);
+const listadoCarreras = ref([]);
 const successMessage  = ref('');
 const errorMessage    = ref('');
 const infoMessage     = ref('');
 
-const filtros = reactive({ tipo: 'inscripciones', curso: '', materia: '' });
+const filtros = reactive({ tipo: 'inscripciones', curso: '', materia: '', carrera: '' });
 
 const resetMessages = () => { successMessage.value = ''; errorMessage.value = ''; infoMessage.value = ''; };
 
@@ -176,6 +188,7 @@ const selectTipo = (t) => {
   filtros.tipo = t;
   filtros.curso = '';
   filtros.materia = '';
+  filtros.carrera = '';
   reporte.value = [];
   headings.value = [];
   searched.value = false;
@@ -186,6 +199,7 @@ onMounted(async () => {
     const { data } = await props.api.get('/reportes/filtros');
     listadoCursos.value   = data.cursos   || [];
     listadoMaterias.value = data.materias || [];
+    listadoCarreras.value = data.carreras || [];
   } catch (e) {
     console.error('Error cargando filtros', e);
   }
@@ -196,6 +210,7 @@ const buildParams = () => {
   p.append('tipo', filtros.tipo);
   if (filtros.curso   && (filtros.tipo === 'inscripciones' || filtros.tipo === 'cursos')) p.append('curso',   filtros.curso);
   if (filtros.materia && (filtros.tipo === 'inscripciones' || filtros.tipo === 'cursos')) p.append('materia', filtros.materia);
+  if (filtros.carrera && filtros.tipo === 'materias') p.append('carrera', filtros.carrera);
   return p;
 };
 

@@ -37,7 +37,41 @@ class UserController extends Controller
     {
         $data = $request->validated();
 
-        $user = User::create($data);
+        $user = \Illuminate\Support\Facades\DB::transaction(function () use ($data) {
+            $user = User::create($data);
+
+            $rol = Rol::find($data['idRol']);
+            if ($rol && $rol->nombre === 'Estudiante') {
+                $idEstudiante = \Illuminate\Support\Facades\DB::table('estudiante')->insertGetId([
+                    'idUsuario' => $user->idUsuario,
+                    'nombrePadre' => 'Sin Registrar',
+                    'apellidoPadre' => 'Sin Registrar',
+                    'nombreMadre' => null,
+                    'apellidoMadre' => null,
+                    'numeroPadre' => null,
+                    'numeroMadre' => null,
+                    'fechaA' => now(),
+                    'UsuarioA' => auth()->id() ?? '1',
+                    'estadoA' => true,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                \Illuminate\Support\Facades\DB::table('estudiante_carrera')->insert([
+                    'idEstudiante' => $idEstudiante,
+                    'idCarrera' => $data['idCarrera'],
+                    'fechaRegistro' => now(),
+                    'estado' => true,
+                    'fechaA' => now(),
+                    'UsuarioA' => auth()->id() ?? '1',
+                    'estadoA' => true,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            return $user;
+        });
 
         return response()->json([
             'message' => 'Usuario registrado correctamente.',

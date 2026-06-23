@@ -37,6 +37,15 @@ class StoreUserRequest extends FormRequest
                     ->letters()
                     ->numbers(),
             ],
+            'idCarrera' => [
+                \Illuminate\Validation\Rule::requiredIf(function () {
+                    $rol = \App\Models\Rol::find($this->idRol);
+                    return $rol && $rol->nombre === 'Estudiante';
+                }),
+                'nullable',
+                'integer',
+                'exists:carreras,idCarrera',
+            ],
         ];
     }
 
@@ -75,6 +84,9 @@ class StoreUserRequest extends FormRequest
             'password.min' => 'La contraseña debe tener al menos 8 caracteres.',
             'password.letters' => 'La contraseña debe contener al menos una letra.',
             'password.numbers' => 'La contraseña debe contener al menos un número.',
+            'idCarrera.required' => 'La carrera es obligatoria para estudiantes.',
+            'idCarrera.integer' => 'La carrera debe ser un número entero.',
+            'idCarrera.exists' => 'La carrera seleccionada no existe.',
         ];
     }
 }
