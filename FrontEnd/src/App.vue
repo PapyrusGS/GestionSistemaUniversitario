@@ -7,6 +7,12 @@ import CursoManagement from './components/CursoManagement.vue'
 import MateriaManagement from './components/MateriaManagement.vue'
 import UserManagement from './components/UserManagement.vue'
 import ReportesAdmin from './components/ReportesAdmin.vue'
+import EstudianteMaterias from './components/EstudianteMaterias.vue'
+import EstudianteCarga from './components/EstudianteCarga.vue'
+import EstudianteCalificaciones from './components/EstudianteCalificaciones.vue'
+import EstudianteHistorial from './components/EstudianteHistorial.vue'
+import EstudianteMallaCurricular from './components/EstudianteMallaCurricular.vue'
+import EstudianteReportes from './components/EstudianteReportes.vue'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
@@ -24,6 +30,9 @@ const user = ref(null)
 const successMessage = ref('')
 const errorMessage = ref('')
 const adminSection = ref('perfil')
+const studentSection = ref('perfil')
+const studentMessage = ref('')
+const studentMessageType = ref('')
 
 const loginForm = reactive({
   login: '',
@@ -64,6 +73,8 @@ function persistSession(accessToken, profile) {
 
   if (profile.rol === 'Docente') {
     mode.value = 'dashboard-docente'
+  } else if (profile.rol === 'Estudiante') {
+    mode.value = 'dashboard-estudiante'
   } else {
     mode.value = 'dashboard-general'
   }
@@ -74,6 +85,17 @@ function clearSession() {
   sessionStorage.removeItem(sessionKey)
   user.value = null
   adminSection.value = 'perfil'
+  studentSection.value = 'perfil'
+}
+
+function onStudentMessage(msg) {
+  studentMessage.value = msg.text
+  studentMessageType.value = msg.type
+}
+
+function goStudentSection(section) {
+  studentMessage.value = ''
+  studentSection.value = section
 }
 
 function resetMessages() {
@@ -107,6 +129,8 @@ async function loadProfile() {
 
     if (payload.user.rol === 'Docente') {
       mode.value = 'dashboard-docente'
+    } else if (payload.user.rol === 'Estudiante') {
+      mode.value = 'dashboard-estudiante'
     } else {
       mode.value = 'dashboard-general'
     }
@@ -122,8 +146,12 @@ async function login() {
   try {
     const { data } = await api.post('/auth/login', loginForm)
     const payload = data.data ?? data
+
     persistSession(payload.token, payload.user)
-    successMessage.value = data.message || 'Sesion iniciada correctamente.'
+
+    // No mostrar mensaje después del login
+    successMessage.value = ''
+
   } catch (error) {
     errorMessage.value = parseError(error, 'No pudimos iniciar sesion.')
   } finally {
@@ -138,7 +166,7 @@ async function logout() {
   try {
     await api.post('/auth/logout')
   } catch {
-    // Si el token ya expiro o fue revocado, igual limpiamos la sesion local.
+    // Sesión remota expirada
   } finally {
     clearSession()
     loading.value = false
@@ -150,632 +178,813 @@ onMounted(loadProfile)
 </script>
 
 <template>
-  <div v-if="!isAuthenticated" class="auth-shell-wrapper">
-    <main class="auth-shell">
-      <section class="hero-panel">
-        <div class="brand">Universidad</div>
-        <h1>Modulo de autenticacion seguro</h1>
-        <p>
-          Acceso con API protegida por Sanctum, contrasenas cifradas, throttling de intentos y
-          control por rol sobre la base de datos real del sistema.
-        </p>
+  <!-- ─── LOGIN ─────────────────────────────────────────────────────────── -->
+  <div v-if="!isAuthenticated" class="uni-outer-wrapper">
+    <div class="uni-capsule-card">
 
-        <ul class="feature-list">
-          <li>Login con correo o CI</li>
-          <li>Token por sesion en el navegador</li>
-        </ul>
-
-        <div class="highlight-card">
-          <span>Estado</span>
-          <strong>{{ isAuthenticated ? 'Autenticado' : 'Pendiente de acceso' }}</strong>
+      <!-- Bloque del Formulario (Izquierda) -->
+      <div class="uni-capsule-left">
+        <div class="uni-brand">
+          <i class="ti ti-building-community"></i>
+          Universidad
         </div>
-      </section>
 
-      <section class="panel">
-        <div class="card">
-          <div v-if="successMessage" class="alert success">{{ successMessage }}</div>
-          <div v-if="errorMessage" class="alert error">{{ errorMessage }}</div>
+        <div class="uni-form-box">
+          <div class="uni-avatar-placeholder">
+            <i class="ti ti-user-circle"></i>
+          </div>
 
-          <form class="form-grid" @submit.prevent="login">
-            <label>
-              <span>Correo o CI</span>
-              <input v-model.trim="loginForm.login" type="text" autocomplete="username" required />
-            </label>
+          <div v-if="successMessage" class="uni-alert uni-alert--success">{{ successMessage }}</div>
+          <div v-if="errorMessage" class="uni-alert uni-alert--error">{{ errorMessage }}</div>
 
-            <label>
-              <span>Contrasena</span>
-              <input
-                v-model="loginForm.password"
-                type="password"
-                autocomplete="current-password"
-                required
-              />
-            </label>
+          <form @submit.prevent="login" class="uni-form-grid">
+            <div class="uni-field">
+              <div class="uni-input-wrap">
+                <i class="ti ti-user"></i>
+                <input
+                  v-model.trim="loginForm.login"
+                  type="text"
+                  placeholder="Usuario o Correo"
+                  autocomplete="username"
+                  required
+                />
+              </div>
+            </div>
 
-            <button class="primary" type="submit" :disabled="loading">
-              {{ loading ? 'Validando...' : 'Entrar' }}
+            <div class="uni-field">
+              <div class="uni-input-wrap">
+                <i class="ti ti-lock"></i>
+                <input
+                  v-model="loginForm.password"
+                  type="password"
+                  placeholder="Contraseña"
+                  autocomplete="current-password"
+                  required
+                />
+              </div>
+            </div>
+
+            <button class="uni-btn-primary" type="submit" :disabled="loading">
+              {{ loading ? 'VERIFICANDO...' : 'INGRESAR' }}
             </button>
           </form>
         </div>
-      </section>
-    </main>
-  </div>
 
-  <div v-else-if="user?.rol === 'Docente'" class="authenticated-full-workspace">
-    <div class="full-screen-app-container">
-      <DashboardDocente :user="user" :api="api" :badgeTone="badgeTone" @logout="logout" />
+        <div class="uni-dots-indicator">
+          <span class="active"></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+
+      <!-- Bloque del Arte Líquido (Derecha) -->
+      <div class="uni-capsule-right">
+        <nav class="uni-top-nav">
+          <span class="uni-nav-link">Inicio</span>
+          <span class="uni-nav-link">Soporte</span>
+          <span class="uni-nav-link">Contacto</span>
+        </nav>
+
+        <div class="uni-hero-content">
+          <h1>Bienvenido</h1>
+          <p>Portal institucional de gestión académica. Accede a tus cursos, materias y control docente desde un entorno unificado.</p>
+        </div>
+      </div>
+
     </div>
   </div>
 
-  <div v-else-if="user?.rol === 'Administrador'" class="authenticated-full-workspace">
-    <main class="auth-shell" :class="{ 'full-width-shell': adminSection !== 'perfil' }">
-      <section class="hero-panel" v-show="adminSection === 'perfil'">
-        <div class="brand">Universidad</div>
-        <h1>Modulo de autenticacion seguro</h1>
-        <p>
-          Acceso con API protegida por Sanctum, contrasenas cifradas, throttling de intentos y
-          control por rol sobre la base de datos real del sistema.
-        </p>
-
-        <ul class="feature-list">
-          <li>Login con correo o CI</li>
-          <li>Token por sesion en el navegador</li>
-        </ul>
-
-        <div class="highlight-card">
-          <span>Estado</span>
-          <strong>Autenticado</strong>
-        </div>
-      </section>
-
-      <section class="panel">
-        <div class="card dashboard" :class="{ 'wide-card': adminSection !== 'perfil' }">
-          <div class="dashboard-head">
-            <div>
-              <span class="eyebrow">Sesion activa</span>
-              <h2>{{ fullName }}</h2>
-            </div>
-            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
-              <button
-                class="secondary"
-                type="button"
-                style="padding: 0.5rem 1rem; font-size: 0.85rem;"
-                @click="adminSection = 'perfil'"
-              >
-                Ver perfil
-              </button>
-              <button
-                class="secondary"
-                type="button"
-                style="padding: 0.5rem 1rem; font-size: 0.85rem;"
-                @click="adminSection = 'usuarios'"
-              >
-                Usuarios
-              </button>
-              <button
-                class="secondary"
-                type="button"
-                style="padding: 0.5rem 1rem; font-size: 0.85rem;"
-                @click="adminSection = 'carreras'"
-              >
-                Carreras
-              </button>
-              <button
-                class="secondary"
-                type="button"
-                style="padding: 0.5rem 1rem; font-size: 0.85rem;"
-                @click="adminSection = 'materias'"
-              >
-                Materias
-              </button>
-              <button
-                class="secondary"
-                type="button"
-                style="padding: 0.5rem 1rem; font-size: 0.85rem;"
-                @click="adminSection = 'cursos'"
-              >
-                Cursos
-              </button>
-              <button
-                class="secondary"
-                type="button"
-                style="padding: 0.5rem 1rem; font-size: 0.85rem;"
-                @click="adminSection = 'reportes'"
-              >
-                Reportes
-              </button>
-              <span class="role-badge" :data-tone="badgeTone">{{ roleName }}</span>
-            </div>
-          </div>
-
-          <div v-if="adminSection === 'usuarios'" style="margin-top: 1rem; width: 100%;">
-            <UserManagement :api="api" />
-          </div>
-
-          <div v-else-if="adminSection === 'carreras'" style="margin-top: 1rem; width: 100%;">
-            <CarreraManagement :api="api" />
-          </div>
-
-          <div v-else-if="adminSection === 'materias'" style="margin-top: 1rem; width: 100%;">
-            <MateriaManagement :api="api" />
-          </div>
-
-          <div v-else-if="adminSection === 'cursos'" style="margin-top: 1rem; width: 100%;">
-            <CursoManagement :api="api" />
-          </div>
-
-          <div v-else-if="adminSection === 'reportes'" style="margin-top: 1rem; width: 100%;">
-            <ReportesAdmin :api="api" />
-          </div>
-
-          <div v-else class="info-grid">
-            <article>
-              <span>Correo</span>
-              <strong>{{ user.correo }}</strong>
-            </article>
-            <article>
-              <span>CI</span>
-              <strong>{{ user.ci }}</strong>
-            </article>
-            <article>
-              <span>Registro</span>
-              <strong>{{ user.fechaRegistro || 'No disponible' }}</strong>
-            </article>
-            <article>
-              <span>Estado</span>
-              <strong>{{ user.estado ? 'Activo' : 'Inactivo' }}</strong>
-            </article>
-          </div>
-
-          <div v-if="successMessage" class="alert success">{{ successMessage }}</div>
-          <div v-if="errorMessage" class="alert error">{{ errorMessage }}</div>
-
-          <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem; width: 100%;">
-            <button class="secondary" type="button" :disabled="loading" @click="logout">
-              {{ loading ? 'Cerrando...' : 'Cerrar sesion' }}
-            </button>
-          </div>
-        </div>
-      </section>
-    </main>
+  <!-- ─── DOCENTE ────────────────────────────────────────────────────────── -->
+  <div v-else-if="user?.rol === 'Docente'" class="uni-full-workspace">
+    <DashboardDocente :user="user" :api="api" :badgeTone="badgeTone" @logout="logout" />
   </div>
 
-  <div v-else class="authenticated-full-workspace">
-    <main class="auth-shell">
-      <section class="hero-panel">
-        <div class="brand">Universidad</div>
-        <h1>Panel de estudiante</h1>
-        <p>
-          Tu sesión está activa. Desde aquí podrás consultar tu información personal y, cuando
-          se agreguen los módulos correspondientes, acceder a tu historial académico, inscripciones
-          y notas.
-        </p>
+  <!-- ─── ADMINISTRADOR ─────────────────────────────────────────────────── -->
+  <div v-else-if="user?.rol === 'Administrador'" class="uni-full-workspace">
+    <div class="uni-admin-shell">
 
-        <ul class="feature-list">
-          <li>Acceso restringido por rol</li>
-          <li>Vista de solo lectura</li>
-        </ul>
-
-        <div class="highlight-card">
-          <span>Estado</span>
-          <strong>Autenticado como estudiante</strong>
+      <aside class="uni-admin-sidebar">
+      <div>
+        <div class="uni-brand">
+          <i class="ti ti-building-community"></i>
+          Universidad
         </div>
-      </section>
 
-      <section class="panel">
-        <div class="card dashboard">
-          <div class="dashboard-head">
+        <div class="uni-hero uni-hero--sm">
+          <h1>Panel de<br><em>administración</em></h1>
+          <p>Sistema académico integrado.</p>
+        </div>
+      </div>
+
+      <div>
+        <div class="uni-foot">
+          <span class="uni-dot"></span>
+          Conexión segura
+        </div>
+
+        <div class="uni-sidebar-actions">
+          <button
+            class="uni-sidebar-logout"
+            :disabled="loading"
+            @click="logout"
+          >
+            <i class="ti ti-logout"></i>
+            {{ loading ? 'Cerrando...' : 'Cerrar sesión' }}
+          </button>
+        </div>
+      </div>
+      </aside>
+
+      <main class="uni-admin-main">
+        <div class="uni-dashboard-card">
+
+          <div class="uni-dashboard-head">
             <div>
-              <span class="eyebrow">Sesion activa</span>
-              <h2>{{ fullName }}</h2>
+              <span class="uni-eyebrow">Sesión activa</span>
+              <h2 class="uni-dashboard-name">{{ fullName }}</h2>
             </div>
-            <span class="role-badge" :data-tone="badgeTone">{{ roleName }}</span>
+            <div class="uni-dashboard-actions">
+              <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': adminSection === 'perfil' }" @click="adminSection = 'perfil'">
+                <i class="ti ti-user" aria-hidden="true"></i>Perfil
+              </button>
+              <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': adminSection === 'usuarios' }" @click="adminSection = 'usuarios'">
+                <i class="ti ti-users" aria-hidden="true"></i>Usuarios
+              </button>
+              <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': adminSection === 'carreras' }" @click="adminSection = 'carreras'">
+                <i class="ti ti-school" aria-hidden="true"></i>Carreras
+              </button>
+              <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': adminSection === 'materias' }" @click="adminSection = 'materias'">
+                <i class="ti ti-book" aria-hidden="true"></i>Materias
+              </button>
+              <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': adminSection === 'cursos' }" @click="adminSection = 'cursos'">
+                <i class="ti ti-calendar" aria-hidden="true"></i>Cursos
+              </button>
+              <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': adminSection === 'reportes' }" @click="adminSection = 'reportes'">
+                <i class="ti ti-file-report" aria-hidden="true"></i>Reportes
+              </button>
+              <span class="uni-role-badge" :data-tone="badgeTone">{{ roleName }}</span>
+            </div>
           </div>
 
-          <div class="info-grid">
-            <article>
+          <div v-if="adminSection === 'usuarios'" class="uni-section-body">
+            <UserManagement :api="api" />
+          </div>
+          <div v-else-if="adminSection === 'carreras'" class="uni-section-body">
+            <CarreraManagement :api="api" />
+          </div>
+          <div v-else-if="adminSection === 'materias'" class="uni-section-body">
+            <MateriaManagement :api="api" />
+          </div>
+          <div v-else-if="adminSection === 'cursos'" class="uni-section-body">
+            <CursoManagement :api="api" />
+          </div>
+          <div v-else-if="adminSection === 'reportes'" class="uni-section-body">
+            <ReportesAdmin :api="api" />
+          </div>
+          <div v-else class="uni-info-grid">
+            <article class="uni-info-card">
               <span>Correo</span>
               <strong>{{ user.correo }}</strong>
             </article>
-            <article>
+            <article class="uni-info-card">
               <span>CI</span>
               <strong>{{ user.ci }}</strong>
             </article>
-            <article>
+            <article class="uni-info-card">
               <span>Registro</span>
               <strong>{{ user.fechaRegistro || 'No disponible' }}</strong>
             </article>
-            <article>
+            <article class="uni-info-card">
               <span>Estado</span>
               <strong>{{ user.estado ? 'Activo' : 'Inactivo' }}</strong>
             </article>
           </div>
 
-          <div v-if="successMessage" class="alert success">{{ successMessage }}</div>
-          <div v-if="errorMessage" class="alert error">{{ errorMessage }}</div>
-
-          <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem; width: 100%;">
-            <button class="secondary" type="button" :disabled="loading" @click="logout">
-              {{ loading ? 'Cerrando...' : 'Cerrar sesion' }}
-            </button>
-          </div>
+          <div v-if="successMessage" class="uni-alert uni-alert--success">{{ successMessage }}</div>
+          <div v-if="errorMessage" class="uni-alert uni-alert--error">{{ errorMessage }}</div>
         </div>
-      </section>
-    </main>
+      </main>
+    </div>
+  </div>
+
+  <!-- ─── ESTUDIANTE ────────────────────────────────────────────────────── -->
+  <div v-else-if="user?.rol === 'Estudiante'" class="uni-full-workspace">
+    <div class="uni-admin-shell">
+          <aside class="uni-admin-sidebar">
+      <div>
+        <div class="uni-brand">
+          <i class="ti ti-building-community"></i>
+          Universidad
+        </div>
+
+        <div class="uni-hero uni-hero--sm">
+          <h1>Panel del<br><em>estudiante</em></h1>
+          <p>Sistema académico integrado.</p>
+        </div>
+      </div>
+
+      <div>
+        <div class="uni-foot">
+          <span class="uni-dot"></span>
+          Conexión segura
+        </div>
+
+        <div class="uni-sidebar-actions">
+          <button
+            class="uni-sidebar-logout"
+            :disabled="loading"
+            @click="logout"
+          >
+            <i class="ti ti-logout"></i>
+            {{ loading ? 'Cerrando...' : 'Cerrar sesión' }}
+          </button>
+        </div>
+      </div>
+    </aside>
+      <main class="uni-admin-main">
+        <div class="uni-dashboard-card">
+
+          <div class="uni-dashboard-head">
+            <div>
+              <span class="uni-eyebrow">Sesión activa</span>
+              <h2 class="uni-dashboard-name">{{ fullName }}</h2>
+            </div>
+            <div class="uni-dashboard-actions">
+              <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': studentSection === 'perfil' }" @click="goStudentSection('perfil')">
+                <i class="ti ti-user" aria-hidden="true"></i>Mi Perfil
+              </button>
+              <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': studentSection === 'materias' }" @click="goStudentSection('materias')">
+                <i class="ti ti-book" aria-hidden="true"></i>Materias Disponibles
+              </button>
+              <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': studentSection === 'inscritas' }" @click="goStudentSection('inscritas')">
+                <i class="ti ti-clipboard-list" aria-hidden="true"></i>Mis Materias
+              </button>
+              <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': studentSection === 'notas' }" @click="goStudentSection('notas')">
+                <i class="ti ti-star" aria-hidden="true"></i>Mis Notas
+              </button>
+              <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': studentSection === 'historial' }" @click="goStudentSection('historial')">
+                <i class="ti ti-history" aria-hidden="true"></i>Historial Academico
+              </button>
+              <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': studentSection === 'malla' }" @click="goStudentSection('malla')">
+                <i class="ti ti-layout-columns" aria-hidden="true"></i>Malla
+              </button>
+              <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': studentSection === 'reportes' }" @click="goStudentSection('reportes')">
+                <i class="ti ti-file-report" aria-hidden="true"></i>Mis Reportes
+              </button>
+              <span class="uni-role-badge" :data-tone="badgeTone">{{ roleName }}</span>
+            </div>
+          </div>
+
+          <div v-if="studentMessage" :class="'uni-alert ' + (studentMessageType === 'error' ? 'uni-alert--error' : 'uni-alert--success')">{{ studentMessage }}</div>
+
+          <div v-if="studentSection === 'perfil'" class="uni-info-grid">
+            <article class="uni-info-card">
+              <span>Correo</span>
+              <strong>{{ user.correo }}</strong>
+            </article>
+            <article class="uni-info-card">
+              <span>CI</span>
+              <strong>{{ user.ci }}</strong>
+            </article>
+            <article class="uni-info-card">
+              <span>Rol</span>
+              <strong>{{ user.rol }}</strong>
+            </article>
+            <article class="uni-info-card">
+              <span>Estado</span>
+              <strong>{{ user.estado ? 'Activo' : 'Inactivo' }}</strong>
+            </article>
+          </div>
+
+          <div v-else-if="studentSection === 'materias'">
+            <EstudianteMaterias :user="user" :api="api" @message="onStudentMessage" />
+          </div>
+          <div v-else-if="studentSection === 'inscritas'">
+            <EstudianteCarga :user="user" :api="api" @message="onStudentMessage" />
+          </div>
+          <div v-else-if="studentSection === 'notas'">
+            <EstudianteCalificaciones :user="user" :api="api" @message="onStudentMessage" />
+          </div>
+          <div v-else-if="studentSection === 'historial'">
+            <EstudianteHistorial :user="user" :api="api" @message="onStudentMessage" />
+          </div>
+          <div v-else-if="studentSection === 'malla'">
+            <EstudianteMallaCurricular :user="user" :api="api" @message="onStudentMessage" />
+          </div>
+          <div v-else-if="studentSection === 'reportes'">
+            <EstudianteReportes :user="user" :api="api" @message="onStudentMessage" />
+          </div>
+
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ─── FALLBACK ──────────────────────────────────────────────────────── -->
+  <div v-else class="uni-full-workspace">
+    <div class="uni-outer-wrapper">
+      <div class="uni-capsule-card" style="grid-template-columns: 1fr; padding: 4rem; text-align: center;">
+        <h1 style="font-family: 'Playfair Display', serif;">Sesión Activa</h1>
+        <p>Redireccionando al entorno universitario principal...</p>
+      </div>
+    </div>
   </div>
 </template>
 
-<style scoped>
-.auth-shell-wrapper,
-.authenticated-full-workspace {
-  width: 100vw;
-  min-height: 100vh;
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-.full-screen-app-container {
-  width: 100%;
-  min-height: 100vh;
-  background: transparent;
-}
-</style>
-
 <style>
+@import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500;1,700&family=Montserrat:wght@400;500;600;700&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; }
+
 :root {
-  color-scheme: dark;
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --bg: #0b1020;
-  --bg-soft: rgba(18, 27, 55, 0.72);
-  --panel: rgba(14, 20, 41, 0.88);
-  --panel-border: rgba(180, 204, 255, 0.18);
-  --text: #eef2ff;
-  --muted: #aab5d4;
-  --primary: #7dd3fc;
-  --primary-strong: #38bdf8;
-  --danger: #fda4af;
-  --success: #86efac;
-  --shadow: 0 30px 80px rgba(3, 8, 20, 0.45);
+  --color-dark-gray:  #5b5c5e;
+  --color-mint-dark:  #697d7b;
+  --color-mint-light: #8c9f96;
+  --color-sand:       #bfb09b;
+  --color-linen:      #d0cfca;
+  --color-white:      #ffffff;
+  --color-black:      #000000;
+
+  --uni-bg-outer:     #d0cfca;
+  --uni-text:         #1a1a1a;
+  --uni-muted:        #5b5c5e;
+
+  --uni-success-bg:     #edf4f2;
+  --uni-success-border: #8c9f96;
+  --uni-success-text:   #2b3d36;
+  --uni-error-bg:       #faf0f0;
+  --uni-error-border:   #dca6a6;
+  --uni-error-text:     #7a2424;
 }
 
-* {
-  box-sizing: border-box;
-}
-
-html,
-body,
-#app {
-  min-height: 100%;
+html, body, #app {
   margin: 0;
+  height: 100%;          /* altura exacta, sin overflow */
+  overflow: hidden;      /* la página en sí nunca scrollea */
+  font-family: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
+  background: var(--color-white);
+  color: var(--uni-text);
+  -webkit-font-smoothing: antialiased;
 }
 
-body {
+button, input { font: inherit; }
+button { cursor: pointer; }
+
+/* ─── LOGIN ───────────────────────────────────────────────────────────── */
+.uni-outer-wrapper {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top left, rgba(56, 189, 248, 0.25), transparent 28%),
-    radial-gradient(circle at 80% 20%, rgba(99, 102, 241, 0.22), transparent 24%),
-    linear-gradient(135deg, #060816, #0b1020 46%, #0f172a);
-  color: var(--text);
-}
-
-button,
-input {
-  font: inherit;
-}
-
-button {
-  cursor: pointer;
-}
-
-.auth-shell {
-  min-height: 100vh;
-  display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
-  gap: 1.5rem;
+  width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-linen);
+  background-image: linear-gradient(135deg, #d0cfca 0%, #bfb09b 100%);
   padding: 2rem;
 }
 
-.hero-panel,
-.panel {
-  display: flex;
-  align-items: center;
+.uni-capsule-card {
+  width: 100%;
+  max-width: 1020px;
+  height: 560px;
+  background: var(--color-white);
+  border-radius: 24px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12);
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  overflow: hidden;
 }
 
-.hero-panel {
+.uni-capsule-left {
+  padding: 3rem 2.5rem;
+  display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 2rem;
+  justify-content: space-between;
+  background: var(--color-white);
 }
 
-.brand {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.45rem 0.8rem;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.05);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  font-size: 0.72rem;
-  color: var(--primary);
-}
-
-.hero-panel h1 {
-  max-width: 12ch;
-  margin: 1.25rem 0 1rem;
-  font-size: clamp(2.8rem, 6vw, 5.6rem);
-  line-height: 0.95;
-}
-
-.hero-panel p {
-  max-width: 34rem;
-  margin: 0;
-  color: var(--muted);
-  font-size: 1.05rem;
-  line-height: 1.7;
-}
-
-.feature-list {
-  list-style: none;
-  padding: 0;
-  margin: 1.5rem 0 0;
-  display: grid;
-  gap: 0.85rem;
-}
-
-.feature-list li {
+.uni-form-box {
   display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  color: var(--text);
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: -1rem;
 }
 
-.feature-list li::before {
-  content: '';
-  width: 0.75rem;
-  height: 0.75rem;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--primary), var(--primary-strong));
-  box-shadow: 0 0 0 0.35rem rgba(125, 211, 252, 0.12);
-}
-
-.highlight-card,
-.card {
-  background: linear-gradient(180deg, rgba(14, 20, 41, 0.94), rgba(11, 16, 32, 0.92));
-  border: 1px solid var(--panel-border);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(18px);
-}
-
-.highlight-card {
-  margin-top: 2rem;
-  min-width: 18rem;
-  border-radius: 1.4rem;
-  padding: 1.1rem 1.2rem;
-}
-
-.highlight-card span,
-.eyebrow,
-.info-grid span,
-.form-grid span,
-.highlight-card strong {
-  display: block;
-}
-
-.highlight-card span,
-.eyebrow,
-.info-grid span,
-.form-grid span {
-  color: var(--muted);
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-}
-
-.highlight-card strong {
-  margin-top: 0.4rem;
-  font-size: 1.2rem;
-}
-
-.panel {
+.uni-avatar-placeholder {
+  display: flex;
   justify-content: center;
-  padding: 2rem 0;
+  color: var(--color-mint-dark);
+  font-size: 64px;
+  margin-bottom: 0.5rem;
 }
 
-.card {
-  width: min(100%, 44rem);
-  border-radius: 1.8rem;
-  padding: 1.4rem;
-  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.card.wide-card {
-  width: min(100%, 75rem);
-}
-
-.auth-shell.full-width-shell {
-  grid-template-columns: 1fr;
-}
-
-.form-grid {
-  display: grid;
+.uni-form-grid {
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
 }
 
-label {
-  display: grid;
-  gap: 0.55rem;
+.uni-field { width: 100%; }
+
+.uni-input-wrap { position: relative; }
+
+.uni-input-wrap i {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 16px;
+  color: var(--color-dark-gray);
 }
 
-input {
+.uni-input-wrap input {
   width: 100%;
-  border: 1px solid rgba(180, 204, 255, 0.14);
-  border-radius: 0.9rem;
-  background: rgba(6, 10, 23, 0.72);
-  color: var(--text);
-  padding: 0.95rem 1rem;
+  background: transparent;
+  border: 1.5px solid var(--color-dark-gray);
+  border-radius: 30px;
+  color: var(--color-black);
+  padding: 12px 16px 12px 46px;
+  font-size: 13px;
+  font-weight: 500;
   outline: none;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    transform 0.2s ease;
+  transition: all 0.2s ease;
 }
 
-input:focus {
-  border-color: rgba(125, 211, 252, 0.8);
-  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.14);
-  transform: translateY(-1px);
+.uni-input-wrap input:focus {
+  border-color: var(--color-mint-dark);
+  box-shadow: 0 0 0 3px rgba(103, 125, 123, 0.15);
 }
 
-.primary,
-.secondary {
-  border: 0;
-  border-radius: 0.95rem;
-  padding: 0.95rem 1.1rem;
+.uni-input-wrap input::placeholder {
+  color: #909090;
+  font-weight: 400;
+}
+
+.uni-btn-primary {
+  width: 100%;
+  background: var(--color-mint-dark);
+  border: none;
+  border-radius: 30px;
+  color: var(--color-white);
+  font-size: 12px;
   font-weight: 700;
-  transition:
-    transform 0.2s ease,
-    opacity 0.2s ease,
-    box-shadow 0.2s ease;
+  padding: 13px;
+  letter-spacing: 0.15em;
+  text-align: center;
+  transition: background-color 0.2s ease;
+  margin-top: 0.5rem;
 }
 
-.primary {
-  color: #02131e;
-  background: linear-gradient(135deg, #67e8f9, #7dd3fc 50%, #38bdf8);
-  box-shadow: 0 12px 40px rgba(56, 189, 248, 0.28);
+.uni-btn-primary:hover:not(:disabled) { background: var(--color-dark-gray); }
+
+.uni-dots-indicator {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
 }
 
-.secondary {
-  color: var(--text);
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(180, 204, 255, 0.18);
+.uni-dots-indicator span {
+  width: 6px;
+  height: 6px;
+  background: #dbdbdb;
+  border-radius: 50%;
 }
 
-.primary:hover,
-.secondary:hover {
-  transform: translateY(-1px);
+.uni-dots-indicator span.active {
+  background: var(--color-dark-gray);
+  width: 18px;
+  border-radius: 10px;
 }
 
-.primary:disabled,
-.secondary:disabled {
-  opacity: 0.68;
-  cursor: wait;
+.uni-capsule-right {
+  background-color: var(--color-mint-dark);
+  background-image:
+    radial-gradient(at 80% 20%, var(--color-sand) 0px, transparent 50%),
+    radial-gradient(at 20% 80%, var(--color-mint-light) 0px, transparent 50%),
+    radial-gradient(at 0% 0%, var(--color-mint-dark) 0px, transparent 70%);
+  padding: 3rem 4rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  color: var(--color-white);
 }
 
-.alert {
-  margin-bottom: 1rem;
-  padding: 0.9rem 1rem;
-  border-radius: 0.9rem;
-  border: 1px solid transparent;
+.uni-top-nav {
+  display: flex;
+  gap: 2rem;
+  justify-content: flex-end;
 }
 
-.alert.success {
-  background: rgba(34, 197, 94, 0.12);
-  border-color: rgba(134, 239, 172, 0.2);
-  color: var(--success);
+.uni-nav-link {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+  cursor: pointer;
+  transition: opacity 0.2s;
 }
 
-.alert.error {
-  background: rgba(244, 63, 94, 0.12);
-  border-color: rgba(253, 164, 175, 0.2);
-  color: var(--danger);
+.uni-nav-link:hover { opacity: 1; }
+
+.uni-hero-content { max-width: 460px; margin-bottom: 2rem; }
+
+.uni-hero-content h1 {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 3.5rem;
+  font-weight: 700;
+  margin: 0 0 1rem 0;
+  letter-spacing: -0.03em;
 }
 
-.dashboard {
+.uni-hero-content p {
+  font-size: 13px;
+  line-height: 1.7;
+  opacity: 0.85;
+  margin: 0;
+  font-weight: 400;
+}
+
+/* ─── WORKSPACE ───────────────────────────────────────────────────────── */
+.uni-full-workspace {
+  width: 100%;
+  height: 100%;          /* ocupa exactamente el viewport, sin crecer */
+  overflow: hidden;
+  background: #f6f6f4;
+}
+
+.uni-admin-shell {
+  height: 100%;          /* mismo: no min-height */
   display: grid;
-  gap: 1.25rem;
+  grid-template-columns: 340px 1fr;
 }
 
-.dashboard-head {
+.uni-admin-sidebar {
+  padding: 3rem 2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: var(--color-linen);
+  border-right: 1px solid rgba(0, 0, 0, 0.06);
+  overflow: hidden;      /* sidebar nunca scrollea */
+}
+
+.uni-admin-main {
+  padding: 3rem;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  height: 100%;          /* ocupa todo el alto disponible */
+  overflow-y: auto;      /* aquí sí puede haber scroll si el contenido crece */
+}
+
+.uni-dashboard-card {
+  width: 100%;
+  max-width: 900px;
+  background: var(--color-white);
+  border-radius: 16px;
+  padding: 2.5rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  /* altura limitada al main para que los componentes hijos scrolleen */
+  max-height: calc(100vh - 6rem);
+  min-height: 0;
+}
+
+.uni-dashboard-head {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
-  align-items: flex-start;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--color-linen);
+  padding-bottom: 1.5rem;
+  gap: 1.5rem;
+  flex-wrap: wrap;
 }
 
-.dashboard h2 {
-  margin: 0.25rem 0 0;
-  font-size: clamp(1.5rem, 3vw, 2.2rem);
-}
-
-.role-badge {
-  border-radius: 999px;
-  padding: 0.6rem 0.9rem;
-  font-size: 0.82rem;
-  font-weight: 700;
+.uni-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-mint-light);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-}
-
-.role-badge[data-tone='gold'] {
-  color: #fef3c7;
-  background: rgba(245, 158, 11, 0.16);
-}
-
-.role-badge[data-tone='blue'] {
-  color: #bfdbfe;
-  background: rgba(59, 130, 246, 0.16);
-}
-
-.role-badge[data-tone='green'] {
-  color: #bbf7d0;
-  background: rgba(34, 197, 94, 0.16);
-}
-
-.role-badge[data-tone='neutral'] {
-  color: var(--text);
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.info-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.85rem;
-}
-
-.info-grid article {
-  padding: 1rem;
-  border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(180, 204, 255, 0.12);
-}
-
-.info-grid strong {
   display: block;
-  margin-top: 0.45rem;
+}
+
+.uni-dashboard-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.6rem;
+  margin: 4px 0 0 0;
+}
+
+.uni-dashboard-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.uni-nav-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 20px;
+  color: var(--uni-muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.uni-nav-btn:hover { background: var(--color-linen); color: var(--color-black); }
+
+.uni-nav-btn--active {
+  background: var(--color-linen);
+  color: var(--color-black);
+}
+
+.uni-role-badge {
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: var(--color-sand);
+  color: #54442d;
+}
+
+.uni-section-body {
+  width: 100%;
+  flex: 1;               /* ocupa el espacio sobrante del dashboard-card */
+  min-height: 0;         /* permite que el hijo con overflow funcione */
+  display: flex;
+  flex-direction: column;
+}
+
+.uni-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+.uni-info-card {
+  padding: 1.25rem;
+  background: #fafafa;
+  border-radius: 8px;
+  border-left: 3px solid var(--color-mint-light);
+}
+
+.uni-info-card span {
+  font-size: 11px;
+  color: var(--color-dark-gray);
+  display: block;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.uni-info-card strong {
+  display: block;
   font-size: 1rem;
   word-break: break-word;
 }
 
-@media (max-width: 980px) {
-  .auth-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .hero-panel {
-    padding-bottom: 0;
-  }
+.uni-dashboard-footer {
+  display: flex;
+  justify-content: flex-end;
 }
 
-@media (max-width: 720px) {
-  .auth-shell {
-    padding: 1rem;
-  }
+.uni-btn-secondary {
+  background: transparent;
+  border: 1px solid var(--color-dark-gray);
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-dark-gray);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.15s ease;
+}
 
-  .card {
-    padding: 1rem;
-    border-radius: 1.4rem;
-  }
+.uni-btn-secondary:hover:not(:disabled) {
+  background: var(--color-linen);
+}
 
-  .info-grid {
+.uni-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-dark-gray);
+}
+
+.uni-hero--sm h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.8rem;
+  line-height: 1.2;
+  margin: 1.5rem 0 0.75rem;
+}
+
+.uni-hero--sm h1 em {
+  font-style: italic;
+  color: var(--color-mint-dark);
+}
+
+.uni-hero--sm p {
+  font-size: 12px;
+  color: var(--uni-muted);
+  line-height: 1.6;
+}
+
+.uni-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--uni-muted);
+}
+
+.uni-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-mint-light);
+  display: inline-block;
+}
+
+.uni-alert {
+  padding: 0.75rem 1rem;
+  border-radius: 20px;
+  font-size: 12px;
+  border: 1px solid;
+}
+
+.uni-alert--success {
+  background: var(--uni-success-bg);
+  border-color: var(--uni-success-border);
+  color: var(--uni-success-text);
+}
+
+.uni-alert--error {
+  background: var(--uni-error-bg);
+  border-color: var(--uni-error-border);
+  color: var(--uni-error-text);
+}
+
+.uni-sidebar-actions {
+  margin-top: auto;
+  padding-top: 1.5rem;
+}
+
+.uni-sidebar-logout {
+  width: 100%;
+  border: none;
+  border-radius: 12px;
+  background: #5b5c5e;
+  color: white;
+  padding: 12px 16px;
+  font-weight: 600;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all .2s ease;
+}
+
+.uni-sidebar-logout:hover:not(:disabled) {
+  background: #454648;
+  transform: translateY(-1px);
+}
+
+.uni-sidebar-logout:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+/* ─── RESPONSIVE ──────────────────────────────────────────────────────── */
+@media (max-width: 960px) {
+  .uni-capsule-card {
     grid-template-columns: 1fr;
+    height: auto;
+    max-width: 450px;
   }
+  .uni-capsule-right { display: none; }
+  .uni-admin-shell { grid-template-columns: 1fr; }
+  .uni-admin-sidebar { display: none !important; }
+}
 
-  .dashboard-head {
-    flex-direction: column;
-  }
+@media (max-width: 640px) {
+  .uni-admin-main { padding: 1.5rem; }
+  .uni-dashboard-card { padding: 1.5rem; }
+  .uni-info-grid { grid-template-columns: 1fr; }
+  .uni-dashboard-head { flex-direction: column; align-items: flex-start; }
 }
 </style>

@@ -3,7 +3,10 @@ import { ref, reactive, onMounted } from 'vue'
 
 const props = defineProps({
   user: Object,
-  api: Object,
+  api: {
+    type: [Object, Function],
+    required: true
+  },
   badgeTone: String
 })
 
@@ -70,15 +73,23 @@ async function alCambiarCurso() {
 
   if (!form.idCursoMateria) return
 
+  console.log('Curso ID seleccionado:', form.idCursoMateria) // ← ¿llega aquí?
+  console.log('API object:', props.api)                       // ← ¿existe la api?
+
   loading.value = true
   try {
+    console.log('Iniciando requests...')                      // ← ¿entra al try?
     const [resE, resN] = await Promise.all([
       props.api.get('/docente/estudiantes', { params: { idCursoMateria: form.idCursoMateria } }),
       props.api.get('/docente/notas',       { params: { idCursoMateria: form.idCursoMateria } }),
     ])
+    console.log('Estudiantes:', resE.data)
+    console.log('Notas:', resN.data)
     estudiantes.value      = resE.data.data ?? resE.data
     notasRegistradas.value = resN.data.data ?? resN.data
-  } catch {
+  } catch (error) {
+    console.error('Error completo:', error)
+    console.error('Respuesta:', error.response?.data)
     errorMessage.value = 'No se pudieron cargar los datos del curso seleccionado.'
   } finally {
     loading.value = false
