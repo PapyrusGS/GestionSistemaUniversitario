@@ -94,13 +94,20 @@
         </div>
       </div>
 
-      <!-- Filtros por Carrera (solo para catálogo de materias) -->
+      <!-- Filtros por Carrera y Semestre (solo para catálogo de materias) -->
       <div v-if="filtros.tipo === 'materias'" class="rw-filters">
         <div class="rw-filter-group">
           <label class="rw-label">Carrera</label>
           <select v-model="filtros.carrera" class="rw-select">
             <option value="">Todas las carreras</option>
             <option v-for="car in listadoCarreras" :key="car.idCarrera" :value="car.idCarrera">{{ car.nombre }}</option>
+          </select>
+        </div>
+        <div class="rw-filter-group">
+          <label class="rw-label">Semestre</label>
+          <select v-model="filtros.semestre" class="rw-select">
+            <option value="">Todos los semestres</option>
+            <option v-for="s in 10" :key="s" :value="s">Semestre {{ s }}</option>
           </select>
         </div>
       </div>
@@ -180,7 +187,7 @@ const successMessage  = ref('');
 const errorMessage    = ref('');
 const infoMessage     = ref('');
 
-const filtros = reactive({ tipo: 'inscripciones', curso: '', materia: '', carrera: '' });
+const filtros = reactive({ tipo: 'inscripciones', curso: '', materia: '', carrera: '', semestre: '' });
 
 const resetMessages = () => { successMessage.value = ''; errorMessage.value = ''; infoMessage.value = ''; };
 
@@ -189,6 +196,7 @@ const selectTipo = (t) => {
   filtros.curso = '';
   filtros.materia = '';
   filtros.carrera = '';
+  filtros.semestre = '';
   reporte.value = [];
   headings.value = [];
   searched.value = false;
@@ -210,7 +218,8 @@ const buildParams = () => {
   p.append('tipo', filtros.tipo);
   if (filtros.curso   && (filtros.tipo === 'inscripciones' || filtros.tipo === 'cursos')) p.append('curso',   filtros.curso);
   if (filtros.materia && (filtros.tipo === 'inscripciones' || filtros.tipo === 'cursos')) p.append('materia', filtros.materia);
-  if (filtros.carrera && filtros.tipo === 'materias') p.append('carrera', filtros.carrera);
+  if (filtros.carrera  && filtros.tipo === 'materias') p.append('carrera',  filtros.carrera);
+  if (filtros.semestre && filtros.tipo === 'materias') p.append('semestre', filtros.semestre);
   return p;
 };
 

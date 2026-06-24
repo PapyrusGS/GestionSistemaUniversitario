@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Carrera;
 use App\Repositories\Contracts\CursoRepositoryInterface;
 use App\Repositories\Contracts\DocenteRepositoryInterface;
 use App\Repositories\Contracts\HorarioRepositoryInterface;
@@ -29,10 +30,11 @@ class CursoService
     {
         return [
             'cursosFisicos' => $this->cursos->activePhysicalForSelect()->values(),
-            'materias' => $this->materias->active()->values(),
-            'docentes' => $this->docentes->activeForSelect()->values(),
-            'horarios' => $this->horarios->activeForSelect()->values(),
-            'periodos' => $this->periodos->activeForSelect()->values(),
+            'materias'      => $this->materias->active()->values(),
+            'docentes'      => $this->docentes->activeForSelect()->values(),
+            'horarios'      => $this->horarios->activeForSelect()->values(),
+            'periodos'      => $this->periodos->activeForSelect()->values(),
+            'carreras'      => Carrera::where('estado', true)->get(['idCarrera', 'nombre'])->values(),
         ];
     }
 

@@ -42,6 +42,7 @@ class ReporteController extends Controller
         $idCurso = $request->query('curso');
         $idMateria = $request->query('materia');
         $idCarrera = $request->query('carrera');
+        $semestre = $request->query('semestre');
 
         if ($tipo === 'docentes') {
             $query = User::where('estado', 1)->whereHas('rol', function($q) {
@@ -63,6 +64,9 @@ class ReporteController extends Controller
             $query = Materia::with('carrera')->where('estado', 1);
             if ($idCarrera) {
                 $query->where('idCarrera', $idCarrera);
+            }
+            if ($semestre) {
+                $query->where('semestre', (int) $semestre);
             }
             $materias = $query->get();
             $headings = ['ID Materia', 'Nombre', 'Semestre', 'Carrera'];

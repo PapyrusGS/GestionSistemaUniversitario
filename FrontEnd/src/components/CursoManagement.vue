@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, computed } from 'vue'
 
 const props = defineProps({
   api: {
@@ -11,9 +11,17 @@ const props = defineProps({
 const cursos = ref([])
 const cursosFisicos = ref([])
 const materias = ref([])
+const carreras = ref([])
 const docentes = ref([])
 const horarios = ref([])
 const periodos = ref([])
+const filterCarrera = ref('')
+
+// Materias filtradas por carrera seleccionada (solo filtro visual, no se envía al backend)
+const materiasFiltradas = computed(() => {
+  if (!filterCarrera.value) return materias.value
+  return materias.value.filter(m => String(m.idCarrera) === String(filterCarrera.value))
+})
 const loading = ref(false)
 const submitting = ref(false)
 const successMessage = ref('')
@@ -47,6 +55,7 @@ function resetForm() {
   form.idHorario1 = ''
   form.idHorario2 = ''
   form.idPeriodo = periodos.value.length > 0 ? String(periodos.value[0].idPeriodo) : ''
+  filterCarrera.value = ''
   errors.value = {}
 }
 
@@ -64,6 +73,7 @@ async function fetchCursoData() {
     const formData = payloadFromResponse(formDataResponse.data)
     cursosFisicos.value = formData.cursosFisicos || []
     materias.value = formData.materias || []
+    carreras.value = formData.carreras || []
     docentes.value = formData.docentes || []
     horarios.value = formData.horarios || []
     periodos.value = formData.periodos || []
@@ -205,11 +215,22 @@ onMounted(fetchCursoData)
             <small v-if="errors.idCurso" class="field-error">{{ errors.idCurso[0] }}</small>
           </label>
 
+          <!-- Filtro por carrera: solo filtra el listado de materias, no se guarda -->
+          <label class="filter-label">
+            <span>Filtrar por carrera</span>
+            <select v-model="filterCarrera" @change="form.idMateria = ''">
+              <option value="">Todas las carreras</option>
+              <option v-for="carrera in carreras" :key="carrera.idCarrera" :value="carrera.idCarrera">
+                {{ carrera.nombre }}
+              </option>
+            </select>
+          </label>
+
           <label>
             <span>Materia *</span>
             <select v-model="form.idMateria" required>
-              <option value="" disabled>Seleccione una materia</option>
-              <option v-for="materia in materias" :key="materia.idMateria" :value="materia.idMateria">
+              <option value="" disabled>{{ filterCarrera ? 'Seleccione una materia de esta carrera' : 'Seleccione una materia' }}</option>
+              <option v-for="materia in materiasFiltradas" :key="materia.idMateria" :value="materia.idMateria">
                 {{ materia.nombre }} ({{ materia.idMateria }})
               </option>
             </select>
@@ -423,6 +444,26 @@ select {
   color: var(--text);
   padding: 0.9rem 1rem;
   outline: none;
+}
+
+/* Etiqueta de filtro: no es un campo del formulario, solo ayuda visual */
+.filter-label span {
+  color: #0284c7;
+  font-style: italic;
+}
+.filter-label select {
+  border-color: rgba(125, 211, 252, 0.2);
+  background: rgba(56, 189, 248, 0.04);
+}
+.filter-label select:focus {
+  border-color: rgba(125, 211, 252, 0.55);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.1);
+}
+.filter-hint {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-style: italic;
+  margin-top: 0.1rem;
 }
 
 .form-actions {
