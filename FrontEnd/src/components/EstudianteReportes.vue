@@ -1,6 +1,14 @@
 <script setup>
 import { ref } from 'vue'
+function getReportTitle() {
+  const titles = {
+    inscripciones: 'Reporte de Materias Inscritas',
+    notas: 'Reporte de Calificaciones',
+    historial: 'Historial Académico'
+  }
 
+  return titles[reporteTipo.value] || 'Reporte Académico'
+}
 const props = defineProps({
   user: { type: Object, required: true },
   api: { type: Function, required: true },
@@ -12,6 +20,41 @@ const loading = ref(false)
 const reporteTipo = ref('inscripciones')
 const reportePeriodo = ref('todos')
 const reporte = ref(null)
+
+function isIdKey(key) {
+  const k = key.toLowerCase()
+
+  return (
+    k === 'id' ||
+    k.startsWith('id') ||
+    k.endsWith('id') ||
+    k.includes('_id')
+  )
+}
+
+function formatDate(value) {
+  if (!value) return 'Sin dato'
+
+  const date = new Date(value)
+
+  if (isNaN(date)) return value
+
+  return date.toLocaleString('es-BO', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+function dataKeys(row) {
+  return Object.keys(row).filter(k => !isIdKey(k))
+}
+
+function filteredEntries(row) {
+  return Object.entries(row).filter(([k]) => !isIdKey(k))
+}
 
 function displayValue(value) {
   if (value === null || value === undefined || value === '') return 'Sin dato'
@@ -37,11 +80,18 @@ async function generarReporte() {
 
 function exportCsv() {
   if (!reporte.value?.data?.length) return
-  let csv = ''
-  const keys = Object.keys(reporte.value.data[0])
-  csv += keys.join(',') + '\n'
+  const keys = dataKeys(reporte.value.data[0])
+  let csv = keys.join(',') + '\n'
   for (const row of reporte.value.data) {
-    csv += keys.map((key) => `"${row[key] ?? ''}"`).join(',') + '\n'
+    csv += keys.map((key) => {
+      let value = row[key]
+
+      if (key.toLowerCase().includes('fecha')) {
+        value = formatDate(value)
+      }
+
+      return `"${value ?? ''}"`
+    }).join(',') + '\n'
   }
   const blob = new Blob([csv], { type: 'text/csv' })
   const url = URL.createObjectURL(blob)
@@ -52,35 +102,113 @@ function exportCsv() {
   URL.revokeObjectURL(url)
 }
 
-function printReport() {
+function downloadPdf() {
   if (!reporte.value?.data?.length) return
+
   const win = window.open('', '_blank')
+
   if (!win) return
-  win.document.write('<html><head><title>Reporte</title><style>')
-  win.document.write('body { font-family: Montserrat, sans-serif; padding: 2rem; }')
-  win.document.write('h1 { font-size: 1.4rem; font-family: "Playfair Display", serif; }')
-  win.document.write('table { width: 100%; border-collapse: collapse; margin-top: 1rem; }')
-  win.document.write('th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #d0cfca; }')
-  win.document.write('</style></head></head><body>')
-  win.document.write(`<h1>${reporte.value.tipo}</h1>`)
-  win.document.write(`<p>${reporte.value.estudiante} &middot; ${reporte.value.generadoEn}</p>`)
-  win.document.write('<table><thead><tr>')
-  const keys = Object.keys(reporte.value.data[0])
-  for (const key of keys) {
-    win.document.write(`<th>${key}</th>`)
-  }
-  win.document.write('</tr></thead><tbody>')
-  for (const row of reporte.value.data) {
-    win.document.write('<tr>')
-    for (const key of keys) {
-      win.document.write(`<td>${row[key] ?? ''}</td>`)
-    }
-    win.document.write('</tr>')
-  }
-  win.document.write('</tbody></table>')
-  win.document.write('</body></html>')
+
+  const titulo = getReportTitle()
+
+  const keys = dataKeys(reporte.value.data[0])
+
+  win.document.write(`
+    <html>
+      <head>
+        <title>${titulo}</title>
+
+        <style>
+          body{
+            font-family: Arial, sans-serif;
+            padding:40px;
+            color:#333;
+          }
+
+          .header{
+            margin-bottom:30px;
+          }
+
+          h1{
+            margin:0;
+            font-size:24px;
+          }
+
+          .meta{
+            color:#666;
+            margin-top:10px;
+            font-size:14px;
+          }
+
+          table{
+            width:100%;
+            border-collapse:collapse;
+            margin-top:20px;
+          }
+
+          th{
+            background:#697d7b;
+            color:white;
+            padding:10px;
+            text-align:left;
+          }
+
+          td{
+            padding:10px;
+            border:1px solid #ddd;
+          }
+
+          .footer{
+            margin-top:30px;
+            font-size:12px;
+            color:#777;
+          }
+        </style>
+      </head>
+
+      <body>
+
+        <div class="header">
+          <h1>${titulo}</h1>
+
+          <div class="meta">
+            <p><strong>Estudiante:</strong> ${reporte.value.estudiante}</p>
+            <p><strong>Periodo:</strong> ${reportePeriodo.value}</p>
+            <p><strong>Generado:</strong> ${reporte.value.generadoEn}</p>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              ${keys.map(key => `<th>${key}</th>`).join('')}
+            </tr>
+          </thead>
+
+          <tbody>
+            ${reporte.value.data.map(row => `
+              <tr>
+                ${keys.map(key =>
+                  `<td>${row[key] ?? 'Sin dato'}</td>`
+                ).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <div class="footer">
+          Documento generado por el Sistema Académico.
+        </div>
+
+      </body>
+    </html>
+  `)
+
   win.document.close()
-  win.print()
+
+  setTimeout(() => {
+    win.print()
+  }, 500)
 }
 </script>
 
@@ -118,13 +246,21 @@ function printReport() {
           <p>{{ reporte.estudiante }} · {{ reporte.generadoEn }}</p>
         </div>
         <div class="reporte-actions">
-          <button class="secondary" @click="exportCsv">Excel CSV</button>
-          <button class="secondary" @click="printReport">PDF</button>
+          <button class="secondary" @click="exportCsv">
+            Exportar CSV
+          </button>
+
+          <button
+            class="secondary"
+            @click="downloadPdf"
+          >
+            Descargar PDF
+          </button>
         </div>
       </div>
       <div class="reporte-table">
         <div v-for="(row, index) in reporte.data" :key="index" class="reporte-row">
-          <div v-for="(value, key) in row" :key="key">
+          <div v-for="[key, value] in filteredEntries(row)" :key="key">
             <span>{{ key }}</span>
             <strong>{{ displayValue(value) }}</strong>
           </div>
@@ -133,7 +269,9 @@ function printReport() {
     </div>
     <p v-else-if="!loading" class="empty">Selecciona un reporte para visualizarlo y exportarlo.</p>
   </div>
+
 </template>
+
 
 <style scoped>
 .reportes-shell { display: grid; gap: 1rem; }

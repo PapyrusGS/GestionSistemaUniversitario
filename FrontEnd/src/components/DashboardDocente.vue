@@ -6,18 +6,16 @@ import DocenteReporteNotas from './DocenteReporteNotas.vue'
 
 const props = defineProps({
   user: { type: Object, required: true },
-  api: { type: [Object, Function], required: true },
+  api:  { type: [Object, Function], required: true },
   badgeTone: { type: String, default: 'default' }
 })
 
-const emit = defineEmits(['logout'])
-
 const modoDocente = ref('inicio')
-const loading = ref(false)
+const loading     = ref(false)
 const errorMessage = ref('')
 
-const cursos = ref([])
-const cursoSeleccionado = ref(null)
+const cursos              = ref([])
+const cursoSeleccionado   = ref(null)
 const estudiantesInscritos = ref([])
 
 async function obtenerCursos() {
@@ -25,15 +23,11 @@ async function obtenerCursos() {
   errorMessage.value = ''
   try {
     const response = await props.api.get('/docente/cursos')
-    if (response.data && Array.isArray(response.data)) {
-      cursos.value = response.data
-    } else if (response.data && response.data.data) {
-      cursos.value = response.data.data
-    } else {
+    cursos.value = response.data?.data ?? (Array.isArray(response.data) ? response.data : [])
+    if (!cursos.value.length && !Array.isArray(response.data) && !response.data?.data) {
       errorMessage.value = 'El servidor no retornó un listado de cursos válido.'
     }
   } catch (error) {
-    console.error(error)
     errorMessage.value = error.response?.data?.message || 'No se pudo conectar con el servidor de asignaturas.'
   } finally {
     loading.value = false
@@ -42,407 +36,248 @@ async function obtenerCursos() {
 
 async function verDetalleCurso(curso) {
   cursoSeleccionado.value = curso
-  loading.value = true
   modoDocente.value = 'detalle'
+  loading.value = true
   errorMessage.value = ''
-  const idCursoMateriaReal = curso.idCursoMateria || curso.id_curso_materia || curso.id || null
+  const id = curso.idCursoMateria || curso.id_curso_materia || curso.id || null
   try {
-    const response = await props.api.get('/docente/estudiantes', {
-      params: { idCursoMateria: idCursoMateriaReal }
-    })
-    if (response.data && Array.isArray(response.data)) {
-      estudiantesInscritos.value = response.data
-    } else if (response.data && response.data.data) {
-      estudiantesInscritos.value = response.data.data
-    } else {
+    const response = await props.api.get('/docente/estudiantes', { params: { idCursoMateria: id } })
+    estudiantesInscritos.value = response.data?.data ?? (Array.isArray(response.data) ? response.data : [])
+    if (!estudiantesInscritos.value.length && !Array.isArray(response.data) && !response.data?.data) {
       errorMessage.value = 'Error al recuperar el listado de matriculados.'
     }
   } catch (error) {
-    console.error(error)
-    errorMessage.value = error.response?.data?.message || 'Error de operación al auditar el grupo.'
+    errorMessage.value = error.response?.data?.message || 'Error al auditar el grupo.'
   } finally {
     loading.value = false
   }
 }
 
-const totalEstudiantesMax = computed(() => {
-  return cursos.value.reduce((acc, c) => {
-    const cupo = c.maxInscritos || c.max_inscritos || c.cupo_maximo || c.cupo || 0
-    return acc + (parseInt(cupo) || 0)
-  }, 0)
-})
+const totalEstudiantesMax = computed(() =>
+  cursos.value.reduce((acc, c) => acc + (parseInt(c.maxInscritos || c.max_inscritos || c.cupo_maximo || c.cupo || 0) || 0), 0)
+)
 
 function cambiarVista(vista) {
   modoDocente.value = vista
   errorMessage.value = ''
 }
 
-onMounted(() => { obtenerCursos() })
+onMounted(obtenerCursos)
 </script>
 
 <template>
-  <div class="uni-admin-shell">
+  <!-- Tab bar -->
+  <div class="uni-tab-bar">
+    <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': modoDocente === 'cursos' || modoDocente === 'detalle' }" @click="cambiarVista('cursos')">
+      <i class="ti ti-book"></i>Cursos
+    </button>
+    <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': modoDocente === 'registrar_notas' }" @click="cambiarVista('registrar_notas')">
+      <i class="ti ti-edit"></i>Calificaciones
+    </button>
+    <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': modoDocente === 'rendimiento' }"     @click="cambiarVista('rendimiento')">
+      <i class="ti ti-chart-bar"></i>Rendimiento
+    </button>
+    <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': modoDocente === 'reporte_notas' }"   @click="cambiarVista('reporte_notas')">
+      <i class="ti ti-file-report"></i>Reportes
+    </button>
+  </div>
 
-    <aside class="uni-admin-sidebar">
-      <div>
-        <div class="uni-brand">
-          <i class="ti ti-building-community"></i>
-          Universidad
-        </div>
-        <div class="uni-hero uni-hero--sm">
-          <h1>Panel del<br><em>docente</em></h1>
-          <p>Sistema académico integrado.</p>
-        </div>
+  <div v-if="errorMessage" class="uni-alert uni-alert--error" style="margin: 0 1.5rem;">{{ errorMessage }}</div>
+
+  <!-- Contenido -->
+  <div class="uni-section-body">
+
+    <!-- INICIO -->
+    <template v-if="modoDocente === 'inicio'">
+      <div class="doc-welcome">
+        <h3>¡Bienvenido, {{ user?.nombre1 || user?.nombre }}!</h3>
+        <p>Desde este panel puedes gestionar tus cursos, registrar calificaciones y generar reportes académicos.</p>
       </div>
-      <div>
-        <div class="uni-foot">
-          <span class="uni-dot"></span>
-          Conexión segura
-        </div>
-        <div class="uni-sidebar-actions">
-          <button class="uni-sidebar-logout" :disabled="loading" @click="emit('logout')">
-            <i class="ti ti-logout"></i>
-            {{ loading ? 'Cerrando...' : 'Cerrar sesión' }}
-          </button>
-        </div>
-      </div>
-    </aside>
-
-    <main class="uni-admin-main">
-      <div class="uni-dashboard-card">
-
-        <div class="uni-dashboard-head">
+      <div class="doc-metric-grid">
+        <div class="doc-metric-card">
+          <div class="doc-icon doc-icon--purple"><i class="ti ti-book"></i></div>
           <div>
-            <span class="uni-eyebrow">Sesión activa</span>
-            <h2 class="uni-dashboard-name">{{ user?.nombre1 || user?.nombre }} {{ user?.apellido1 || user?.paterno }}</h2>
-          </div>
-          <div class="uni-dashboard-actions">
-            <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': modoDocente === 'inicio' }" @click="cambiarVista('inicio')">
-              <i class="ti ti-home" aria-hidden="true"></i>Inicio
-            </button>
-            <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': modoDocente === 'cursos' || modoDocente === 'detalle' }" @click="cambiarVista('cursos')">
-              <i class="ti ti-book" aria-hidden="true"></i>Cursos
-            </button>
-            <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': modoDocente === 'registrar_notas' }" @click="cambiarVista('registrar_notas')">
-              <i class="ti ti-edit" aria-hidden="true"></i>Calificaciones
-            </button>
-            <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': modoDocente === 'rendimiento' }" @click="cambiarVista('rendimiento')">
-              <i class="ti ti-chart-bar" aria-hidden="true"></i>Rendimiento
-            </button>
-            <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': modoDocente === 'reporte_notas' }" @click="cambiarVista('reporte_notas')">
-              <i class="ti ti-file-report" aria-hidden="true"></i>Reportes
-            </button>
-            <span class="uni-role-badge" :data-tone="badgeTone">{{ user?.rol || 'Docente' }}</span>
+            <span class="doc-metric-label">Materias Asignadas</span>
+            <strong class="doc-metric-value">{{ cursos.length }} Asignaturas</strong>
           </div>
         </div>
-
-        <div v-if="errorMessage" class="uni-alert uni-alert--error mb-4">{{ errorMessage }}</div>
-
-        <!-- INICIO -->
-        <div v-if="modoDocente === 'inicio'" class="uni-section-body fade-in-view">
-
-          <div class="welcome-card">
-            <h3>¡Bienvenido, {{ user?.nombre1 || user?.nombre }}!</h3>
-            <p>Desde este panel puedes gestionar tus cursos, registrar calificaciones y generar reportes académicos.</p>
-          </div>
-
-          <div class="docente-cards-grid">
-            <div class="metric-card-docente">
-              <div class="docente-icon purple-icon">
-                <i class="ti ti-book"></i>
-              </div>
-              <div class="metric-data">
-                <span class="metric-label">Materias Asignadas</span>
-                <strong class="metric-value">{{ cursos.length }} Asignaturas</strong>
-              </div>
-            </div>
-            <div class="metric-card-docente">
-              <div class="docente-icon cyan-icon">
-                <i class="ti ti-users"></i>
-              </div>
-              <div class="metric-data">
-                <span class="metric-label">Capacidad Global</span>
-                <strong class="metric-value">{{ totalEstudiantesMax }} Cupos</strong>
-              </div>
-            </div>
+        <div class="doc-metric-card">
+          <div class="doc-icon doc-icon--cyan"><i class="ti ti-users"></i></div>
+          <div>
+            <span class="doc-metric-label">Capacidad Global</span>
+            <strong class="doc-metric-value">{{ totalEstudiantesMax }} Cupos</strong>
           </div>
         </div>
-
-        <!-- CURSOS -->
-        <div v-else-if="modoDocente === 'cursos'" class="uni-section-body fade-in-view">
-          <div class="table-card-wrapper-docente">
-            <div class="table-card-header-docente">
-              <h4>Asignaturas y Distribución de Horarios</h4>
-            </div>
-            <div class="table-responsive">
-              <table class="docente-table">
-                <thead>
-                  <tr>
-                    <th>Asignatura</th>
-                    <th>Horario</th>
-                    <th>Inicio</th>
-                    <th>Fin</th>
-                    <th>Cupo</th>
-                    <th class="txt-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="curso in cursos" :key="curso.idCursoMateria || curso.id_curso_materia || curso.id">
-                    <td class="primary-cell">{{ curso.materia_nombre || curso.nombre || curso.materia }}</td>
-                    <td><span class="docente-badge">{{ curso.turno_nombre || curso.turno || curso.horario }}</span></td>
-                    <td class="text-muted">{{ curso.fechaInicio || curso.fecha_inicio || 'N/A' }}</td>
-                    <td class="text-muted">{{ curso.fechaFin || curso.fecha_fin || 'N/A' }}</td>
-                    <td class="font-medium text-cyan">{{ curso.maxInscritos || curso.max_inscritos || curso.cupo_maximo || curso.cupo || 0 }}</td>
-                    <td class="txt-right">
-                      <button class="docente-action-btn" @click="verDetalleCurso(curso)">Ver Alumnos</button>
-                    </td>
-                  </tr>
-                  <tr v-if="cursos.length === 0 && !loading">
-                    <td colspan="6" class="empty-table-msg">No hay materias asignadas.</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- DETALLE CURSO -->
-        <div v-else-if="modoDocente === 'detalle'" class="uni-section-body fade-in-view">
-          <div class="table-card-wrapper-docente">
-            <div class="table-card-header-docente flex-header-docente">
-              <button class="back-btn-docente" @click="cambiarVista('cursos')">
-                <i class="ti ti-arrow-left"></i> Regresar
-              </button>
-              <h4>{{ cursoSeleccionado?.materia_nombre || cursoSeleccionado?.nombre || cursoSeleccionado?.materia }}</h4>
-            </div>
-            <div class="table-responsive">
-              <table class="docente-table">
-                <thead>
-                  <tr>
-                    <th>CI</th>
-                    <th>Estudiante</th>
-                    <th>Correo</th>
-                    <th>Fecha Inscripción</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="alumno in estudiantesInscritos" :key="alumno.id_estudiante || alumno.id_inscripcion || alumno.id">
-                    <td class="primary-cell font-mono">{{ alumno.ci || alumno.documento || 'N/A' }}</td>
-                    <td class="font-medium">{{ alumno.apellido1 || '' }} {{ alumno.apellido2 || '' }}, {{ alumno.nombre1 || '' }}</td>
-                    <td class="text-muted">{{ alumno.correo || alumno.email || 'Sin correo' }}</td>
-                    <td class="text-muted">{{ alumno.fecha_inscripcion || 'N/A' }}</td>
-                  </tr>
-                  <tr v-if="estudiantesInscritos.length === 0 && !loading">
-                    <td colspan="4" class="empty-table-msg">No hay alumnos matriculados.</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- SUB-COMPONENTES -->
-        <div v-else-if="modoDocente === 'registrar_notas'" class="uni-section-body">
-          <DocenteRegistrarNotas :user="user" :api="api" :badgeTone="badgeTone" />
-        </div>
-        <div v-else-if="modoDocente === 'rendimiento'" class="uni-section-body">
-          <DocenteRendimiento :user="user" :api="api" :badgeTone="badgeTone" />
-        </div>
-        <div v-else-if="modoDocente === 'reporte_notas'" class="uni-section-body">
-          <DocenteReporteNotas :user="user" :api="api" :badgeTone="badgeTone" />
-        </div>
-
       </div>
-    </main>
+    </template>
+
+    <!-- CURSOS -->
+    <template v-else-if="modoDocente === 'cursos'">
+      <div class="doc-table-card">
+        <div class="doc-table-header">
+          <h4>Asignaturas y Distribución de Horarios</h4>
+        </div>
+        <div class="doc-table-scroll">
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>Asignatura</th><th>Horario</th><th>Inicio</th><th>Fin</th><th>Cupo</th><th style="text-align:right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="curso in cursos" :key="curso.idCursoMateria || curso.id_curso_materia || curso.id">
+                <td class="doc-cell-primary">{{ curso.materia_nombre || curso.nombre || curso.materia }}</td>
+                <td><span class="doc-badge">{{ curso.turno_nombre || curso.turno || curso.horario }}</span></td>
+                <td class="doc-cell-muted">{{ curso.fechaInicio || curso.fecha_inicio || 'N/A' }}</td>
+                <td class="doc-cell-muted">{{ curso.fechaFin || curso.fecha_fin || 'N/A' }}</td>
+                <td style="color:var(--color-mint-dark);font-weight:600;">{{ curso.maxInscritos || curso.max_inscritos || curso.cupo_maximo || curso.cupo || 0 }}</td>
+                <td style="text-align:right">
+                  <button class="doc-action-btn" @click="verDetalleCurso(curso)">Ver Alumnos</button>
+                </td>
+              </tr>
+              <tr v-if="!cursos.length && !loading">
+                <td colspan="6" class="doc-empty">No hay materias asignadas.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </template>
+
+    <!-- DETALLE CURSO -->
+    <template v-else-if="modoDocente === 'detalle'">
+      <div class="doc-table-card">
+        <div class="doc-table-header doc-table-header--flex">
+          <button class="doc-back-btn" @click="cambiarVista('cursos')">
+            <i class="ti ti-arrow-left"></i> Regresar
+          </button>
+          <h4>{{ cursoSeleccionado?.materia_nombre || cursoSeleccionado?.nombre || cursoSeleccionado?.materia }}</h4>
+        </div>
+        <div class="doc-table-scroll">
+          <table class="doc-table">
+            <thead>
+              <tr><th>CI</th><th>Estudiante</th><th>Correo</th><th>Fecha Inscripción</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="alumno in estudiantesInscritos" :key="alumno.id_estudiante || alumno.id_inscripcion || alumno.id">
+                <td style="font-family:monospace;font-size:.85rem;color:var(--color-mint-dark);font-weight:600;">{{ alumno.ci || alumno.documento || 'N/A' }}</td>
+                <td style="font-weight:500;">{{ alumno.apellido1 || '' }} {{ alumno.apellido2 || '' }}, {{ alumno.nombre1 || '' }}</td>
+                <td class="doc-cell-muted">{{ alumno.correo || alumno.email || 'Sin correo' }}</td>
+                <td class="doc-cell-muted">{{ alumno.fecha_inscripcion || 'N/A' }}</td>
+              </tr>
+              <tr v-if="!estudiantesInscritos.length && !loading">
+                <td colspan="4" class="doc-empty">No hay alumnos matriculados.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </template>
+
+    <!-- SUB-COMPONENTES -->
+    <DocenteRegistrarNotas v-else-if="modoDocente === 'registrar_notas'" :user="user" :api="api" :badgeTone="badgeTone" />
+    <DocenteRendimiento    v-else-if="modoDocente === 'rendimiento'"     :user="user" :api="api" :badgeTone="badgeTone" />
+    <DocenteReporteNotas   v-else-if="modoDocente === 'reporte_notas'"   :user="user" :api="api" :badgeTone="badgeTone" />
 
   </div>
 </template>
 
 <style scoped>
-.mb-4 { margin-bottom: 1.5rem; }
-.txt-right { text-align: right; }
-.font-medium { font-weight: 500; }
-.font-mono { font-family: monospace; font-size: 0.85rem; color: var(--color-mint-dark) !important; }
-.text-muted { color: var(--uni-muted); }
-.text-cyan { color: var(--color-mint-dark); }
-.primary-cell { color: var(--color-black) !important; font-weight: 600; }
-
-.fade-in-view { animation: fadeIn 0.25s ease-out; }
+/* Fade animación */
+.uni-section-body > * { animation: fadeIn .2s ease-out; }
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Welcome ──────────────────────────────────── */
-.welcome-card {
+/* Welcome */
+.doc-welcome {
   background: var(--color-linen);
   padding: 1.5rem 2rem;
   border-radius: 12px;
-  margin-bottom: 1.5rem;
 }
-.welcome-card h3 {
+.doc-welcome h3 {
   font-family: 'Playfair Display', serif;
-  font-size: 1.25rem;
-  margin: 0 0 0.4rem;
-  color: var(--color-black);
+  font-size: 1.2rem;
+  margin: 0 0 .35rem;
 }
-.welcome-card p {
-  color: var(--uni-muted);
-  font-size: 0.9rem;
-  line-height: 1.6;
-  margin: 0;
-}
+.doc-welcome p { color: var(--uni-muted); font-size: .875rem; line-height: 1.6; margin: 0; }
 
-/* ── Metric cards ─────────────────────────────── */
-.docente-cards-grid {
+/* Metric grid */
+.doc-metric-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 1.25rem;
 }
-.metric-card-docente {
+.doc-metric-card {
   background: #fafafa;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0,0,0,.06);
   padding: 1.5rem;
   border-radius: 12px;
   display: flex;
   align-items: center;
   gap: 1.25rem;
 }
-.docente-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.4rem;
+.doc-icon {
+  width: 48px; height: 48px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0;
 }
-.purple-icon {
-  background: rgba(168, 85, 247, 0.08);
-  color: #a855f7;
-}
-.cyan-icon {
-  background: rgba(6, 182, 212, 0.08);
-  color: #0891b2;
-}
-.metric-data {
-  display: flex;
-  flex-direction: column;
-}
-.metric-label {
-  font-size: 0.75rem;
-  color: var(--uni-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.metric-value {
-  font-size: 1.15rem;
-  font-weight: 700;
-  margin-top: 0.2rem;
-  color: var(--color-black);
-}
+.doc-icon--purple { background: rgba(168,85,247,.08); color: #a855f7; }
+.doc-icon--cyan   { background: rgba(6,182,212,.08);  color: #0891b2; }
+.doc-metric-label { font-size: .72rem; color: var(--uni-muted); text-transform: uppercase; letter-spacing: .04em; display: block; }
+.doc-metric-value { font-size: 1.1rem; font-weight: 700; color: var(--color-black); display: block; margin-top: .15rem; }
 
-/* ── Table cards ──────────────────────────────── */
-.table-card-wrapper-docente {
+/* Table card */
+.doc-table-card {
   background: var(--color-white);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0,0,0,.06);
   border-radius: 14px;
   overflow: hidden;
 }
-.table-card-header-docente {
-  padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-}
-.table-card-header-docente h4 {
-  font-size: 1rem;
-  font-weight: 600;
-  margin: 0;
-}
-.table-responsive { overflow-x: auto; }
-
-.docente-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-  text-align: left;
-}
-.docente-table th {
-  padding: 1rem 1.5rem;
-  background: #fafafa;
-  color: var(--uni-muted);
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-}
-.docente-table td {
+.doc-table-header {
   padding: 1.1rem 1.5rem;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.03);
-  color: var(--uni-text);
+  border-bottom: 1px solid rgba(0,0,0,.05);
 }
-.docente-table tr:hover td {
+.doc-table-header h4 { font-size: .95rem; font-weight: 600; margin: 0; }
+.doc-table-header--flex { display: flex; align-items: center; gap: 1rem; }
+.doc-table-scroll { overflow-x: auto; }
+
+.doc-table { width: 100%; border-collapse: collapse; font-size: .875rem; text-align: left; }
+.doc-table th {
+  padding: .9rem 1.5rem;
   background: #fafafa;
-}
-
-.docente-badge {
-  background: rgba(6, 182, 212, 0.08);
-  color: #0891b2;
-  padding: 0.25rem 0.6rem;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-weight: 700;
+  color: var(--uni-muted);
+  font-size: .7rem;
   text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: .04em;
+  border-bottom: 1px solid rgba(0,0,0,.05);
 }
-.docente-action-btn {
-  background: transparent;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  color: var(--uni-muted);
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.docente-action-btn:hover {
-  background: var(--color-linen);
-  color: var(--color-black);
-  border-color: var(--color-mint-dark);
-}
-.empty-table-msg {
-  text-align: center;
-  color: var(--uni-muted);
-  padding: 3rem !important;
-}
+.doc-table td { padding: 1rem 1.5rem; border-bottom: 1px solid rgba(0,0,0,.03); }
+.doc-table tr:hover td { background: #fafafa; }
+.doc-cell-primary { font-weight: 600; color: var(--color-black); }
+.doc-cell-muted   { color: var(--uni-muted); }
+.doc-empty        { text-align: center; color: var(--uni-muted); padding: 3rem !important; }
 
-.flex-header-docente {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+.doc-badge {
+  background: rgba(6,182,212,.08); color: #0891b2;
+  padding: .25rem .6rem; border-radius: 6px;
+  font-size: .7rem; font-weight: 700; text-transform: uppercase;
 }
-.back-btn-docente {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  background: transparent;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-  color: var(--uni-muted);
-  font-size: 0.8rem;
-  font-weight: 600;
-  padding: 0.4rem 0.8rem;
-  cursor: pointer;
-  transition: all 0.2s;
+.doc-action-btn {
+  background: transparent; border: 1px solid rgba(0,0,0,.12);
+  color: var(--uni-muted); padding: .45rem .9rem;
+  border-radius: 6px; font-size: .78rem; font-weight: 600;
+  cursor: pointer; transition: all .2s;
 }
-.back-btn-docente:hover {
-  background: var(--color-linen);
-  color: var(--color-black);
+.doc-action-btn:hover { background: var(--color-linen); color: var(--color-black); border-color: var(--color-mint-dark); }
+
+.doc-back-btn {
+  display: flex; align-items: center; gap: .4rem;
+  background: transparent; border: 1px solid rgba(0,0,0,.1);
+  border-radius: 8px; color: var(--uni-muted);
+  font-size: .78rem; font-weight: 600;
+  padding: .4rem .8rem; cursor: pointer; transition: all .2s; white-space: nowrap;
 }
-.loading-bar {
-  padding: 0.5rem 0;
-  font-size: 0.85rem;
-  color: var(--uni-muted);
-  font-weight: 600;
-}
+.doc-back-btn:hover { background: var(--color-linen); color: var(--color-black); }
 </style>

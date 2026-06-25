@@ -243,7 +243,6 @@ class StudentService
             'periodo' => $grade->periodo,
             'nota' => (float) $grade->nota,
             'estadoAcademico' => (float) $grade->nota >= self::NOTA_APROBACION ? 'Aprobada' : 'Reprobada',
-            'fechaRegistro' => $grade->fechaRegistro,
         ]);
     }
 
