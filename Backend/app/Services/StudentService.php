@@ -76,7 +76,7 @@ class StudentService
         $approvedMateriaIds = $this->students->approvedMateriaIds((int) $student->idEstudiante);
         $enrolledCursoMateriaIds = $this->students->enrolledCursoMateriaIds((int) $student->idEstudiante);
 
-        return $this->students->availableSubjects((int) $career->idCarrera)
+        return $this->students->availableSubjects((int) $student->idEstudiante, (int) $career->idCarrera)
             ->map(fn ($subject) => $this->mapSubjectPayload($subject, $approvedMateriaIds, $enrolledCursoMateriaIds, (int) $student->idEstudiante));
     }
 
@@ -89,7 +89,7 @@ class StudentService
             ]);
         }
 
-        $availableSubjects = $this->students->availableSubjects((int) $career->idCarrera);
+        $availableSubjects = $this->students->availableSubjects((int) $student->idEstudiante, (int) $career->idCarrera);
         $subject = $availableSubjects->firstWhere('idCursoMateria', $cursoMateriaId);
 
         if (! $subject) {

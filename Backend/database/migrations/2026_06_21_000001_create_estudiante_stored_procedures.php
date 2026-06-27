@@ -60,8 +60,26 @@ END
 SQL);
 
         DB::unprepared(<<<SQL
-CREATE PROCEDURE sp_estudiante_materias_disponibles(IN p_idCarrera BIGINT UNSIGNED)
+CREATE PROCEDURE sp_estudiante_materias_disponibles(
+    IN p_idEstudiante BIGINT UNSIGNED,
+    IN p_idCarrera BIGINT UNSIGNED
+)
 BEGIN
+    DECLARE v_semestre_actual INT DEFAULT 1;
+
+    -- Obtener el semestre actual del estudiante
+    SELECT COALESCE(MAX(m.semestre), 0) + 1 INTO v_semestre_actual
+    FROM materias m
+    WHERE m.idMateria IN (
+        SELECT cm_ap.idMateria
+        FROM notas n_ap
+        INNER JOIN estudiantemateria em_ap ON em_ap.idInscripcion = n_ap.idInscripcion
+        INNER JOIN cursos_materias cm_ap ON cm_ap.idCursoMateria = em_ap.idCursoMateria
+        WHERE em_ap.idEstudiante = p_idEstudiante
+          AND n_ap.estado = 1
+          AND n_ap.nota >= 51
+    );
+
     SELECT
         cm.idCursoMateria,
         cm.idCurso,
@@ -90,6 +108,41 @@ BEGIN
       AND c.estado = 1
       AND p.estado = 1
       AND m.idCarrera = p_idCarrera
+      -- Excluir materias que ya estén aprobadas
+      AND m.idMateria NOT IN (
+          SELECT cm_ap.idMateria
+          FROM notas n_ap
+          INNER JOIN estudiantemateria em_ap ON em_ap.idInscripcion = n_ap.idInscripcion
+          INNER JOIN cursos_materias cm_ap ON cm_ap.idCursoMateria = em_ap.idCursoMateria
+          WHERE em_ap.idEstudiante = p_idEstudiante
+            AND n_ap.estado = 1
+            AND n_ap.nota >= 51
+      )
+      -- Excluir materias que ya estén inscritas (activas)
+      AND cm.idCursoMateria NOT IN (
+          SELECT em_ins.idCursoMateria
+          FROM estudiantemateria em_ins
+          WHERE em_ins.idEstudiante = p_idEstudiante
+            AND em_ins.estado = 1
+      )
+      -- Restricción de semestre: no adelantar materias de semestres superiores si es menor al 8vo semestre
+      AND (
+          v_semestre_actual >= 8 
+          OR CAST(m.semestre AS UNSIGNED) <= v_semestre_actual
+      )
+      -- Restricción de prerrequisitos: el prerrequisito debe estar aprobado
+      AND (
+          m.idMateriaPrevia IS NULL
+          OR m.idMateriaPrevia IN (
+              SELECT cm_pr.idMateria
+              FROM notas n_pr
+              INNER JOIN estudiantemateria em_pr ON em_pr.idInscripcion = n_pr.idInscripcion
+              INNER JOIN cursos_materias cm_pr ON cm_pr.idCursoMateria = em_pr.idCursoMateria
+              WHERE em_pr.idEstudiante = p_idEstudiante
+                AND n_pr.estado = 1
+                AND n_pr.nota >= 51
+          )
+      )
     GROUP BY
         cm.idCursoMateria,
         cm.idCurso,

@@ -10,7 +10,7 @@ interface StudentRepositoryInterface
 
     public function career(int $studentId): ?object;
 
-    public function availableSubjects(int $carreraId): Collection;
+    public function availableSubjects(int $studentId, int $carreraId): Collection;
 
     public function enrolledSubjects(int $studentId): Collection;
 

@@ -22,9 +22,9 @@ class EloquentStudentRepository implements StudentRepositoryInterface
         return $rows[0] ?? null;
     }
 
-    public function availableSubjects(int $carreraId): Collection
+    public function availableSubjects(int $studentId, int $carreraId): Collection
     {
-        return collect(DB::select('CALL sp_estudiante_materias_disponibles(?)', [$carreraId]));
+        return collect(DB::select('CALL sp_estudiante_materias_disponibles(?, ?)', [$studentId, $carreraId]));
     }
 
     public function enrolledSubjects(int $studentId): Collection

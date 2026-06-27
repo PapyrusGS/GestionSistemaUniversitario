@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Optimización para el Historial del Estudiante
-        Schema::table('estudiante_materia', function (Blueprint $table) {
+        Schema::table('estudiantemateria', function (Blueprint $table) {
             $table->index(['idEstudiante', 'estado'], 'idx_historial_estudiante');
         });
 
@@ -27,12 +27,12 @@ return new class extends Migration
         });
 
         // 4. Optimización para Cursos Disponibles
-        Schema::table('curso_materia', function (Blueprint $table) {
+        Schema::table('cursos_materias', function (Blueprint $table) {
             $table->index(['idPeriodo', 'idMateria'], 'idx_cursos_activos');
         });
 
         // 5. Optimización para Validar prerrequisitos
-        Schema::table('estudiante_materia', function (Blueprint $table) {
+        Schema::table('estudiantemateria', function (Blueprint $table) {
             $table->index(['idEstudiante', 'idCursoMateria'], 'idx_validacion_prerequisito');
         });
     }
@@ -40,7 +40,7 @@ return new class extends Migration
     public function down(): void
     {
         // El método down es vital para poder revertir (rollback) si hay algún error
-        Schema::table('estudiante_materia', function (Blueprint $table) {
+        Schema::table('estudiantemateria', function (Blueprint $table) {
             $table->dropIndex('idx_historial_estudiante');
             $table->dropIndex('idx_validacion_prerequisito');
         });
@@ -53,7 +53,7 @@ return new class extends Migration
             $table->dropIndex('idx_malla_carrera');
         });
 
-        Schema::table('curso_materia', function (Blueprint $table) {
+        Schema::table('cursos_materias', function (Blueprint $table) {
             $table->dropIndex('idx_cursos_activos');
         });
     }
