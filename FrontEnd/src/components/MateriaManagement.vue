@@ -513,6 +513,23 @@ onMounted(fetchMateriaData)
   border-bottom: 1px solid rgba(180, 204, 255, 0.08);
 }
 
+.filters-grid label span {
+  color: #475569;
+}
+
+.filters-grid input,
+.filters-grid select {
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  color: #0f172a;
+}
+
+.filters-grid input:focus,
+.filters-grid select:focus {
+  border-color: #3c4f4d;
+  box-shadow: 0 0 0 3px rgba(60, 79, 77, 0.12);
+}
+
 .table-wrap {
   overflow-x: auto;
 }
@@ -607,10 +624,11 @@ code {
 
 .modal-card {
   width: min(100%, 44rem);
-  background: linear-gradient(180deg, rgba(14, 20, 41, 0.98), rgba(11, 16, 32, 0.96));
-  border: 1px solid var(--panel-border);
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
   border-radius: 1.4rem;
-  padding: 1.25rem;
+  padding: 1.75rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
 }
 
 .modal-header {
@@ -618,27 +636,52 @@ code {
   justify-content: space-between;
   gap: 1rem;
   align-items: flex-start;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.75rem;
 }
 
 .modal-header h4 {
   margin: 0;
   font-size: 1.15rem;
+  color: #0f172a;
 }
 
 .modal-header p {
   margin: 0.25rem 0 0;
-  color: var(--muted);
+  color: #475569;
   font-size: 0.9rem;
 }
 
 .close-btn {
-  border: 0;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text);
-  border-radius: 0.7rem;
-  padding: 0.35rem 0.65rem;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 1.5rem;
   cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}
+
+.close-btn:hover {
+  color: #0f172a;
+}
+
+.modal-card label span {
+  color: #475569;
+}
+
+.modal-card input,
+.modal-card select {
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  color: #0f172a;
+}
+
+.modal-card input:focus,
+.modal-card select:focus {
+  border-color: #3c4f4d;
+  box-shadow: 0 0 0 3px rgba(60, 79, 77, 0.12);
 }
 
 .modal-form {
@@ -727,7 +770,7 @@ select {
 .confirm-name {
   margin: 0 0 1rem;
   font-size: 1rem;
-  color: var(--text);
+  color: #0f172a;
 }
 
 .confirm-name code {
@@ -736,7 +779,7 @@ select {
 }
 
 .confirm-warning {
-  color: var(--muted);
+  color: #475569;
   font-size: 0.875rem;
   line-height: 1.55;
   margin: 0 0 1.5rem;

@@ -34,13 +34,21 @@ class CursoController extends Controller
 
     public function store(CursoRequest $request): JsonResponse
     {
-        $curso = $this->cursoService->store($request->validated());
+        try {
+            $curso = $this->cursoService->store($request->validated());
 
-        return ApiResponse::success(
-            ['curso' => $curso],
-            'Curso registrado correctamente.',
-            201
-        );
+            return ApiResponse::success(
+                ['curso' => $curso],
+                'Curso registrado correctamente.',
+                201
+            );
+        } catch (\Illuminate\Database\QueryException $e) {
+            $errorInfo = $e->errorInfo;
+            $message = isset($errorInfo[2]) ? $errorInfo[2] : $e->getMessage();
+            return ApiResponse::error($message, null, 400);
+        } catch (\Throwable $e) {
+            return ApiResponse::error($e->getMessage(), null, 400);
+        }
     }
 
     public function asignarDocente(AsignarDocenteRequest $request, $idCursoMateria): JsonResponse

@@ -11,6 +11,14 @@ class CursoRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'idHorario2' => $this->idHorario2 ? (int) $this->idHorario2 : null,
+            'idHorario3' => $this->idHorario3 ? (int) $this->idHorario3 : null,
+        ]);
+    }
+
     public function rules(): array
     {
         return [
@@ -18,7 +26,8 @@ class CursoRequest extends FormRequest
             'idMateria' => ['required', 'string', 'max:100', 'exists:materias,idMateria'],
             'idDocente' => ['required', 'integer', 'exists:usuarios,idUsuario'],
             'idHorario1' => ['required', 'integer', 'exists:horarios,idHorario'],
-            'idHorario2' => ['required', 'integer', 'exists:horarios,idHorario'],
+            'idHorario2' => ['nullable', 'integer', 'exists:horarios,idHorario'],
+            'idHorario3' => ['nullable', 'integer', 'exists:horarios,idHorario'],
             'idPeriodo' => ['required', 'integer', 'exists:periodos,idPeriodo']
         ];
     }
@@ -34,8 +43,8 @@ class CursoRequest extends FormRequest
             'idDocente.exists' => 'El docente seleccionado no existe.',
             'idHorario1.required' => 'El horario 1 es obligatorio.',
             'idHorario1.exists' => 'El horario 1 seleccionado no existe.',
-            'idHorario2.required' => 'El horario 2 es obligatorio.',
             'idHorario2.exists' => 'El horario 2 seleccionado no existe.',
+            'idHorario3.exists' => 'El horario 3 seleccionado no existe.',
             'idPeriodo.required' => 'El regimen academico es obligatorio.',
             'idPeriodo.exists' => 'El regimen academico seleccionado no existe.'
         ];
@@ -46,6 +55,7 @@ class CursoRequest extends FormRequest
         $validator->after(function ($validator) {
             $h1Id = $this->input('idHorario1');
             $h2Id = $this->input('idHorario2');
+            $h3Id = $this->input('idHorario3');
             $cursoId = $this->input('idCurso');
             $docenteId = $this->input('idDocente');
             $periodId = $this->input('idPeriodo');
@@ -80,42 +90,59 @@ class CursoRequest extends FormRequest
                 }
             }
 
-            if (!$h1Id || !$h2Id) {
+            // Validar que el primer horario esté presente
+            if (!$h1Id) {
                 return;
             }
 
-            if ($h1Id == $h2Id) {
-                $validator->errors()->add('idHorario2', 'Los dos horarios seleccionados deben ser diferentes.');
+            // Validar que no se escoja el tercer horario sin el segundo
+            if ($h3Id && !$h2Id) {
+                $validator->errors()->add('idHorario3', 'No se puede seleccionar el tercer horario si no se ha seleccionado el segundo.');
                 return;
             }
 
-            $h1 = \Illuminate\Support\Facades\DB::table('horarios')->where('idHorario', $h1Id)->first();
-            $h2 = \Illuminate\Support\Facades\DB::table('horarios')->where('idHorario', $h2Id)->first();
-
-            if (!$h1 || !$h2) {
+            // Validar que los horarios seleccionados no sean duplicados
+            if ($h2Id && $h1Id == $h2Id) {
+                $validator->errors()->add('idHorario2', 'Los horarios seleccionados deben ser diferentes.');
+                return;
+            }
+            if ($h3Id && ($h1Id == $h3Id || $h2Id == $h3Id)) {
+                $validator->errors()->add('idHorario3', 'Los horarios seleccionados deben ser diferentes.');
                 return;
             }
 
-            // 1. Same-day continuity check
-            if ($h1->diaSemana == $h2->diaSemana) {
-                $t1Start = substr($h1->horaInicio, 0, 5);
-                $t1End = substr($h1->horaFin, 0, 5);
-                $t2Start = substr($h2->horaInicio, 0, 5);
-                $t2End = substr($h2->horaFin, 0, 5);
+            // Validar continuidad entre el 1º y 2º horario (si se seleccionó el 2º)
+            if ($h2Id) {
+                $h1 = \Illuminate\Support\Facades\DB::table('horarios')->where('idHorario', $h1Id)->first();
+                $h2 = \Illuminate\Support\Facades\DB::table('horarios')->where('idHorario', $h2Id)->first();
 
-                if ($t1End !== $t2Start && $t2End !== $t1Start) {
-                    $validator->errors()->add('idHorario2', 'Los horarios del mismo día deben ser bloques continuos.');
+                if ($h1 && $h2) {
+                    if ($h1->diaSemana != $h2->diaSemana) {
+                        $validator->errors()->add('idHorario2', 'El segundo horario debe ser del mismo día que el primero.');
+                    } else {
+                        $t1Start = substr($h1->horaInicio, 0, 5);
+                        $t1End = substr($h1->horaFin, 0, 5);
+                        $t2Start = substr($h2->horaInicio, 0, 5);
+                        $t2End = substr($h2->horaFin, 0, 5);
+
+                        if ($t1End !== $t2Start && $t2End !== $t1Start) {
+                            $validator->errors()->add('idHorario2', 'El segundo horario debe ser continuo al primero.');
+                        }
+                    }
                 }
             }
 
-            // 2. Classroom/Aula overlap check
-            if ($cursoId && $periodId) {
+            // Obtener todos los IDs de horarios seleccionados válidos
+            $hIds = array_filter([$h1Id, $h2Id, $h3Id]);
+
+            // Classroom/Aula overlap check
+            if ($cursoId && $periodId && !empty($hIds)) {
                 $classroomOverlap = \Illuminate\Support\Facades\DB::table('cursos_materias')
                     ->join('horariocurso', 'horariocurso.idCursoMateria', '=', 'cursos_materias.idCursoMateria')
                     ->where('cursos_materias.idPeriodo', $periodId)
                     ->where('cursos_materias.estado', 1)
                     ->where('cursos_materias.idCurso', $cursoId)
-                    ->whereIn('horariocurso.idHorario', [$h1Id, $h2Id])
+                    ->whereIn('horariocurso.idHorario', $hIds)
                     ->exists();
 
                 if ($classroomOverlap) {
@@ -123,14 +150,14 @@ class CursoRequest extends FormRequest
                 }
             }
 
-            // 3. Docente overlap check
-            if ($docenteId && $periodId) {
+            // Docente overlap check
+            if ($docenteId && $periodId && !empty($hIds)) {
                 $docenteOverlap = \Illuminate\Support\Facades\DB::table('cursos_materias')
                     ->join('horariocurso', 'horariocurso.idCursoMateria', '=', 'cursos_materias.idCursoMateria')
                     ->where('cursos_materias.idPeriodo', $periodId)
                     ->where('cursos_materias.estado', 1)
                     ->where('cursos_materias.idDocente', $docenteId)
-                    ->whereIn('horariocurso.idHorario', [$h1Id, $h2Id])
+                    ->whereIn('horariocurso.idHorario', $hIds)
                     ->exists();
 
                 if ($docenteOverlap) {

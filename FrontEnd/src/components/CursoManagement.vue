@@ -29,6 +29,7 @@ const errorMessage = ref('')
 const errors = ref({})
 const showConfirmModal = ref(false)
 const cursoToDisable = ref(null)
+const showCreateModal = ref(false)
 
 const form = reactive({
   idCurso: '',
@@ -36,11 +37,29 @@ const form = reactive({
   idDocente: '',
   idHorario1: '',
   idHorario2: '',
+  idHorario3: '',
   idPeriodo: '',
 })
 
 function payloadFromResponse(data) {
   return data.data ?? data
+}
+
+function formatHorarioLabel(horario) {
+  if (!horario) return ''
+  const days = {
+    1: 'Lunes',
+    2: 'Martes',
+    3: 'Miercoles',
+    4: 'Jueves',
+    5: 'Viernes',
+    6: 'Sabado',
+    7: 'Domingo',
+  }
+  const dayName = days[horario.diaSemana] || `Día ${horario.diaSemana}`
+  const start = horario.horaInicio ? horario.horaInicio.substring(0, 5) : ''
+  const end = horario.horaFin ? horario.horaFin.substring(0, 5) : ''
+  return `${dayName} - ${start} a ${end}`
 }
 
 function resetMessages() {
@@ -54,6 +73,7 @@ function resetForm() {
   form.idDocente = ''
   form.idHorario1 = ''
   form.idHorario2 = ''
+  form.idHorario3 = ''
   form.idPeriodo = periodos.value.length > 0 ? String(periodos.value[0].idPeriodo) : ''
   filterCarrera.value = ''
   errors.value = {}
@@ -93,39 +113,14 @@ async function submitForm() {
   resetMessages()
   errors.value = {}
 
-  // Frontend Validation for Schedules
-  const h1 = horarios.value.find(h => String(h.idHorario) === String(form.idHorario1))
-  const h2 = horarios.value.find(h => String(h.idHorario) === String(form.idHorario2))
-
-  if (h1 && h2) {
-    if (String(h1.idHorario) === String(h2.idHorario)) {
-      errors.value.idHorario2 = ['Los dos horarios seleccionados deben ser diferentes.']
-      errorMessage.value = 'Por favor, corrige los errores del formulario.'
-      submitting.value = false
-      return
-    }
-    if (h1.diaSemana === h2.diaSemana) {
-      const t1End = h1.horaFin.substring(0, 5)
-      const t1Start = h1.horaInicio.substring(0, 5)
-      const t2End = h2.horaFin.substring(0, 5)
-      const t2Start = h2.horaInicio.substring(0, 5)
-
-      if (t1End !== t2Start && t2End !== t1Start) {
-        errors.value.idHorario2 = ['Los horarios del mismo día deben ser bloques continuos.']
-        errorMessage.value = 'Por favor, corrige los errores del formulario.'
-        submitting.value = false
-        return
-      }
-    }
-  }
-
   try {
     const response = await props.api.post('/cursos', {
       idCurso: form.idCurso,
       idMateria: form.idMateria,
       idDocente: Number(form.idDocente),
       idHorario1: Number(form.idHorario1),
-      idHorario2: Number(form.idHorario2),
+      idHorario2: form.idHorario2 ? Number(form.idHorario2) : null,
+      idHorario3: form.idHorario3 ? Number(form.idHorario3) : null,
       idPeriodo: Number(form.idPeriodo),
     })
 
@@ -133,6 +128,7 @@ async function submitForm() {
     cursos.value.unshift(payload.curso)
     successMessage.value = response.data.message || 'Curso registrado correctamente.'
     resetForm()
+    showCreateModal.value = false
   } catch (error) {
     const response = error.response?.data
     if (response?.errors) {
@@ -192,106 +188,20 @@ onMounted(fetchCursoData)
         <h3>Creacion de Cursos</h3>
         <p class="subtitle">HU-ADM-06 - Materia, docente, horario y regimen academico</p>
       </div>
-      <button class="primary" type="button" :disabled="loading" @click="fetchCursoData">
-        {{ loading ? 'Cargando...' : 'Actualizar' }}
-      </button>
+      <div class="header-actions">
+        <button class="primary" type="button" @click="showCreateModal = true">
+          Agregar Curso
+        </button>
+        <button class="secondary" type="button" :disabled="loading" @click="fetchCursoData">
+          {{ loading ? 'Cargando...' : 'Actualizar' }}
+        </button>
+      </div>
     </div>
 
     <div v-if="successMessage" class="alert success">{{ successMessage }}</div>
     <div v-if="errorMessage" class="alert error">{{ errorMessage }}</div>
 
     <div class="content-grid">
-      <section class="card-panel">
-        <h4>Registrar curso</h4>
-        <form class="course-form" @submit.prevent="submitForm">
-          <label>
-            <span>Curso / Aula *</span>
-            <select v-model="form.idCurso" required>
-              <option value="" disabled>Seleccione un curso/aula</option>
-              <option v-for="cf in cursosFisicos" :key="cf.idCurso" :value="cf.idCurso">
-                {{ cf.idCurso }} (Capacidad: {{ cf.capacidad }})
-              </option>
-            </select>
-            <small v-if="errors.idCurso" class="field-error">{{ errors.idCurso[0] }}</small>
-          </label>
-
-          <!-- Filtro por carrera: solo filtra el listado de materias, no se guarda -->
-          <label class="filter-label">
-            <span>Filtrar por carrera</span>
-            <select v-model="filterCarrera" @change="form.idMateria = ''">
-              <option value="">Todas las carreras</option>
-              <option v-for="carrera in carreras" :key="carrera.idCarrera" :value="carrera.idCarrera">
-                {{ carrera.nombre }}
-              </option>
-            </select>
-          </label>
-
-          <label>
-            <span>Materia *</span>
-            <select v-model="form.idMateria" required>
-              <option value="" disabled>{{ filterCarrera ? 'Seleccione una materia de esta carrera' : 'Seleccione una materia' }}</option>
-              <option v-for="materia in materiasFiltradas" :key="materia.idMateria" :value="materia.idMateria">
-                {{ materia.nombre }} ({{ materia.idMateria }})
-              </option>
-            </select>
-            <small v-if="errors.idMateria" class="field-error">{{ errors.idMateria[0] }}</small>
-          </label>
-
-          <label>
-            <span>Docente *</span>
-            <select v-model="form.idDocente" required>
-              <option value="" disabled>Seleccione un docente</option>
-              <option v-for="docente in docentes" :key="docente.idUsuario" :value="String(docente.idUsuario)">
-                {{ docente.nombreCompleto }} - {{ docente.correo }}
-              </option>
-            </select>
-            <small v-if="errors.idDocente" class="field-error">{{ errors.idDocente[0] }}</small>
-          </label>
-
-          <label>
-            <span>Horario 1 *</span>
-            <select v-model="form.idHorario1" required>
-              <option value="" disabled>Seleccione el horario 1</option>
-              <option v-for="horario in horarios" :key="horario.idHorario" :value="String(horario.idHorario)">
-                {{ horario.descripcion }}
-              </option>
-            </select>
-            <small v-if="errors.idHorario1" class="field-error">{{ errors.idHorario1[0] }}</small>
-          </label>
-
-          <label>
-            <span>Horario 2 *</span>
-            <select v-model="form.idHorario2" required>
-              <option value="" disabled>Seleccione el horario 2</option>
-              <option v-for="horario in horarios" :key="horario.idHorario" :value="String(horario.idHorario)">
-                {{ horario.descripcion }}
-              </option>
-            </select>
-            <small v-if="errors.idHorario2" class="field-error">{{ errors.idHorario2[0] }}</small>
-          </label>
-
-          <label>
-            <span>Regimen academico *</span>
-            <select v-model="form.idPeriodo" disabled required>
-              <option value="" disabled>Seleccione un periodo</option>
-              <option v-for="periodo in periodos" :key="periodo.idPeriodo" :value="String(periodo.idPeriodo)">
-                {{ periodo.nombre }} (Periodo actual)
-              </option>
-            </select>
-            <small v-if="errors.idPeriodo" class="field-error">{{ errors.idPeriodo[0] }}</small>
-          </label>
-
-      
-
-          <div class="form-actions">
-            <button class="secondary" type="button" @click="resetForm">Limpiar</button>
-            <button class="primary" type="submit" :disabled="submitting">
-              {{ submitting ? 'Guardando...' : 'Guardar curso' }}
-            </button>
-          </div>
-        </form>
-      </section>
-
       <section class="card-panel">
         <div class="table-head">
           <h4>Cursos creados</h4>
@@ -344,6 +254,115 @@ onMounted(fetchCursoData)
         </div>
       </section>
     </div>
+
+    <!-- Modal de creación de curso -->
+    <Teleport to="body">
+      <div v-if="showCreateModal" class="backdrop" @mousedown.self="showCreateModal = false">
+        <div class="create-modal">
+          <div class="modal-header">
+            <h4>Registrar nuevo curso</h4>
+            <button class="close-btn" type="button" @click="showCreateModal = false">&times;</button>
+          </div>
+          
+          <form class="course-form" @submit.prevent="submitForm">
+            <label>
+              <span>Curso / Aula *</span>
+              <select v-model="form.idCurso" required>
+                <option value="" disabled>Seleccione un curso/aula</option>
+                <option v-for="cf in cursosFisicos" :key="cf.idCurso" :value="cf.idCurso">
+                  {{ cf.idCurso }} (Capacidad: {{ cf.capacidad }})
+                </option>
+              </select>
+              <small v-if="errors.idCurso" class="field-error">{{ errors.idCurso[0] }}</small>
+            </label>
+
+            <!-- Filtro por carrera: solo filtra el listado de materias, no se guarda -->
+            <label class="filter-label">
+              <span>Filtrar por carrera</span>
+              <select v-model="filterCarrera" @change="form.idMateria = ''">
+                <option value="">Todas las carreras</option>
+                <option v-for="carrera in carreras" :key="carrera.idCarrera" :value="carrera.idCarrera">
+                  {{ carrera.nombre }}
+                </option>
+              </select>
+            </label>
+
+            <label>
+              <span>Materia *</span>
+              <select v-model="form.idMateria" required>
+                <option value="" disabled>{{ filterCarrera ? 'Seleccione una materia de esta carrera' : 'Seleccione una materia' }}</option>
+                <option v-for="materia in materiasFiltradas" :key="materia.idMateria" :value="materia.idMateria">
+                  {{ materia.nombre }} ({{ materia.idMateria }})
+                </option>
+              </select>
+              <small v-if="errors.idMateria" class="field-error">{{ errors.idMateria[0] }}</small>
+            </label>
+
+            <label>
+              <span>Docente *</span>
+              <select v-model="form.idDocente" required>
+                <option value="" disabled>Seleccione un docente</option>
+                <option v-for="docente in docentes" :key="docente.idUsuario" :value="String(docente.idUsuario)">
+                  {{ docente.nombreCompleto }} - {{ docente.correo }}
+                </option>
+              </select>
+              <small v-if="errors.idDocente" class="field-error">{{ errors.idDocente[0] }}</small>
+            </label>
+
+            <label>
+              <span>Horario 1 *</span>
+              <select v-model="form.idHorario1" required>
+                <option value="" disabled>Seleccione el horario 1</option>
+                <option v-for="horario in horarios" :key="horario.idHorario" :value="String(horario.idHorario)">
+                  {{ formatHorarioLabel(horario) }}
+                </option>
+              </select>
+              <small v-if="errors.idHorario1" class="field-error">{{ errors.idHorario1[0] }}</small>
+            </label>
+
+            <label>
+              <span>Horario 2</span>
+              <select v-model="form.idHorario2">
+                <option value="">Ninguno (Opcional)</option>
+                <option v-for="horario in horarios" :key="horario.idHorario" :value="String(horario.idHorario)">
+                  {{ formatHorarioLabel(horario) }}
+                </option>
+              </select>
+              <small v-if="errors.idHorario2" class="field-error">{{ errors.idHorario2[0] }}</small>
+            </label>
+
+            <label>
+              <span>Horario 3</span>
+              <select v-model="form.idHorario3">
+                <option value="">Ninguno (Opcional)</option>
+                <option v-for="horario in horarios" :key="horario.idHorario" :value="String(horario.idHorario)">
+                  {{ formatHorarioLabel(horario) }}
+                </option>
+              </select>
+              <small v-if="errors.idHorario3" class="field-error">{{ errors.idHorario3[0] }}</small>
+            </label>
+
+            <label>
+              <span>Regimen academico *</span>
+              <select v-model="form.idPeriodo" disabled required>
+                <option value="" disabled>Seleccione un periodo</option>
+                <option v-for="periodo in periodos" :key="periodo.idPeriodo" :value="String(periodo.idPeriodo)">
+                  {{ periodo.nombre }} (Periodo actual)
+                </option>
+              </select>
+              <small v-if="errors.idPeriodo" class="field-error">{{ errors.idPeriodo[0] }}</small>
+            </label>
+
+            <div class="form-actions">
+              <button class="secondary" type="button" @click="showCreateModal = false">Cancelar</button>
+              <button class="primary" type="submit" :disabled="submitting">
+                {{ submitting ? 'Guardando...' : 'Guardar curso' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- Modal confirmación deshabilitar curso -->
     <Teleport to="body">
@@ -406,8 +425,71 @@ onMounted(fetchCursoData)
 
 .content-grid {
   display: grid;
-  grid-template-columns: 0.95fr 1.05fr;
+  grid-template-columns: 1fr;
   gap: 1rem;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.create-modal {
+  width: min(100%, 36rem);
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 1.4rem;
+  padding: 2rem 1.75rem;
+  max-height: 90vh;
+  overflow-y: auto;
+  text-align: left;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.create-modal .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.create-modal .modal-header h4 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: #0f172a;
+}
+
+.create-modal .close-btn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 1.5rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}
+
+.create-modal .close-btn:hover {
+  color: #0f172a;
+}
+
+.create-modal label span {
+  color: #475569;
+}
+
+.create-modal input,
+.create-modal select {
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  color: #0f172a;
+}
+
+.create-modal input:focus,
+.create-modal select:focus {
+  border-color: #3c4f4d;
+  box-shadow: 0 0 0 3px rgba(60, 79, 77, 0.12);
 }
 
 .card-panel {

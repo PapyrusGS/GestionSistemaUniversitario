@@ -21,12 +21,13 @@ class EloquentCursoRepository implements CursoRepositoryInterface
 
     public function create(array $data): array
     {
-        $rows = DB::select('CALL sp_cursos_store(?, ?, ?, ?, ?, ?)', [
+        $rows = DB::select('CALL sp_cursos_store(?, ?, ?, ?, ?, ?, ?)', [
             $data['idCurso'],
             $data['idMateria'],
             $data['idDocente'],
             $data['idHorario1'],
-            $data['idHorario2'],
+            $data['idHorario2'] ?? null,
+            $data['idHorario3'] ?? null,
             $data['idPeriodo'],
         ]);
 
