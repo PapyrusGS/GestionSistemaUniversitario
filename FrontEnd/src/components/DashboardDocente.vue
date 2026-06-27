@@ -10,13 +10,60 @@ const props = defineProps({
   badgeTone: { type: String, default: 'default' }
 })
 
-const modoDocente = ref('inicio')
+const modoDocente = ref('cursos')
 const loading     = ref(false)
 const errorMessage = ref('')
 
-const cursos              = ref([])
+const cursos               = ref([])
 const cursoSeleccionado   = ref(null)
 const estudiantesInscritos = ref([])
+
+// Función robusta para transformar cadenas como "1, (07:30-09:20), 4, (13:30-15:10)" en "Lun 07:30-09:20, Jue 13:30-15:10"
+function formatearHorario(horarioRaw) {
+  if (!horarioRaw) return 'Horario no definido'
+  
+  const diasMapeo = {
+    '1': 'Lun',
+    '2': 'Mar',
+    '3': 'Mié',
+    '4': 'Jue',
+    '5': 'Vie',
+    '6': 'Sáb',
+    '7': 'Dom'
+  }
+
+  // Si ya contiene letras de días formateados previamente, evitar reprocesar
+  if (/[a-zA-Z]/.test(horarioRaw) && !/\b\d\b/.test(horarioRaw)) {
+    return horarioRaw
+  }
+
+  // 1. Limpiamos espacios y unificamos todo el string. 
+  // Ej: "1,(07:30-09:20),4,(13:30-15:10)"
+  let limpio = horarioRaw.replace(/\s+/g, '');
+
+  // 2. Buscamos todas las parejas de número seguido de horas entre paréntesis.
+  // Captura el dígito en el grupo 1 y lo que está dentro de los paréntesis en el grupo 2.
+  const regexGlobal = /(\d),?\(?([^)]+)\)?/g;
+  const resultados = [];
+  let match;
+
+  // Ejecutamos la expresión sobre la cadena limpia
+  while ((match = regexGlobal.exec(limpio)) !== null) {
+    const diaNum = match[1];
+    let horas = match[2];
+    
+    // Si quedó una coma colgada al inicio de las horas por la separación, la removemos
+    if (horas.startsWith(',')) {
+      horas = horas.substring(1);
+    }
+
+    const diaNombre = diasMapeo[diaNum] || `Día ${diaNum}`;
+    resultados.push(`${diaNombre} ${horas}`);
+  }
+
+  // Si la expresión regular logró capturar los bloques, los une con una coma y espacio
+  return resultados.length > 0 ? resultados.join(', ') : horarioRaw;
+}
 
 async function obtenerCursos() {
   loading.value = true
@@ -66,12 +113,11 @@ onMounted(obtenerCursos)
 </script>
 
 <template>
-  <!-- Tab bar -->
   <div class="uni-tab-bar">
     <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': modoDocente === 'cursos' || modoDocente === 'detalle' }" @click="cambiarVista('cursos')">
       <i class="ti ti-book"></i>Cursos
     </button>
-    <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': modoDocente === 'registrar_notas' }" @click="cambiarVista('registrar_notas')">
+    <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': modoDocente === 'registrar_notes' || modoDocente === 'registrar_notas' }" @click="cambiarVista('registrar_notas')">
       <i class="ti ti-edit"></i>Calificaciones
     </button>
     <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': modoDocente === 'rendimiento' }"     @click="cambiarVista('rendimiento')">
@@ -84,67 +130,55 @@ onMounted(obtenerCursos)
 
   <div v-if="errorMessage" class="uni-alert uni-alert--error" style="margin: 0 1.5rem;">{{ errorMessage }}</div>
 
-  <!-- Contenido -->
   <div class="uni-section-body">
 
-    <!-- INICIO -->
-    <template v-if="modoDocente === 'inicio'">
-      <div class="doc-welcome">
-        <h3>¡Bienvenido, {{ user?.nombre1 || user?.nombre }}!</h3>
-        <p>Desde este panel puedes gestionar tus cursos, registrar calificaciones y generar reportes académicos.</p>
-      </div>
-      <div class="doc-metric-grid">
-        <div class="doc-metric-card">
-          <div class="doc-icon doc-icon--purple"><i class="ti ti-book"></i></div>
-          <div>
-            <span class="doc-metric-label">Materias Asignadas</span>
-            <strong class="doc-metric-value">{{ cursos.length }} Asignaturas</strong>
+    <template v-if="modoDocente === 'cursos'">
+      <div class="doc-cards-container">
+        <div v-for="curso in cursos" :key="curso.idCursoMateria || curso.id_curso_materia || curso.id" class="doc-materia-card-box">
+          
+          <div class="doc-materia-card-header">
+            <h4>{{ curso.materia_nombre || curso.nombre || curso.materia }}</h4>
           </div>
+
+          <div class="doc-materia-card-body">
+            <div class="doc-materia-row">
+              <span class="doc-materia-label-text">Horario:</span>
+              <span class="doc-badge">
+                {{ formatearHorario(curso.turno_nombre || curso.turno || curso.horario) }}
+              </span>
+            </div>
+            <div class="doc-materia-row">
+              <span class="doc-materia-label-text">Inicio de Gestión:</span>
+              <span class="doc-materia-value-text">{{ curso.fechaInicio || curso.fecha_inicio || 'N/A' }}</span>
+            </div>
+            <div class="doc-materia-row">
+              <span class="doc-materia-label-text">Conclusión de Gestión:</span>
+              <span class="doc-materia-value-text">{{ curso.fechaFin || curso.fecha_fin || 'N/A' }}</span>
+            </div>
+
+            <div class="doc-materia-capacity-block">
+              <span class="doc-capacity-title">CAPACIDAD DE LA MATERIA</span>
+              <div class="doc-capacity-counter">
+                <strong class="doc-counter-total">
+                  {{ curso.alumnos_count ?? 0 }} / {{ curso.maxInscritos || curso.max_inscritos || curso.cupo_maximo || curso.cupo || 0 }}
+                </strong>
+                <span class="doc-counter-label">Estudiantes</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="doc-materia-card-footer">
+            <button class="doc-action-btn doc-action-btn--full" @click="verDetalleCurso(curso)">Ver Alumnos</button>
+          </div>
+
         </div>
-        <div class="doc-metric-card">
-          <div class="doc-icon doc-icon--cyan"><i class="ti ti-users"></i></div>
-          <div>
-            <span class="doc-metric-label">Capacidad Global</span>
-            <strong class="doc-metric-value">{{ totalEstudiantesMax }} Cupos</strong>
-          </div>
+
+        <div v-if="!cursos.length && !loading" class="doc-empty-box">
+          <i class="ti ti-box-off"></i> No hay materias asignadas.
         </div>
       </div>
     </template>
 
-    <!-- CURSOS -->
-    <template v-else-if="modoDocente === 'cursos'">
-      <div class="doc-table-card">
-        <div class="doc-table-header">
-          <h4>Asignaturas y Distribución de Horarios</h4>
-        </div>
-        <div class="doc-table-scroll">
-          <table class="doc-table">
-            <thead>
-              <tr>
-                <th>Asignatura</th><th>Horario</th><th>Inicio</th><th>Fin</th><th>Cupo</th><th style="text-align:right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="curso in cursos" :key="curso.idCursoMateria || curso.id_curso_materia || curso.id">
-                <td class="doc-cell-primary">{{ curso.materia_nombre || curso.nombre || curso.materia }}</td>
-                <td><span class="doc-badge">{{ curso.turno_nombre || curso.turno || curso.horario }}</span></td>
-                <td class="doc-cell-muted">{{ curso.fechaInicio || curso.fecha_inicio || 'N/A' }}</td>
-                <td class="doc-cell-muted">{{ curso.fechaFin || curso.fecha_fin || 'N/A' }}</td>
-                <td style="color:var(--color-mint-dark);font-weight:600;">{{ curso.maxInscritos || curso.max_inscritos || curso.cupo_maximo || curso.cupo || 0 }}</td>
-                <td style="text-align:right">
-                  <button class="doc-action-btn" @click="verDetalleCurso(curso)">Ver Alumnos</button>
-                </td>
-              </tr>
-              <tr v-if="!cursos.length && !loading">
-                <td colspan="6" class="doc-empty">No hay materias asignadas.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </template>
-
-    <!-- DETALLE CURSO -->
     <template v-else-if="modoDocente === 'detalle'">
       <div class="doc-table-card">
         <div class="doc-table-header doc-table-header--flex">
@@ -174,7 +208,6 @@ onMounted(obtenerCursos)
       </div>
     </template>
 
-    <!-- SUB-COMPONENTES -->
     <DocenteRegistrarNotas v-else-if="modoDocente === 'registrar_notas'" :user="user" :api="api" :badgeTone="badgeTone" />
     <DocenteRendimiento    v-else-if="modoDocente === 'rendimiento'"     :user="user" :api="api" :badgeTone="badgeTone" />
     <DocenteReporteNotas   v-else-if="modoDocente === 'reporte_notas'"   :user="user" :api="api" :badgeTone="badgeTone" />
@@ -190,44 +223,125 @@ onMounted(obtenerCursos)
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Welcome */
-.doc-welcome {
-  background: var(--color-linen);
-  padding: 1.5rem 2rem;
-  border-radius: 12px;
-}
-.doc-welcome h3 {
-  font-family: 'Playfair Display', serif;
-  font-size: 1.2rem;
-  margin: 0 0 .35rem;
-}
-.doc-welcome p { color: var(--uni-muted); font-size: .875rem; line-height: 1.6; margin: 0; }
-
-/* Metric grid */
-.doc-metric-grid {
+/* CUADRÍCULA DE TARJETAS PARA CURSOS */
+.doc-cards-container {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-top: .5rem;
 }
-.doc-metric-card {
-  background: #fafafa;
+
+.doc-materia-card-box {
+  background: var(--color-white, #ffffff);
   border: 1px solid rgba(0,0,0,.06);
-  padding: 1.5rem;
-  border-radius: 12px;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.doc-materia-card-box:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,.04);
+}
+
+.doc-materia-card-header {
+  padding: 1.1rem 1.5rem;
+  background: #fafafa;
+  border-bottom: 1px solid rgba(0,0,0,.04);
+}
+
+.doc-materia-card-header h4 {
+  font-size: .95rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-black, #000000);
+}
+
+.doc-materia-card-body {
+  padding: 1.25rem 1.5rem;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.doc-materia-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.doc-materia-label-text {
+  color: var(--uni-muted, #777777);
+}
+
+.doc-materia-value-text {
+  font-weight: 500;
+  color: var(--color-black, #000000);
+}
+
+.doc-materia-capacity-block {
+  background: #fdfdfd;
+  border: 1px dashed rgba(0,0,0,.08);
+  border-radius: 10px;
+  padding: 0.85rem;
+  margin-top: 0.5rem;
+  text-align: center;
+}
+
+.doc-capacity-title {
+  font-size: 0.68rem;
+  color: var(--uni-muted, #777777);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.doc-capacity-counter {
   display: flex;
   align-items: center;
-  gap: 1.25rem;
+  justify-content: center;
+  gap: 0.4rem;
 }
-.doc-icon {
-  width: 48px; height: 48px; border-radius: 10px;
-  display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0;
-}
-.doc-icon--purple { background: rgba(168,85,247,.08); color: #a855f7; }
-.doc-icon--cyan   { background: rgba(6,182,212,.08);  color: #0891b2; }
-.doc-metric-label { font-size: .72rem; color: var(--uni-muted); text-transform: uppercase; letter-spacing: .04em; display: block; }
-.doc-metric-value { font-size: 1.1rem; font-weight: 700; color: var(--color-black); display: block; margin-top: .15rem; }
 
-/* Table card */
+.doc-counter-total {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-mint-dark, #0891b2);
+}
+
+.doc-counter-label {
+  font-size: 0.8rem;
+  color: var(--uni-muted, #777777);
+}
+
+.doc-materia-card-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid rgba(0,0,0,.03);
+  background: #fafafa;
+}
+
+.doc-action-btn--full {
+  width: 100%;
+  text-align: center;
+}
+
+.doc-empty-box {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--uni-muted);
+  padding: 4rem 1.5rem;
+  background: #fafafa;
+  border-radius: 14px;
+  border: 1px dashed rgba(0,0,0,.05);
+}
+
+/* TABLE CARD GENERAL */
 .doc-table-card {
   background: var(--color-white);
   border: 1px solid rgba(0,0,0,.06);
@@ -261,8 +375,8 @@ onMounted(obtenerCursos)
 
 .doc-badge {
   background: rgba(6,182,212,.08); color: #0891b2;
-  padding: .25rem .6rem; border-radius: 6px;
-  font-size: .7rem; font-weight: 700; text-transform: uppercase;
+  padding: .35rem .75rem; border-radius: 6px;
+  font-size: .78rem; font-weight: 600; text-transform: none;
 }
 .doc-action-btn {
   background: transparent; border: 1px solid rgba(0,0,0,.12);

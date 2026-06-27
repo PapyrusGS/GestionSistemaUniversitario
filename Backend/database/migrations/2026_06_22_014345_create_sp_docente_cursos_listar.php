@@ -19,12 +19,15 @@ return new class extends Migration
                     cm.idCursoMateria,
                     cm.idCurso,
                     cm.idMateria,
-                    cm.fechaInicio,
-                    cm.fechaFin,
-                    c.capacidad AS max_inscritos, -- Alias 1 para Vue
-                    c.capacidad AS cupo,          -- Alias 2 (Por si tu Vue busca 'cupo')
+                    -- Formateamos las fechas para que solo devuelvan AAAA-MM-DD (Petición del docente)
+                    DATE_FORMAT(cm.fechaInicio, '%Y-%m-%d') AS fechaInicio,
+                    DATE_FORMAT(cm.fechaFin, '%Y-%m-%d') AS fechaFin,
+                    -- Usamos c.capacidad (que sí existe) con todos los alias que espera tu Vue
+                    c.capacidad AS max_inscritos, 
+                    c.capacidad AS cupo,          
+                    c.capacidad AS cupo_maximo,
                     m.nombre AS materia_nombre,
-                    -- Conteo real de alumnos inscritos en el curso
+                    -- Conteo de alumnos inscritos en esta materia específica
                     (
                         SELECT COUNT(*) 
                         FROM estudiantemateria em 
@@ -39,7 +42,7 @@ return new class extends Migration
                     ) AS turno_nombre
                 FROM cursos_materias cm
                 INNER JOIN materias m ON cm.idMateria = m.idMateria
-                INNER JOIN cursos c ON cm.idCurso = c.idCurso
+                INNER JOIN cursos c ON cm.idCurso = c.idCurso -- Enlace con la tabla donde está el campo capacidad
                 WHERE cm.idDocente = p_idDocente AND cm.estado = 1;
             END;
         ");
