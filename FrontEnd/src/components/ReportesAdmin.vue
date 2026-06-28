@@ -1,156 +1,146 @@
 <template>
-  <div class="rw">
-
-    <!-- Header -->
-    <div class="rw-header">
-      <div>
-        <h1 class="rw-title">Analítica y Reportes</h1>
-        <p class="rw-subtitle">Genera información consolidada para la toma de decisiones.</p>
-      </div>
-    </div>
+  <div class="ra">
 
     <!-- Alertas -->
-    <div v-if="successMessage" class="rw-alert rw-alert--success">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>
+    <div v-if="successMessage" class="ra-alert ra-alert--success">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>
       {{ successMessage }}
     </div>
-    <div v-if="errorMessage" class="rw-alert rw-alert--error">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <div v-if="errorMessage" class="ra-alert ra-alert--error">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       {{ errorMessage }}
     </div>
-    <div v-if="infoMessage" class="rw-alert rw-alert--info">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+    <div v-if="infoMessage" class="ra-alert ra-alert--info">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
       {{ infoMessage }}
     </div>
 
-    <!-- Panel de Configuración -->
-    <div class="rw-panel">
+    <!-- Panel de configuración -->
+    <div class="ra-panel">
 
-      <!-- Selector de tipo -->
-      <p class="rw-section-label">Tipo de reporte</p>
-      <div class="rw-type-grid">
+      <p class="ra-section-label">Tipo de reporte</p>
 
+      <div class="ra-type-grid">
         <button
-          class="rw-type-btn"
-          :class="{ 'rw-type-btn--active': filtros.tipo === 'inscripciones' }"
+          class="ra-type-btn"
+          :class="{ 'ra-type-btn--active': filtros.tipo === 'inscripciones' }"
           @click="selectTipo('inscripciones')"
         >
-          <svg class="rw-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <svg class="ra-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
           </svg>
           <span>Inscripciones y Notas</span>
         </button>
 
         <button
-          class="rw-type-btn"
-          :class="{ 'rw-type-btn--active': filtros.tipo === 'cursos' }"
+          class="ra-type-btn"
+          :class="{ 'ra-type-btn--active': filtros.tipo === 'cursos' }"
           @click="selectTipo('cursos')"
         >
-          <svg class="rw-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <svg class="ra-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
           </svg>
           <span>Catálogo de Cursos</span>
         </button>
 
         <button
-          class="rw-type-btn"
-          :class="{ 'rw-type-btn--active': filtros.tipo === 'docentes' }"
+          class="ra-type-btn"
+          :class="{ 'ra-type-btn--active': filtros.tipo === 'docentes' }"
           @click="selectTipo('docentes')"
         >
-          <svg class="rw-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <svg class="ra-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
           </svg>
           <span>Plantilla Docente</span>
         </button>
 
         <button
-          class="rw-type-btn"
-          :class="{ 'rw-type-btn--active': filtros.tipo === 'materias' }"
+          class="ra-type-btn"
+          :class="{ 'ra-type-btn--active': filtros.tipo === 'materias' }"
           @click="selectTipo('materias')"
         >
-          <svg class="rw-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <svg class="ra-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
           </svg>
           <span>Catálogo de Materias</span>
         </button>
-
       </div>
 
-      <!-- Filtros por Curso y Materia -->
-      <div v-if="filtros.tipo === 'inscripciones' || filtros.tipo === 'cursos'" class="rw-filters">
-        <div class="rw-filter-group">
-          <label class="rw-label">Curso</label>
-          <select v-model="filtros.curso" class="rw-select">
+      <!-- Filtros Curso / Materia -->
+      <div v-if="filtros.tipo === 'inscripciones' || filtros.tipo === 'cursos'" class="ra-filters">
+        <div class="ra-filter-group">
+          <label class="ra-label">Curso</label>
+          <select v-model="filtros.curso" class="ra-select">
             <option value="">Todos los cursos</option>
             <option v-for="c in listadoCursos" :key="c.idCurso" :value="c.idCurso">{{ c.idCurso }}</option>
           </select>
         </div>
-        <div class="rw-filter-group">
-          <label class="rw-label">Materia</label>
-          <select v-model="filtros.materia" class="rw-select">
+        <div class="ra-filter-group">
+          <label class="ra-label">Materia</label>
+          <select v-model="filtros.materia" class="ra-select">
             <option value="">Todas las materias</option>
             <option v-for="m in listadoMaterias" :key="m.idMateria" :value="m.idMateria">{{ m.sigla || m.idMateria }} — {{ m.nombre }}</option>
           </select>
         </div>
       </div>
 
-      <!-- Filtros por Carrera y Semestre (solo para catálogo de materias) -->
-      <div v-if="filtros.tipo === 'materias'" class="rw-filters">
-        <div class="rw-filter-group">
-          <label class="rw-label">Carrera</label>
-          <select v-model="filtros.carrera" class="rw-select">
+      <!-- Filtros Carrera / Semestre -->
+      <div v-if="filtros.tipo === 'materias'" class="ra-filters">
+        <div class="ra-filter-group">
+          <label class="ra-label">Carrera</label>
+          <select v-model="filtros.carrera" class="ra-select">
             <option value="">Todas las carreras</option>
             <option v-for="car in listadoCarreras" :key="car.idCarrera" :value="car.idCarrera">{{ car.nombre }}</option>
           </select>
         </div>
-        <div class="rw-filter-group">
-          <label class="rw-label">Semestre</label>
-          <select v-model="filtros.semestre" class="rw-select">
+        <div class="ra-filter-group">
+          <label class="ra-label">Semestre</label>
+          <select v-model="filtros.semestre" class="ra-select">
             <option value="">Todos los semestres</option>
             <option v-for="s in 10" :key="s" :value="s">Semestre {{ s }}</option>
           </select>
         </div>
       </div>
 
-      <!-- Botón Procesar -->
-      <div class="rw-actions">
-        <button class="rw-btn-primary" :disabled="loading" @click="cargarReporte">
-          <span v-if="loading" class="rw-spinner"></span>
-          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <!-- Acciones -->
+      <div class="ra-actions">
+        <button class="uni-btn-action-success" :disabled="loading" @click="cargarReporte">
+          <span v-if="loading" class="ra-spinner"></span>
+          <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
           {{ loading ? 'Calculando...' : 'Procesar solicitud' }}
         </button>
       </div>
 
     </div>
 
-    <!-- Botones Exportar (solo cuando hay datos) -->
-    <div v-if="reporte.length > 0" class="rw-export-bar">
-      <span class="rw-export-label">{{ reporte.length }} registros encontrados</span>
-      <div class="rw-export-btns">
-        <button class="rw-btn-export rw-btn-export--pdf" :disabled="exporting" @click="exportar('pdf')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+    <!-- Barra de exportación -->
+    <div v-if="reporte.length > 0" class="ra-export-bar">
+      <span class="ra-export-count">{{ reporte.length }} registros encontrados</span>
+      <div class="ra-export-btns">
+        <button class="ra-btn-export ra-btn-export--pdf" :disabled="exporting" @click="exportar('pdf')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           Exportar PDF
         </button>
-        <button class="rw-btn-export rw-btn-export--excel" :disabled="exporting" @click="exportar('excel')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <button class="ra-btn-export ra-btn-export--excel" :disabled="exporting" @click="exportar('excel')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Exportar Excel
         </button>
       </div>
     </div>
 
     <!-- Estado vacío -->
-    <div v-if="searched && reporte.length === 0 && !loading" class="rw-empty">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.4">
+    <div v-if="searched && reporte.length === 0 && !loading" class="ra-empty">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
         <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
       </svg>
-      <p class="rw-empty-title">Sin resultados</p>
-      <p class="rw-empty-sub">No hay información disponible para los filtros aplicados.</p>
+      <p class="ra-empty-title">Sin resultados</p>
+      <p class="ra-empty-sub">No hay información disponible para los filtros aplicados.</p>
     </div>
 
     <!-- Tabla -->
-    <div v-if="reporte.length > 0" class="rw-table-wrap">
-      <div class="rw-table-scroll">
-        <table class="rw-table">
+    <div v-if="reporte.length > 0" class="ra-table-wrap">
+      <div class="ra-table-scroll">
+        <table class="ra-table">
           <thead>
             <tr>
               <th v-for="(head, i) in headings" :key="i">{{ head }}</th>
@@ -265,7 +255,7 @@ const exportar = async (formato) => {
     link.remove();
     window.URL.revokeObjectURL(url);
     infoMessage.value = '';
-    successMessage.value = `Archivo descargado correctamente.`;
+    successMessage.value = 'Archivo descargado correctamente.';
     setTimeout(() => successMessage.value = '', 3000);
   } catch (e) {
     console.error(e);
@@ -278,261 +268,282 @@ const exportar = async (formato) => {
 </script>
 
 <style scoped>
-/* =====================
-   Wrapper & Header
-===================== */
-.rw {
-  color: #e2e8f0;
+/* ── Variables locales que heredan del sistema global ── */
+.ra {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
-  max-width: 1100px;
+  gap: 1rem;
+  max-width: 1000px;
+  color: var(--uni-text);
 }
 
-.rw-header { display: flex; align-items: center; justify-content: space-between; }
-
-.rw-title {
-  font-size: 1.75rem;
-  font-weight: 800;
-  margin: 0 0 0.25rem;
-  background: linear-gradient(135deg, #a5b4fc, #f0abfc);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.rw-subtitle { margin: 0; color: #94a3b8; font-size: 0.9rem; }
-
-/* =====================
-   Alertas
-===================== */
-.rw-alert {
+/* ── Alertas — reutilizan tokens del App.vue ── */
+.ra-alert {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.75rem 1rem;
-  border-radius: 0.75rem;
-  font-size: 0.875rem;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  border-radius: 20px;
+  font-size: 12px;
   font-weight: 500;
+  border: 1px solid;
 }
-.rw-alert svg { flex-shrink: 0; }
-.rw-alert--success { background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3); color: #6ee7b7; }
-.rw-alert--error   { background: rgba(239,68,68,0.12);  border: 1px solid rgba(239,68,68,0.3);  color: #fca5a5; }
-.rw-alert--info    { background: rgba(59,130,246,0.12);  border: 1px solid rgba(59,130,246,0.3);  color: #93c5fd; }
+.ra-alert svg { flex-shrink: 0; }
+.ra-alert--success {
+  background: var(--uni-success-bg);
+  border-color: var(--uni-success-border);
+  color: var(--uni-success-text);
+}
+.ra-alert--error {
+  background: var(--uni-error-bg);
+  border-color: var(--uni-error-border);
+  color: var(--uni-error-text);
+}
+.ra-alert--info {
+  background: #eef3f8;
+  border-color: #a8c4dc;
+  color: #1e4a6e;
+}
 
-/* =====================
-   Panel
-===================== */
-.rw-panel {
-  background: rgba(15,23,42,0.5);
-  backdrop-filter: blur(14px);
-  border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 1.25rem;
-  padding: 1.5rem;
+/* ── Panel principal ── */
+.ra-panel {
+  background: #fafafa;
+  border: 1px solid rgba(0,0,0,.06);
+  border-radius: 12px;
+  padding: 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1rem;
 }
 
-.rw-section-label {
+.ra-section-label {
   margin: 0;
-  font-size: 0.75rem;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #64748b;
+  color: var(--uni-muted);
 }
 
-/* =====================
-   Tipo de reporte (tarjetas)
-===================== */
-.rw-type-grid {
+/* ── Tarjetas de tipo ── */
+.ra-type-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem;
+  gap: 0.6rem;
 }
-@media (min-width: 640px) {
-  .rw-type-grid { grid-template-columns: repeat(4, 1fr); }
+@media (min-width: 600px) {
+  .ra-type-grid { grid-template-columns: repeat(4, 1fr); }
 }
 
-.rw-type-btn {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 0.875rem;
-  padding: 1rem 0.75rem;
+.ra-type-btn {
+  background: var(--color-white);
+  border: 1.5px solid var(--color-linen);
+  border-radius: 10px;
+  padding: 0.85rem 0.6rem;
   cursor: pointer;
-  color: #94a3b8;
+  color: var(--uni-muted);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.6rem;
-  font-size: 0.8rem;
+  gap: 0.5rem;
+  font-size: 11px;
   font-weight: 600;
   text-align: center;
-  transition: all 0.25s ease;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
   line-height: 1.3;
 }
-.rw-type-btn:hover {
-  background: rgba(255,255,255,0.07);
-  color: #e2e8f0;
-  transform: translateY(-2px);
+.ra-type-btn:hover {
+  border-color: var(--color-mint-light);
+  color: var(--color-mint-dark);
+  background: var(--color-white);
 }
-.rw-type-btn--active {
-  background: linear-gradient(145deg, rgba(99,102,241,0.25), rgba(168,85,247,0.15));
-  border-color: rgba(167,139,250,0.45);
-  color: #e0e7ff;
-  box-shadow: 0 6px 20px -6px rgba(99,102,241,0.4);
+.ra-type-btn--active {
+  border-color: var(--color-mint-dark);
+  background: var(--uni-success-bg);
+  color: var(--color-mint-dark);
 }
-.rw-type-icon {
-  width: 28px;
-  height: 28px;
+.ra-type-icon {
+  width: 24px;
+  height: 24px;
   flex-shrink: 0;
 }
 
-/* =====================
-   Filtros
-===================== */
-.rw-filters {
+/* ── Filtros ── */
+.ra-filters {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  padding-top: 1rem;
-  border-top: 1px solid rgba(255,255,255,0.06);
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-linen);
 }
-@media (min-width: 640px) {
-  .rw-filters { flex-direction: row; }
+@media (min-width: 600px) {
+  .ra-filters { flex-direction: row; }
 }
-.rw-filter-group { flex: 1; display: flex; flex-direction: column; gap: 0.4rem; }
-.rw-label { font-size: 0.75rem; font-weight: 600; color: #7c8db0; text-transform: uppercase; letter-spacing: 0.06em; }
-.rw-select {
+
+.ra-filter-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.ra-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--uni-muted);
+}
+
+.ra-select {
   width: 100%;
-  background: rgba(8,16,38,0.7);
-  border: 1px solid rgba(255,255,255,0.1);
-  color: #e2e8f0;
-  padding: 0.6rem 0.9rem;
-  border-radius: 0.6rem;
-  font-size: 0.875rem;
+  background: var(--color-white);
+  border: 1.5px solid var(--color-linen);
+  color: var(--uni-text);
+  padding: 0.55rem 0.85rem;
+  border-radius: 20px;
+  font-size: 12px;
+  font-family: inherit;
   outline: none;
   appearance: none;
   cursor: pointer;
   transition: border-color 0.2s;
 }
-.rw-select:focus { border-color: #818cf8; }
-.rw-select option { background: #1e293b; }
+.ra-select:focus { border-color: var(--color-mint-dark); }
 
-/* =====================
-   Botón procesar
-===================== */
-.rw-actions { display: flex; justify-content: flex-end; }
-.rw-btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  color: #fff;
-  border: none;
-  border-radius: 0.7rem;
-  padding: 0.65rem 1.4rem;
-  font-size: 0.875rem;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 8px 20px -8px rgba(99,102,241,0.7);
-  transition: all 0.25s ease;
+/* ── Botón procesar — hereda .uni-btn-action-success del App.vue ── */
+.ra-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.25rem;
 }
-.rw-btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 24px -8px rgba(99,102,241,0.8); }
-.rw-btn-primary:disabled { opacity: 0.6; cursor: wait; }
-.rw-spinner {
-  width: 14px; height: 14px;
-  border: 2px solid rgba(255,255,255,0.3);
+
+.ra-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255,255,255,0.4);
   border-top-color: #fff;
   border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  animation: ra-spin 0.75s linear infinite;
   flex-shrink: 0;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes ra-spin { to { transform: rotate(360deg); } }
 
-/* =====================
-   Barra de exportación
-===================== */
-.rw-export-bar {
+/* ── Barra de exportación ── */
+.ra-export-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 0.75rem;
-  background: rgba(15,23,42,0.4);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 0.875rem;
-  padding: 0.75rem 1.25rem;
+  background: #fafafa;
+  border: 1px solid rgba(0,0,0,.06);
+  border-radius: 12px;
+  padding: 0.65rem 1rem;
 }
-.rw-export-label { font-size: 0.82rem; color: #64748b; font-weight: 600; }
-.rw-export-btns { display: flex; gap: 0.6rem; }
-.rw-btn-export {
+
+.ra-export-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--uni-muted);
+}
+
+.ra-export-btns {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.ra-btn-export {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  border-radius: 0.6rem;
-  padding: 0.5rem 1rem;
-  font-size: 0.8rem;
+  gap: 0.35rem;
+  border-radius: 20px;
+  padding: 0.45rem 0.9rem;
+  font-size: 11px;
   font-weight: 700;
   cursor: pointer;
+  font-family: inherit;
   border: 1px solid transparent;
-  transition: all 0.2s ease;
+  transition: background 0.2s;
 }
-.rw-btn-export:disabled { opacity: 0.45; cursor: not-allowed; }
-.rw-btn-export--pdf   { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.3); color: #fca5a5; }
-.rw-btn-export--pdf:hover:not(:disabled)   { background: rgba(239,68,68,0.22); transform: translateY(-1px); }
-.rw-btn-export--excel { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.3); color: #6ee7b7; }
-.rw-btn-export--excel:hover:not(:disabled) { background: rgba(16,185,129,0.22); transform: translateY(-1px); }
+.ra-btn-export:disabled { opacity: 0.45; cursor: not-allowed; }
 
-/* =====================
-   Estado vacío
-===================== */
-.rw-empty {
-  background: rgba(15,23,42,0.2);
-  border: 2px dashed rgba(255,255,255,0.08);
-  border-radius: 1.25rem;
-  padding: 3rem 2rem;
+.ra-btn-export--pdf {
+  background: var(--uni-error-bg);
+  border-color: var(--uni-error-border);
+  color: var(--uni-error-text);
+}
+.ra-btn-export--pdf:hover:not(:disabled) { background: #f5e0e0; }
+
+.ra-btn-export--excel {
+  background: var(--uni-success-bg);
+  border-color: var(--uni-success-border);
+  color: var(--uni-success-text);
+}
+.ra-btn-export--excel:hover:not(:disabled) { background: #d8ece6; }
+
+/* ── Estado vacío ── */
+.ra-empty {
+  background: #fafafa;
+  border: 1.5px dashed var(--color-linen);
+  border-radius: 12px;
+  padding: 2.5rem 2rem;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
+  color: var(--uni-muted);
 }
-.rw-empty-title { margin: 0; font-size: 1rem; font-weight: 700; color: #94a3b8; }
-.rw-empty-sub   { margin: 0; font-size: 0.85rem; color: #475569; }
+.ra-empty-title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-dark-gray);
+}
+.ra-empty-sub {
+  margin: 0;
+  font-size: 11px;
+  color: var(--uni-muted);
+}
 
-/* =====================
-   Tabla
-===================== */
-.rw-table-wrap {
-  background: rgba(10,18,38,0.5);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 1rem;
-  overflow: auto;
+/* ── Tabla ── */
+.ra-table-wrap {
+  background: var(--color-white);
+  border: 1px solid rgba(0,0,0,.06);
+  border-radius: 12px;
+  overflow: hidden;
 }
-.rw-table-scroll { overflow-x: auto; }
-.rw-table {
+.ra-table-scroll { overflow-x: auto; }
+
+.ra-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.85rem;
+  font-size: 12px;
   white-space: nowrap;
 }
-.rw-table thead tr { background: rgba(0,0,0,0.25); }
-.rw-table th {
-  padding: 0.85rem 1.1rem;
+
+.ra-table thead tr {
+  background: #fafafa;
+  border-bottom: 1px solid var(--color-linen);
+}
+
+.ra-table th {
+  padding: 0.75rem 1rem;
   text-align: left;
-  font-size: 0.7rem;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #64748b;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  color: var(--uni-muted);
 }
-.rw-table td {
-  padding: 0.85rem 1.1rem;
-  color: #cbd5e1;
-  border-bottom: 1px solid rgba(255,255,255,0.03);
+
+.ra-table td {
+  padding: 0.75rem 1rem;
+  color: var(--uni-text);
+  border-bottom: 1px solid rgba(0,0,0,.04);
 }
-.rw-table tbody tr:hover { background: rgba(255,255,255,0.02); }
-.rw-table tbody tr:last-child td { border-bottom: none; }
+
+.ra-table tbody tr:hover { background: #f7f7f5; }
+.ra-table tbody tr:last-child td { border-bottom: none; }
 </style>

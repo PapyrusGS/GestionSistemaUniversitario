@@ -22,7 +22,9 @@ class UserController extends Controller
                 return [
                     'idUsuario' => $user->idUsuario,
                     'nombreCompleto' => $user->nombreCompleto,
+                    'ci' => $user->ci,
                     'correo' => $user->correo,
+                    'telefono' => $user->telefono,
                     'rol' => $user->rol ? $user->rol->nombre : 'Sin rol',
                     'estado' => $user->estado,
                 ];
@@ -36,6 +38,12 @@ class UserController extends Controller
     public function store(StoreUserRequest $request): JsonResponse
     {
         $data = $request->validated();
+
+        $data['fechaRegistro'] = now();
+        $data['estado'] = true;
+        $data['fechaA'] = now();
+        $data['UsuarioA'] = auth()->id() ?? 1;
+        $data['estadoA'] = true;
 
         $user = \Illuminate\Support\Facades\DB::transaction(function () use ($data) {
             $user = User::create($data);
@@ -78,7 +86,9 @@ class UserController extends Controller
             'user' => [
                 'idUsuario' => $user->idUsuario,
                 'nombreCompleto' => $user->nombreCompleto,
+                'ci' => $user->ci,
                 'correo' => $user->correo,
+                'telefono' => $user->telefono,
                 'rol' => $user->rol()->first()->nombre ?? 'Sin rol',
                 'estado' => $user->estado,
             ]

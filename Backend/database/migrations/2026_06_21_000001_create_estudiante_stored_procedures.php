@@ -293,10 +293,17 @@ BEGIN
     INNER JOIN horariocurso hc_new ON hc_new.idCursoMateria = p_nuevoIdCursoMateria
     INNER JOIN horarios h_new ON h_new.idHorario = hc_new.idHorario
     WHERE em.idEstudiante = p_idEstudiante
-      AND em.estado = 1
-      AND h_new.diaSemana = h_exist.diaSemana
-      AND h_new.horaInicio < h_exist.horaFin
-      AND h_new.horaFin > h_exist.horaInicio
+    AND em.estado = 1
+    AND NOT EXISTS (
+            SELECT 1
+            FROM notas n
+            WHERE n.idInscripcion = em.idInscripcion
+                AND n.estado = 1
+        )
+
+    AND h_new.diaSemana = h_exist.diaSemana
+    AND h_new.horaInicio < h_exist.horaFin
+    AND h_new.horaFin > h_exist.horaInicio
     LIMIT 1;
 END
 SQL);

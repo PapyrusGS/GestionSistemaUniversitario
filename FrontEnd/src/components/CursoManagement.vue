@@ -17,7 +17,6 @@ const horarios = ref([])
 const periodos = ref([])
 const filterCarrera = ref('')
 
-// Materias filtradas por carrera seleccionada (solo filtro visual, no se envía al backend)
 const materiasFiltradas = computed(() => {
   if (!filterCarrera.value) return materias.value
   return materias.value.filter(m => String(m.idCarrera) === String(filterCarrera.value))
@@ -47,19 +46,11 @@ function payloadFromResponse(data) {
 
 function formatHorarioLabel(horario) {
   if (!horario) return ''
-  const days = {
-    1: 'Lunes',
-    2: 'Martes',
-    3: 'Miercoles',
-    4: 'Jueves',
-    5: 'Viernes',
-    6: 'Sabado',
-    7: 'Domingo',
-  }
+  const days = { 1: 'Lunes', 2: 'Martes', 3: 'Miercoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sabado', 7: 'Domingo' }
   const dayName = days[horario.diaSemana] || `Día ${horario.diaSemana}`
   const start = horario.horaInicio ? horario.horaInicio.substring(0, 5) : ''
   const end = horario.horaFin ? horario.horaFin.substring(0, 5) : ''
-  return `${dayName} - ${start} a ${end}`
+  return `${dayName} — ${start} a ${end}`
 }
 
 function resetMessages() {
@@ -82,13 +73,11 @@ function resetForm() {
 async function fetchCursoData() {
   loading.value = true
   resetMessages()
-
   try {
     const [cursosResponse, formDataResponse] = await Promise.all([
       props.api.get('/cursos'),
       props.api.get('/cursos/form-data'),
     ])
-
     cursos.value = payloadFromResponse(cursosResponse.data).cursos || []
     const formData = payloadFromResponse(formDataResponse.data)
     cursosFisicos.value = formData.cursosFisicos || []
@@ -97,7 +86,6 @@ async function fetchCursoData() {
     docentes.value = formData.docentes || []
     horarios.value = formData.horarios || []
     periodos.value = formData.periodos || []
-
     if (periodos.value.length > 0) {
       form.idPeriodo = String(periodos.value[0].idPeriodo)
     }
@@ -112,7 +100,6 @@ async function submitForm() {
   submitting.value = true
   resetMessages()
   errors.value = {}
-
   try {
     const response = await props.api.post('/cursos', {
       idCurso: form.idCurso,
@@ -123,7 +110,6 @@ async function submitForm() {
       idHorario3: form.idHorario3 ? Number(form.idHorario3) : null,
       idPeriodo: Number(form.idPeriodo),
     })
-
     const payload = payloadFromResponse(response.data)
     cursos.value.unshift(payload.curso)
     successMessage.value = response.data.message || 'Curso registrado correctamente.'
@@ -135,7 +121,7 @@ async function submitForm() {
       errors.value = response.errors
       errorMessage.value = 'Por favor, corrige los errores del formulario.'
     } else {
-      errorMessage.value = response?.message || 'Ocurrio un error inesperado.'
+      errorMessage.value = response?.message || 'Ocurrió un error inesperado.'
     }
   } finally {
     submitting.value = false
@@ -154,21 +140,15 @@ function cancelDisableCurso() {
 
 async function confirmDisableCurso() {
   if (!cursoToDisable.value) return
-
   const curso = cursoToDisable.value
   showConfirmModal.value = false
   submitting.value = true
   resetMessages()
-
   try {
     const response = await props.api.delete(`/cursos/${curso.idCursoMateria}`)
     const payload = payloadFromResponse(response.data)
     const index = cursos.value.findIndex((item) => item.idCursoMateria === curso.idCursoMateria)
-
-    if (index !== -1) {
-      cursos.value[index] = payload.curso
-    }
-
+    if (index !== -1) cursos.value[index] = payload.curso
     successMessage.value = response.data.message || 'Curso deshabilitado correctamente.'
   } catch (error) {
     errorMessage.value = error.response?.data?.message || 'No se pudo deshabilitar el curso.'
@@ -182,556 +162,580 @@ onMounted(fetchCursoData)
 </script>
 
 <template>
-  <div class="curso-management">
-    <div class="header-section">
+  <div class="cm">
+
+    <!-- Cabecera -->
+    <div class="cm-header">
       <div>
-        <h3>Creacion de Cursos</h3>
-        <p class="subtitle">HU-ADM-06 - Materia, docente, horario y regimen academico</p>
+        <h3 class="cm-title">Creación de Cursos</h3>
+        <p class="cm-subtitle">HU-ADM-06 · Materia, docente, horario y régimen académico</p>
       </div>
-      <div class="header-actions">
-        <button class="primary" type="button" @click="showCreateModal = true">
+      <div class="cm-header-actions">
+        <button class="uni-btn-action-success" type="button" @click="showCreateModal = true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Agregar Curso
         </button>
-        <button class="secondary" type="button" :disabled="loading" @click="fetchCursoData">
+        <button class="cm-btn-secondary" type="button" :disabled="loading" @click="fetchCursoData">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
           {{ loading ? 'Cargando...' : 'Actualizar' }}
         </button>
       </div>
     </div>
 
-    <div v-if="successMessage" class="alert success">{{ successMessage }}</div>
-    <div v-if="errorMessage" class="alert error">{{ errorMessage }}</div>
-
-    <div class="content-grid">
-      <section class="card-panel">
-        <div class="table-head">
-          <h4>Cursos creados</h4>
-        </div>
-
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Codigo</th>
-                <th>Materia</th>
-                <th>Docente</th>
-                <th>Horario</th>
-                <th>Periodo</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="cursos.length === 0">
-                <td colspan="7" class="empty-state">No hay cursos registrados.</td>
-              </tr>
-              <tr v-for="curso in cursos" :key="curso.idCursoMateria" :class="{ inactive: !curso.estado }">
-                <td><code>{{ curso.idCurso }}</code></td>
-                <td>{{ curso.materia || 'Sin materia' }}</td>
-                <td>{{ curso.docente || 'Sin docente' }}</td>
-                <td>{{ curso.horarioDetalle || 'Sin horario' }}</td>
-                <td>{{ curso.periodo || 'Sin periodo' }}</td>
-                <td>
-                  <span class="status-badge" :class="curso.estado ? 'active' : 'inactive'">
-                    {{ curso.estado ? 'Activo' : 'Inactivo' }}
-                  </span>
-                </td>
-                <td>
-                  <div class="actions">
-                    <button
-                      v-if="curso.estado"
-                      class="icon-btn danger"
-                      type="button"
-                      :disabled="submitting"
-                      @click="askDisableCurso(curso)"
-                    >
-                      Deshabilitar
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+    <!-- Alertas -->
+    <div v-if="successMessage" class="cm-alert cm-alert--success">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>
+      {{ successMessage }}
+    </div>
+    <div v-if="errorMessage" class="cm-alert cm-alert--error">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      {{ errorMessage }}
     </div>
 
-    <!-- Modal de creación de curso -->
+    <!-- Tabla -->
+    <div class="cm-table-wrap">
+      <table class="cm-table">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Materia</th>
+            <th>Docente</th>
+            <th>Horario</th>
+            <th>Periodo</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="cursos.length === 0">
+            <td colspan="7" class="cm-empty">No hay cursos registrados.</td>
+          </tr>
+          <tr v-for="curso in cursos" :key="curso.idCursoMateria" :class="{ 'cm-row--inactive': !curso.estado }">
+            <td><code class="cm-code">{{ curso.idCurso }}</code></td>
+            <td>{{ curso.materia || 'Sin materia' }}</td>
+            <td>{{ curso.docente || 'Sin docente' }}</td>
+            <td>{{ curso.horarioDetalle || 'Sin horario' }}</td>
+            <td>{{ curso.periodo || 'Sin periodo' }}</td>
+            <td>
+              <span class="cm-badge" :class="curso.estado ? 'cm-badge--active' : 'cm-badge--inactive'">
+                {{ curso.estado ? 'Activo' : 'Inactivo' }}
+              </span>
+            </td>
+            <td>
+              <button
+                v-if="curso.estado"
+                class="uni-btn-action-danger cm-btn-sm"
+                type="button"
+                :disabled="submitting"
+                @click="askDisableCurso(curso)"
+              >
+                Deshabilitar
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── Modal: Crear curso ── -->
     <Teleport to="body">
-      <div v-if="showCreateModal" class="backdrop" @mousedown.self="showCreateModal = false">
-        <div class="create-modal">
-          <div class="modal-header">
-            <h4>Registrar nuevo curso</h4>
-            <button class="close-btn" type="button" @click="showCreateModal = false">&times;</button>
+      <div v-if="showCreateModal" class="cm-backdrop" @mousedown.self="showCreateModal = false">
+        <div class="cm-modal">
+
+          <div class="cm-modal-header">
+            <h4 class="cm-modal-title">Registrar nuevo curso</h4>
+            <button class="cm-close-btn" type="button" @click="showCreateModal = false">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
           </div>
-          
-          <form class="course-form" @submit.prevent="submitForm">
-            <label>
-              <span>Curso / Aula *</span>
-              <select v-model="form.idCurso" required>
+
+          <form class="cm-form" @submit.prevent="submitForm">
+
+            <div class="cm-field">
+              <label class="cm-label">Curso / Aula *</label>
+              <select v-model="form.idCurso" class="cm-select" required>
                 <option value="" disabled>Seleccione un curso/aula</option>
                 <option v-for="cf in cursosFisicos" :key="cf.idCurso" :value="cf.idCurso">
                   {{ cf.idCurso }} (Capacidad: {{ cf.capacidad }})
                 </option>
               </select>
-              <small v-if="errors.idCurso" class="field-error">{{ errors.idCurso[0] }}</small>
-            </label>
+              <small v-if="errors.idCurso" class="cm-field-error">{{ errors.idCurso[0] }}</small>
+            </div>
 
-            <!-- Filtro por carrera: solo filtra el listado de materias, no se guarda -->
-            <label class="filter-label">
-              <span>Filtrar por carrera</span>
-              <select v-model="filterCarrera" @change="form.idMateria = ''">
+            <div class="cm-field cm-field--filter">
+              <label class="cm-label cm-label--filter">Filtrar por carrera</label>
+              <select v-model="filterCarrera" class="cm-select cm-select--filter" @change="form.idMateria = ''">
                 <option value="">Todas las carreras</option>
                 <option v-for="carrera in carreras" :key="carrera.idCarrera" :value="carrera.idCarrera">
                   {{ carrera.nombre }}
                 </option>
               </select>
-            </label>
+            </div>
 
-            <label>
-              <span>Materia *</span>
-              <select v-model="form.idMateria" required>
+            <div class="cm-field">
+              <label class="cm-label">Materia *</label>
+              <select v-model="form.idMateria" class="cm-select" required>
                 <option value="" disabled>{{ filterCarrera ? 'Seleccione una materia de esta carrera' : 'Seleccione una materia' }}</option>
                 <option v-for="materia in materiasFiltradas" :key="materia.idMateria" :value="materia.idMateria">
                   {{ materia.nombre }} ({{ materia.idMateria }})
                 </option>
               </select>
-              <small v-if="errors.idMateria" class="field-error">{{ errors.idMateria[0] }}</small>
-            </label>
+              <small v-if="errors.idMateria" class="cm-field-error">{{ errors.idMateria[0] }}</small>
+            </div>
 
-            <label>
-              <span>Docente *</span>
-              <select v-model="form.idDocente" required>
+            <div class="cm-field">
+              <label class="cm-label">Docente *</label>
+              <select v-model="form.idDocente" class="cm-select" required>
                 <option value="" disabled>Seleccione un docente</option>
                 <option v-for="docente in docentes" :key="docente.idUsuario" :value="String(docente.idUsuario)">
-                  {{ docente.nombreCompleto }} - {{ docente.correo }}
+                  {{ docente.nombreCompleto }} — {{ docente.correo }}
                 </option>
               </select>
-              <small v-if="errors.idDocente" class="field-error">{{ errors.idDocente[0] }}</small>
-            </label>
+              <small v-if="errors.idDocente" class="cm-field-error">{{ errors.idDocente[0] }}</small>
+            </div>
 
-            <label>
-              <span>Horario 1 *</span>
-              <select v-model="form.idHorario1" required>
+            <div class="cm-field">
+              <label class="cm-label">Horario 1 *</label>
+              <select v-model="form.idHorario1" class="cm-select" required>
                 <option value="" disabled>Seleccione el horario 1</option>
                 <option v-for="horario in horarios" :key="horario.idHorario" :value="String(horario.idHorario)">
                   {{ formatHorarioLabel(horario) }}
                 </option>
               </select>
-              <small v-if="errors.idHorario1" class="field-error">{{ errors.idHorario1[0] }}</small>
-            </label>
+              <small v-if="errors.idHorario1" class="cm-field-error">{{ errors.idHorario1[0] }}</small>
+            </div>
 
-            <label>
-              <span>Horario 2</span>
-              <select v-model="form.idHorario2">
-                <option value="">Ninguno (Opcional)</option>
+            <div class="cm-field">
+              <label class="cm-label">Horario 2 <span class="cm-optional">(opcional)</span></label>
+              <select v-model="form.idHorario2" class="cm-select">
+                <option value="">Ninguno</option>
                 <option v-for="horario in horarios" :key="horario.idHorario" :value="String(horario.idHorario)">
                   {{ formatHorarioLabel(horario) }}
                 </option>
               </select>
-              <small v-if="errors.idHorario2" class="field-error">{{ errors.idHorario2[0] }}</small>
-            </label>
+              <small v-if="errors.idHorario2" class="cm-field-error">{{ errors.idHorario2[0] }}</small>
+            </div>
 
-            <label>
-              <span>Horario 3</span>
-              <select v-model="form.idHorario3">
-                <option value="">Ninguno (Opcional)</option>
+            <div class="cm-field">
+              <label class="cm-label">Horario 3 <span class="cm-optional">(opcional)</span></label>
+              <select v-model="form.idHorario3" class="cm-select">
+                <option value="">Ninguno</option>
                 <option v-for="horario in horarios" :key="horario.idHorario" :value="String(horario.idHorario)">
                   {{ formatHorarioLabel(horario) }}
                 </option>
               </select>
-              <small v-if="errors.idHorario3" class="field-error">{{ errors.idHorario3[0] }}</small>
-            </label>
+              <small v-if="errors.idHorario3" class="cm-field-error">{{ errors.idHorario3[0] }}</small>
+            </div>
 
-            <label>
-              <span>Regimen academico *</span>
-              <select v-model="form.idPeriodo" disabled required>
+            <div class="cm-field">
+              <label class="cm-label">Régimen académico *</label>
+              <select v-model="form.idPeriodo" class="cm-select cm-select--disabled" disabled required>
                 <option value="" disabled>Seleccione un periodo</option>
                 <option v-for="periodo in periodos" :key="periodo.idPeriodo" :value="String(periodo.idPeriodo)">
                   {{ periodo.nombre }} (Periodo actual)
                 </option>
               </select>
-              <small v-if="errors.idPeriodo" class="field-error">{{ errors.idPeriodo[0] }}</small>
-            </label>
+              <small v-if="errors.idPeriodo" class="cm-field-error">{{ errors.idPeriodo[0] }}</small>
+            </div>
 
-            <div class="form-actions">
-              <button class="secondary" type="button" @click="showCreateModal = false">Cancelar</button>
-              <button class="primary" type="submit" :disabled="submitting">
+            <div class="cm-form-actions">
+              <button class="cm-btn-secondary" type="button" @click="showCreateModal = false">Cancelar</button>
+              <button class="uni-btn-action-success" type="submit" :disabled="submitting">
                 {{ submitting ? 'Guardando...' : 'Guardar curso' }}
               </button>
             </div>
+
           </form>
         </div>
       </div>
     </Teleport>
 
-    <!-- Modal confirmación deshabilitar curso -->
+    <!-- ── Modal: Confirmar deshabilitar ── -->
     <Teleport to="body">
-      <div v-if="showConfirmModal" class="backdrop" @mousedown.self="cancelDisableCurso">
-        <div class="confirm-modal">
-          <div class="confirm-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <div v-if="showConfirmModal" class="cm-backdrop" @mousedown.self="cancelDisableCurso">
+        <div class="cm-confirm-modal">
+
+          <div class="cm-confirm-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
               <line x1="12" y1="9" x2="12" y2="13"/>
               <line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
           </div>
-          <h4>Deshabilitar curso</h4>
-          <p class="confirm-subject">
+
+          <h4 class="cm-confirm-title">Deshabilitar curso</h4>
+
+          <p class="cm-confirm-subject">
             <strong>{{ cursoToDisable?.materia }}</strong>
-            <span> &mdash; Aula: <code>{{ cursoToDisable?.idCurso }}</code></span>
+            <span> — Aula: <code class="cm-code">{{ cursoToDisable?.idCurso }}</code></span>
           </p>
-          <p class="confirm-warning">
+
+          <p class="cm-confirm-warning">
             Esta acción <strong>deshabilitará</strong> este curso del sistema. Los estudiantes ya
             inscritos y sus notas no se eliminarán, pero el curso dejará de estar disponible
             para nuevas inscripciones.
           </p>
-          <div class="confirm-actions">
-            <button class="secondary" type="button" :disabled="submitting" @click="cancelDisableCurso">Cancelar</button>
-            <button class="danger-btn" type="button" :disabled="submitting" @click="confirmDisableCurso">
+
+          <div class="cm-confirm-actions">
+            <button class="cm-btn-secondary" type="button" :disabled="submitting" @click="cancelDisableCurso">
+              Cancelar
+            </button>
+            <button class="uni-btn-action-danger" type="button" :disabled="submitting" @click="confirmDisableCurso">
               {{ submitting ? 'Deshabilitando...' : 'Confirmar deshabilitar' }}
             </button>
           </div>
+
         </div>
       </div>
     </Teleport>
+
   </div>
 </template>
 
 <style scoped>
-.curso-management {
-  display: grid;
-  gap: 1.25rem;
+/* ── Wrapper ── */
+.cm {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  color: var(--uni-text);
 }
 
-.header-section {
+/* ── Cabecera ── */
+.cm-header {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
   align-items: flex-end;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--panel-border);
-}
-
-.header-section h3,
-.card-panel h4 {
-  margin: 0;
-}
-
-.subtitle {
-  margin: 0.25rem 0 0;
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.content-grid {
-  display: grid;
-  grid-template-columns: 1fr;
   gap: 1rem;
-}
-
-.header-actions {
-  display: flex;
-  gap: 0.75rem;
-}
-
-.create-modal {
-  width: min(100%, 36rem);
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 1.4rem;
-  padding: 2rem 1.75rem;
-  max-height: 90vh;
-  overflow-y: auto;
-  text-align: left;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-}
-
-.create-modal .modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid #e2e8f0;
+  flex-wrap: wrap;
   padding-bottom: 0.75rem;
-  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--color-linen);
 }
 
-.create-modal .modal-header h4 {
-  margin: 0;
-  font-size: 1.15rem;
-  color: #0f172a;
-}
-
-.create-modal .close-btn {
-  background: transparent;
-  border: none;
-  color: #64748b;
-  font-size: 1.5rem;
-  cursor: pointer;
-  line-height: 1;
-  padding: 0;
-}
-
-.create-modal .close-btn:hover {
-  color: #0f172a;
-}
-
-.create-modal label span {
-  color: #475569;
-}
-
-.create-modal input,
-.create-modal select {
-  background: #ffffff;
-  border: 1.5px solid #cbd5e1;
-  color: #0f172a;
-}
-
-.create-modal input:focus,
-.create-modal select:focus {
-  border-color: #3c4f4d;
-  box-shadow: 0 0 0 3px rgba(60, 79, 77, 0.12);
-}
-
-.card-panel {
-  border: 1px solid rgba(180, 204, 255, 0.08);
-  border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.02);
-  padding: 1rem;
-}
-
-.course-form {
-  display: grid;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-label {
-  display: grid;
-  gap: 0.45rem;
-}
-
-label span {
-  color: var(--muted);
-  font-size: 0.82rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-input,
-select {
-  width: 100%;
-  border: 1px solid rgba(180, 204, 255, 0.14);
-  border-radius: 0.85rem;
-  background: rgba(6, 10, 23, 0.72);
-  color: var(--text);
-  padding: 0.9rem 1rem;
-  outline: none;
-}
-
-/* Etiqueta de filtro: no es un campo del formulario, solo ayuda visual */
-.filter-label span {
-  color: #0284c7;
-  font-style: italic;
-}
-.filter-label select {
-  border-color: rgba(125, 211, 252, 0.2);
-  background: rgba(56, 189, 248, 0.04);
-}
-.filter-label select:focus {
-  border-color: rgba(125, 211, 252, 0.55);
-  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.1);
-}
-.filter-hint {
-  font-size: 0.72rem;
-  color: var(--muted);
-  font-style: italic;
-  margin-top: 0.1rem;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-}
-
-.table-wrap {
-  overflow-x: auto;
-  margin-top: 1rem;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.data-table th,
-.data-table td {
-  padding: 0.9rem 1rem;
-  border-bottom: 1px solid rgba(180, 204, 255, 0.05);
-  text-align: left;
-}
-
-.data-table th {
-  color: var(--muted);
-  text-transform: uppercase;
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-}
-
-.empty-state {
-  text-align: center;
-  color: var(--muted);
-  padding: 2rem !important;
-}
-
-code {
-  background: rgba(255, 255, 255, 0.05);
-  padding: 0.2rem 0.45rem;
-  border-radius: 0.35rem;
-}
-
-.status-badge {
-  display: inline-flex;
-  border-radius: 999px;
-  padding: 0.25rem 0.65rem;
-  font-size: 0.75rem;
-  text-transform: uppercase;
+.cm-title {
+  margin: 0 0 2px;
+  font-size: 1rem;
   font-weight: 700;
+  color: var(--uni-text);
 }
 
-.status-badge.active {
-  background: rgba(34, 197, 94, 0.12);
-  color: #bbf7d0;
+.cm-subtitle {
+  margin: 0;
+  font-size: 11px;
+  color: var(--uni-muted);
 }
 
-.status-badge.inactive {
-  background: rgba(239, 68, 68, 0.12);
-  color: #fca5a5;
-}
-
-.field-error {
-  color: #fca5a5;
-}
-
-@media (max-width: 980px) {
-  .header-section,
-  .content-grid {
-    grid-template-columns: 1fr;
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-
-.inactive {
-  opacity: 0.55;
-}
-
-.actions {
+.cm-header-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.6rem;
   flex-wrap: wrap;
 }
 
-.icon-btn {
-  border: 1px solid rgba(180, 204, 255, 0.14);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text);
-  border-radius: 0.7rem;
-  padding: 0.45rem 0.8rem;
+/* ── Botón secundario local ── */
+.cm-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1.5px solid var(--color-linen);
+  border-radius: 20px;
+  color: var(--uni-muted);
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.cm-btn-secondary:hover:not(:disabled) {
+  background: var(--color-linen);
+  color: var(--color-black);
+}
+.cm-btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Alertas ── */
+.cm-alert {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid;
+}
+.cm-alert--success {
+  background: var(--uni-success-bg);
+  border-color: var(--uni-success-border);
+  color: var(--uni-success-text);
+}
+.cm-alert--error {
+  background: var(--uni-error-bg);
+  border-color: var(--uni-error-border);
+  color: var(--uni-error-text);
 }
 
-.icon-btn.danger {
-  border-color: rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
+/* ── Tabla ── */
+.cm-table-wrap {
+  background: var(--color-white);
+  border: 1px solid rgba(0,0,0,.06);
+  border-radius: 12px;
+  overflow: hidden;
+  overflow-x: auto;
 }
 
-/* ---- Confirm Modal ---- */
-.backdrop {
+.cm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.cm-table thead tr {
+  background: #fafafa;
+  border-bottom: 1px solid var(--color-linen);
+}
+
+.cm-table th {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--uni-muted);
+}
+
+.cm-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(0,0,0,.04);
+  color: var(--uni-text);
+}
+
+.cm-table tbody tr:hover { background: #f7f7f5; }
+.cm-table tbody tr:last-child td { border-bottom: none; }
+.cm-row--inactive { opacity: 0.5; }
+
+.cm-empty {
+  text-align: center;
+  color: var(--uni-muted);
+  padding: 2rem !important;
+  font-size: 12px;
+}
+
+/* ── Code chip ── */
+.cm-code {
+  background: var(--color-linen);
+  color: var(--uni-text);
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+}
+
+/* ── Badges estado ── */
+.cm-badge {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.cm-badge--active {
+  background: var(--uni-success-bg);
+  color: var(--uni-success-text);
+}
+.cm-badge--inactive {
+  background: var(--uni-error-bg);
+  color: var(--uni-error-text);
+}
+
+/* ── Botón sm en tabla ── */
+.cm-btn-sm {
+  padding: 5px 12px;
+  font-size: 11px;
+}
+
+/* ── Backdrop ── */
+.cm-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.35);
   display: grid;
   place-items: center;
   padding: 1rem;
   z-index: 40;
 }
 
-.confirm-modal {
-  width: min(100%, 28rem);
-  background: linear-gradient(180deg, rgba(14, 20, 41, 0.98), rgba(11, 16, 32, 0.96));
-  border: 1px solid var(--panel-border, rgba(180, 204, 255, 0.12));
-  border-radius: 1.4rem;
-  padding: 2rem 1.75rem;
-  text-align: center;
+/* ── Modal crear curso ── */
+.cm-modal {
+  width: min(100%, 34rem);
+  background: var(--color-white);
+  border: 1px solid var(--color-linen);
+  border-radius: 16px;
+  padding: 1.75rem;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 16px 40px rgba(0,0,0,.12);
 }
 
-.confirm-icon {
+.cm-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--color-linen);
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.cm-modal-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--uni-text);
+  font-family: 'Playfair Display', serif;
+}
+
+.cm-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--uni-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  transition: color 0.15s;
+}
+.cm-close-btn:hover { color: var(--uni-text); }
+
+/* ── Formulario ── */
+.cm-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.cm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.cm-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--uni-muted);
+}
+
+.cm-label--filter {
+  color: var(--color-mint-dark);
+}
+
+.cm-optional {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--uni-muted);
+  font-size: 10px;
+}
+
+.cm-select {
+  width: 100%;
+  background: var(--color-white);
+  border: 1.5px solid var(--color-linen);
+  color: var(--uni-text);
+  padding: 0.55rem 0.85rem;
+  border-radius: 20px;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  appearance: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+.cm-select:focus { border-color: var(--color-mint-dark); }
+
+.cm-select--filter {
+  border-color: var(--color-mint-light);
+  background: var(--uni-success-bg);
+}
+.cm-select--filter:focus { border-color: var(--color-mint-dark); }
+
+.cm-select--disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cm-field-error {
+  font-size: 11px;
+  color: var(--uni-error-text);
+}
+
+.cm-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-linen);
+  margin-top: 0.25rem;
+}
+
+/* ── Modal confirmar ── */
+.cm-confirm-modal {
+  width: min(100%, 26rem);
+  background: var(--color-white);
+  border: 1px solid var(--color-linen);
+  border-radius: 16px;
+  padding: 2rem 1.75rem;
+  text-align: center;
+  box-shadow: 0 16px 40px rgba(0,0,0,.12);
+}
+
+.cm-confirm-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 3.5rem;
-  height: 3.5rem;
+  width: 3rem;
+  height: 3rem;
   border-radius: 50%;
-  background: rgba(239, 68, 68, 0.12);
-  color: #fca5a5;
+  background: var(--uni-error-bg);
+  color: var(--uni-error-text);
   margin-bottom: 1rem;
 }
 
-.confirm-modal h4 {
+.cm-confirm-title {
   margin: 0 0 0.5rem;
-  font-size: 1.15rem;
-  color: var(--text, #e2e8f0);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--uni-text);
+  font-family: 'Playfair Display', serif;
 }
 
-.confirm-subject {
+.cm-confirm-subject {
   margin: 0 0 1rem;
-  font-size: 0.95rem;
-  color: var(--text, #e2e8f0);
+  font-size: 13px;
+  color: var(--uni-text);
 }
 
-.confirm-subject code {
-  background: rgba(255,255,255,0.06);
-  padding: 0.15rem 0.4rem;
-  border-radius: 0.35rem;
-  font-size: 0.85rem;
-}
-
-.confirm-warning {
-  color: var(--muted, #94a3b8);
-  font-size: 0.875rem;
-  line-height: 1.55;
+.cm-confirm-warning {
+  color: var(--uni-muted);
+  font-size: 12px;
+  line-height: 1.6;
   margin: 0 0 1.5rem;
   padding: 0.75rem 1rem;
-  background: rgba(239, 68, 68, 0.06);
-  border: 1px solid rgba(239, 68, 68, 0.15);
-  border-radius: 0.75rem;
+  background: var(--uni-error-bg);
+  border: 1px solid var(--uni-error-border);
+  border-radius: 10px;
   text-align: left;
 }
 
-.confirm-actions {
+.cm-confirm-actions {
   display: flex;
   justify-content: center;
-  gap: 0.75rem;
-}
-
-.danger-btn {
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  color: #fca5a5;
-  border-radius: 0.7rem;
-  padding: 0.55rem 1.25rem;
-  cursor: pointer;
-  font-weight: 600;
-  transition: background 0.2s;
-}
-
-.danger-btn:hover:not(:disabled) {
-  background: rgba(239, 68, 68, 0.28);
-}
-
-.danger-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  gap: 0.6rem;
 }
 </style>

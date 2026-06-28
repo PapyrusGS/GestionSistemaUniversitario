@@ -14,6 +14,9 @@ import EstudianteHistorial from './components/EstudianteHistorial.vue'
 import EstudianteMallaCurricular from './components/EstudianteMallaCurricular.vue'
 import EstudianteReportes from './components/EstudianteReportes.vue'
 
+// Importamos la nueva vista independiente del perfil estético
+import PerfilView from './components/PerfilView.vue'
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
   headers: {
@@ -28,8 +31,14 @@ const token = ref(sessionStorage.getItem(sessionKey) || '')
 const user = ref(null)
 const successMessage = ref('')
 const errorMessage = ref('')
-const adminSection = ref('perfil')
-const studentSection = ref('perfil')
+
+// Estado para definir qué sección se renderiza en cada rol
+const adminSection = ref('usuarios')
+const studentSection = ref('materias')
+
+// CONTROL DE VISTA GLOBAL DEL ENTORNO: 'dashboard' o 'perfil'
+const currentGlobalView = ref('dashboard')
+
 const studentMessage = ref('')
 const studentMessageType = ref('')
 
@@ -62,14 +71,16 @@ function persistSession(accessToken, profile) {
   token.value = accessToken
   sessionStorage.setItem(sessionKey, accessToken)
   user.value = profile
+  currentGlobalView.value = 'dashboard'
 }
 
 function clearSession() {
   token.value = ''
   sessionStorage.removeItem(sessionKey)
   user.value = null
-  adminSection.value = 'perfil'
-  studentSection.value = 'perfil'
+  adminSection.value = 'usuarios'
+  studentSection.value = 'materias'
+  currentGlobalView.value = 'dashboard'
 }
 
 function onStudentMessage(msg) {
@@ -138,7 +149,6 @@ onMounted(loadProfile)
 </script>
 
 <template>
-  <!-- ─── LOGIN ─────────────────────────────────────────────────────────── -->
   <div v-if="!isAuthenticated" class="uni-outer-wrapper">
     <div class="uni-capsule-card">
       <div class="uni-capsule-left">
@@ -188,15 +198,30 @@ onMounted(loadProfile)
     </div>
   </div>
 
-  <!-- ─── ADMINISTRADOR ─────────────────────────────────────────────────── -->
-  <div v-else-if="user?.rol === 'Administrador'" class="uni-workspace">
+  <div v-else class="uni-workspace">
     <aside class="uni-sidebar">
       <div class="uni-sidebar-top">
         <div class="uni-sidebar-brand"><i class="ti ti-building-community"></i></div>
-        <button class="uni-icon-btn" :class="{ 'uni-icon-btn--active': adminSection === 'perfil' }" @click="adminSection = 'perfil'" title="Perfil">
+        
+        <button 
+          v-if="currentGlobalView === 'dashboard'" 
+          class="uni-icon-btn" 
+          @click="currentGlobalView = 'perfil'" 
+          title="Ver Perfil"
+        >
           <i class="ti ti-user"></i><span>Perfil</span>
         </button>
+        
+        <button 
+          v-else 
+          class="uni-icon-btn uni-icon-btn--back" 
+          @click="currentGlobalView = 'dashboard'" 
+          title="Volver al Menú"
+        >
+          <i class="ti ti-arrow-back-up"></i><span>Volver</span>
+        </button>
       </div>
+      
       <div class="uni-sidebar-bottom">
         <button class="uni-icon-btn uni-icon-btn--logout" :disabled="loading" @click="logout" title="Cerrar sesión">
           <i class="ti ti-logout"></i><span>{{ loading ? 'Saliendo' : 'Cerrar Sesión' }}</span>
@@ -207,133 +232,81 @@ onMounted(loadProfile)
     <main class="uni-main">
       <div class="uni-main-header">
         <div class="uni-main-header-left">
-          <span class="uni-eyebrow">Panel de administración</span>
+          <span class="uni-eyebrow">
+            {{ currentGlobalView === 'perfil' ? 'Ajustes del perfil' : 'Panel de ' + roleName }}
+          </span>
           <h1 class="uni-main-title">{{ fullName }}</h1>
         </div>
         <span class="uni-role-badge" :data-tone="badgeTone">{{ roleName }}</span>
       </div>
 
-      <div class="uni-dashboard-card">
-        <div class="uni-tab-bar">
-          <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': adminSection === 'usuarios' }"  @click="adminSection = 'usuarios'"><i class="ti ti-users"></i>Usuarios</button>
-          <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': adminSection === 'carreras' }"  @click="adminSection = 'carreras'"><i class="ti ti-school"></i>Carreras</button>
-          <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': adminSection === 'materias' }"  @click="adminSection = 'materias'"><i class="ti ti-book"></i>Materias</button>
-          <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': adminSection === 'cursos' }"    @click="adminSection = 'cursos'"><i class="ti ti-calendar"></i>Cursos</button>
-          <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': adminSection === 'reportes' }"  @click="adminSection = 'reportes'"><i class="ti ti-file-report"></i>Reportes</button>
-        </div>
+      <PerfilView 
+        v-if="currentGlobalView === 'perfil'"
+        :user="user"
+        :fullName="fullName"
+        :roleName="roleName"
+        :api="api"
+      />
+      
 
-        <div class="uni-section-body">
-          <div v-if="adminSection === 'perfil'" class="uni-info-grid">
-            <article class="uni-info-card"><span>Correo</span><strong>{{ user.correo }}</strong></article>
-            <article class="uni-info-card"><span>CI</span><strong>{{ user.ci }}</strong></article>
-            <article class="uni-info-card"><span>Registro</span><strong>{{ user.fechaRegistro || 'No disponible' }}</strong></article>
-            <article class="uni-info-card"><span>Estado</span><strong>{{ user.estado ? 'Activo' : 'Inactivo' }}</strong></article>
+      <template v-else>
+        <div v-if="user?.rol === 'Administrador'" class="uni-dashboard-card">
+          <div class="uni-tab-bar">
+            <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': adminSection === 'usuarios' }"  @click="adminSection = 'usuarios'"><i class="ti ti-users"></i>Usuarios</button>
+            <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': adminSection === 'carreras' }"  @click="adminSection = 'carreras'"><i class="ti ti-school"></i>Carreras</button>
+            <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': adminSection === 'materias' }"  @click="adminSection = 'materias'"><i class="ti ti-book"></i>Materias</button>
+            <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': adminSection === 'cursos' }"    @click="adminSection = 'cursos'"><i class="ti ti-calendar"></i>Cursos</button>
+            <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': adminSection === 'reportes' }"  @click="adminSection = 'reportes'"><i class="ti ti-file-report"></i>Reportes</button>
           </div>
-          <UserManagement    v-else-if="adminSection === 'usuarios'" :api="api" />
-          <CarreraManagement v-else-if="adminSection === 'carreras'" :api="api" />
-          <MateriaManagement v-else-if="adminSection === 'materias'" :api="api" />
-          <CursoManagement   v-else-if="adminSection === 'cursos'"   :api="api" />
-          <ReportesAdmin     v-else-if="adminSection === 'reportes'" :api="api" />
-        </div>
 
-        <div v-if="successMessage" class="uni-alert uni-alert--success">{{ successMessage }}</div>
-        <div v-if="errorMessage"   class="uni-alert uni-alert--error">{{ errorMessage }}</div>
-      </div>
-    </main>
-  </div>
-
-  <!-- ─── DOCENTE ────────────────────────────────────────────────────────── -->
-  <div v-else-if="user?.rol === 'Docente'" class="uni-workspace">
-    <aside class="uni-sidebar">
-      <div class="uni-sidebar-top">
-        <div class="uni-sidebar-brand"><i class="ti ti-building-community"></i></div>
-        <button class="uni-icon-btn uni-icon-btn--active" title="Perfil">
-          <i class="ti ti-user"></i><span>Perfil</span>
-        </button>
-      </div>
-      <div class="uni-sidebar-bottom">
-        <button class="uni-icon-btn uni-icon-btn--logout" :disabled="loading" @click="logout" title="Cerrar sesión">
-          <i class="ti ti-logout"></i><span>{{ loading ? 'Saliendo' : 'Cerrar Sesión' }}</span>
-        </button>
-      </div>
-    </aside>
-
-    <main class="uni-main">
-      <div class="uni-main-header">
-        <div class="uni-main-header-left">
-          <span class="uni-eyebrow">Panel docente</span>
-          <h1 class="uni-main-title">{{ fullName }}</h1>
-        </div>
-        <span class="uni-role-badge" :data-tone="badgeTone">{{ roleName }}</span>
-      </div>
-
-      <div class="uni-dashboard-card">
-        <DashboardDocente :user="user" :api="api" :badgeTone="badgeTone" @logout="logout" />
-      </div>
-    </main>
-  </div>
-
-  <!-- ─── ESTUDIANTE ────────────────────────────────────────────────────── -->
-  <div v-else-if="user?.rol === 'Estudiante'" class="uni-workspace">
-    <aside class="uni-sidebar">
-      <div class="uni-sidebar-top">
-        <div class="uni-sidebar-brand"><i class="ti ti-building-community"></i></div>
-        <button class="uni-icon-btn" :class="{ 'uni-icon-btn--active': studentSection === 'perfil' }" @click="goStudentSection('perfil')" title="Perfil">
-          <i class="ti ti-user"></i><span>Perfil</span>
-        </button>
-      </div>
-      <div class="uni-sidebar-bottom">
-        <button class="uni-icon-btn uni-icon-btn--logout" :disabled="loading" @click="logout" title="Cerrar sesión">
-          <i class="ti ti-logout"></i><span>{{ loading ? 'Saliendo' : 'Cerrar Sesión' }}</span>
-        </button>
-      </div>
-    </aside>
-
-    <main class="uni-main">
-      <div class="uni-main-header">
-        <div class="uni-main-header-left">
-          <span class="uni-eyebrow">Panel del estudiante</span>
-          <h1 class="uni-main-title">{{ fullName }}</h1>
-        </div>
-        <span class="uni-role-badge" :data-tone="badgeTone">{{ roleName }}</span>
-      </div>
-
-      <div class="uni-dashboard-card">
-        <div class="uni-tab-bar">
-          <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': studentSection === 'materias' }"  @click="goStudentSection('materias')"><i class="ti ti-book"></i>Inscripciones</button>
-          <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': studentSection === 'inscritas' }" @click="goStudentSection('inscritas')"><i class="ti ti-clipboard-list"></i>Mis Materias</button>
-          <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': studentSection === 'notas' }"     @click="goStudentSection('notas')"><i class="ti ti-star"></i>Mis Notas</button>
-          <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': studentSection === 'historial' }" @click="goStudentSection('historial')"><i class="ti ti-history"></i>Historial</button>
-          <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': studentSection === 'malla' }"     @click="goStudentSection('malla')"><i class="ti ti-layout-columns"></i>Malla</button>
-          <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': studentSection === 'reportes' }"  @click="goStudentSection('reportes')"><i class="ti ti-file-report"></i>Reportes</button>
-        </div>
-
-        <div v-if="studentMessage" :class="'uni-alert ' + (studentMessageType === 'error' ? 'uni-alert--error' : 'uni-alert--success')">{{ studentMessage }}</div>
-
-        <div class="uni-section-body">
-          <div v-if="studentSection === 'perfil'" class="uni-info-grid">
-            <article class="uni-info-card"><span>Correo</span><strong>{{ user.correo }}</strong></article>
-            <article class="uni-info-card"><span>CI</span><strong>{{ user.ci }}</strong></article>
-            <article class="uni-info-card"><span>Rol</span><strong>{{ user.rol }}</strong></article>
-            <article class="uni-info-card"><span>Estado</span><strong>{{ user.estado ? 'Activo' : 'Inactivo' }}</strong></article>
+          <div class="uni-section-body">
+            <UserManagement    v-if="adminSection === 'usuarios'" :api="api" />
+            <CarreraManagement v-else-if="adminSection === 'carreras'" :api="api" />
+            <MateriaManagement v-else-if="adminSection === 'materias'" :api="api" />
+            <CursoManagement   v-else-if="adminSection === 'cursos'"   :api="api" />
+            <ReportesAdmin     v-else-if="adminSection === 'reportes'" :api="api" />
           </div>
-          <EstudianteMaterias        v-else-if="studentSection === 'materias'"  :user="user" :api="api" @message="onStudentMessage" />
-          <EstudianteCarga           v-else-if="studentSection === 'inscritas'" :user="user" :api="api" @message="onStudentMessage" />
-          <EstudianteCalificaciones  v-else-if="studentSection === 'notas'"     :user="user" :api="api" @message="onStudentMessage" />
-          <EstudianteHistorial       v-else-if="studentSection === 'historial'" :user="user" :api="api" @message="onStudentMessage" />
-          <EstudianteMallaCurricular v-else-if="studentSection === 'malla'"     :user="user" :api="api" @message="onStudentMessage" />
-          <EstudianteReportes        v-else-if="studentSection === 'reportes'"  :user="user" :api="api" @message="onStudentMessage" />
-        </div>
-      </div>
-    </main>
-  </div>
 
-  <!-- ─── FALLBACK ──────────────────────────────────────────────────────── -->
-  <div v-else class="uni-outer-wrapper">
-    <div class="uni-capsule-card" style="grid-template-columns:1fr;padding:4rem;text-align:center;">
-      <h1 style="font-family:'Playfair Display',serif;">Sesión Activa</h1>
-      <p>Redireccionando al entorno universitario principal...</p>
-    </div>
+          <div v-if="successMessage" class="uni-alert uni-alert--success">{{ successMessage }}</div>
+          <div v-if="errorMessage"   class="uni-alert uni-alert--error">{{ errorMessage }}</div>
+        </div>
+
+        <div v-else-if="user?.rol === 'Docente'" class="uni-dashboard-card">
+          <div class="uni-section-body">
+            <DashboardDocente :user="user" :api="api" :badgeTone="badgeTone" @logout="logout" />
+          </div>
+        </div>
+
+        <div v-else-if="user?.rol === 'Estudiante'" class="uni-dashboard-card">
+          <div class="uni-tab-bar">
+            <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': studentSection === 'materias' }"  @click="goStudentSection('materias')"><i class="ti ti-book"></i>Inscripciones</button>
+            <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': studentSection === 'inscritas' }" @click="goStudentSection('inscritas')"><i class="ti ti-clipboard-list"></i>Mis Materias</button>
+            <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': studentSection === 'notas' }"     @click="goStudentSection('notas')"><i class="ti ti-star"></i>Mis Notas</button>
+            <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': studentSection === 'historial' }" @click="goStudentSection('historial')"><i class="ti ti-history"></i>Historial</button>
+            <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': studentSection === 'malla' }"     @click="goStudentSection('malla')"><i class="ti ti-layout-columns"></i>Malla</button>
+            <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': studentSection === 'reportes' }"  @click="goStudentSection('reportes')"><i class="ti ti-file-report"></i>Reportes</button>
+          </div>
+
+          <div v-if="studentMessage" :class="'uni-alert ' + (studentMessageType === 'error' ? 'uni-alert--error' : 'uni-alert--success')">{{ studentMessage }}</div>
+
+          <div class="uni-section-body">
+            <EstudianteMaterias        v-if="studentSection === 'materias'"      :user="user" :api="api" @message="onStudentMessage" />
+            <EstudianteCarga           v-else-if="studentSection === 'inscritas'" :user="user" :api="api" @message="onStudentMessage" />
+            <EstudianteCalificaciones  v-else-if="studentSection === 'notas'"     :user="user" :api="api" @message="onStudentMessage" />
+            <EstudianteHistorial       v-else-if="studentSection === 'historial'" :user="user" :api="api" @message="onStudentMessage" />
+            <EstudianteMallaCurricular v-else-if="studentSection === 'malla'"     :user="user" :api="api" @message="onStudentMessage" />
+            <EstudianteReportes        v-else-if="studentSection === 'reportes'"  :user="user" :api="api" @message="onStudentMessage" />
+          </div>
+        </div>
+
+        <div v-else class="uni-outer-wrapper">
+          <div class="uni-capsule-card" style="grid-template-columns:1fr;padding:4rem;text-align:center;">
+            <h1 style="font-family:'Playfair Display',serif;">Sesión Activa</h1>
+            <p>Redireccionando al entorno universitario principal...</p>
+          </div>
+        </div>
+      </template>
+    </main>
   </div>
 </template>
 
@@ -351,6 +324,13 @@ onMounted(loadProfile)
   --color-linen:      #d0cfca;
   --color-white:      #ffffff;
   --color-black:      #000000;
+  
+  /* Paleta unificada para acciones de confirmación y cancelación */
+  --color-success-btn: #4e615e; /* Verde que combina con el Mint oscuro */
+  --color-success-btn-hover: #3b4a48;
+  --color-danger-btn:  #b85c5c; /* Rojo que combina sutilmente con los pasteles */
+  --color-danger-btn-hover: #9c4646;
+
   --uni-muted:        #5b5c5e;
   --uni-text:         #1a1a1a;
   --uni-success-bg:     #edf4f2;
@@ -456,7 +436,7 @@ button { cursor: pointer; }
 }
 .uni-icon-btn i { font-size: 20px; line-height: 1; }
 .uni-icon-btn:hover { background: var(--color-linen); color: var(--color-black); }
-.uni-icon-btn--active { background: var(--color-linen); color: var(--color-mint-dark); }
+.uni-icon-btn--back { color: var(--color-mint-dark); font-weight: 700; }
 .uni-icon-btn--logout { color: #a05050; }
 .uni-icon-btn--logout:hover { background: #faf0f0; color: #7a2424; }
 
@@ -483,7 +463,6 @@ button { cursor: pointer; }
 
 /* Card que contiene tab-bar + contenido */
 .uni-dashboard-card {
-  flex: 1; min-height: 0;
   margin: 1.5rem;
   background: var(--color-white);
   border-radius: 16px;
@@ -510,12 +489,20 @@ button { cursor: pointer; }
 .uni-nav-btn:hover { background: var(--color-linen); color: var(--color-black); }
 .uni-nav-btn--active { background: var(--color-linen); color: var(--color-black); }
 
-/* ── Área de contenido — scroll aquí ── */
+/* ── Área de contenido ── */
 .uni-section-body {
   flex: 1; min-height: 0; overflow-y: auto;
   padding: 1.5rem;
   display: flex; flex-direction: column; gap: 1rem;
 }
+
+/* Encabezado interno para vista de perfil unificado */
+.uni-profile-header-area {
+  padding: 1.5rem 1.5rem 0rem;
+}
+.uni-profile-header-area h2 { font-size: 1.2rem; margin: 0 0 4px 0; color: var(--color-black); font-weight: 600; }
+.uni-profile-header-area p { font-size: 12px; margin: 0; color: var(--color-dark-gray); }
+.uni-profile-actions { margin-top: 1.5rem; display: flex; gap: 1rem; }
 
 /* ── Perfil grid ── */
 .uni-info-grid {
@@ -529,6 +516,23 @@ button { cursor: pointer; }
 }
 .uni-info-card span { font-size: 10px; color: var(--color-dark-gray); display: block; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
 .uni-info-card strong { display: block; font-size: 1rem; word-break: break-word; }
+
+/* ── BOTONES GLOBALES DE CONFIRMACIÓN / CANCELACIÓN SEMÁNTICA ── */
+.uni-btn-action-success {
+  background: var(--color-success-btn); color: var(--color-white);
+  border: none; border-radius: 20px; padding: 10px 20px;
+  font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;
+  transition: background .15s;
+}
+.uni-btn-action-success:hover { background: var(--color-success-btn-hover); }
+
+.uni-btn-action-danger {
+  background: var(--color-danger-btn); color: var(--color-white);
+  border: none; border-radius: 20px; padding: 10px 20px;
+  font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;
+  transition: background .15s;
+}
+.uni-btn-action-danger:hover { background: var(--color-danger-btn-hover); }
 
 /* ── Badge ── */
 .uni-role-badge {

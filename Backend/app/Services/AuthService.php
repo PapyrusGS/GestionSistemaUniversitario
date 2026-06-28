@@ -57,9 +57,10 @@ class AuthService
             'nombre2' => $user->nombre2,
             'apellido1' => $user->apellido1,
             'apellido2' => $user->apellido2,
-            'ci' => $user->ci,
-            'correo' => $user->correo,
-            'estado' => (bool) $user->estado,
+            'ci'             => $user->ci,
+            'correo'         => $user->correo,
+            'telefono'       => $user->telefono,
+            'estado'         => (bool) $user->estado,
             'fechaRegistro' => $user->fechaRegistro?->format('Y-m-d H:i'),
         ];
     }

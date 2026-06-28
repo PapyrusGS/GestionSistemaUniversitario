@@ -30,6 +30,7 @@ class StoreUserRequest extends FormRequest
             'apellido2' => ['nullable', 'string', 'max:255'],
             'ci' => ['required', 'string', 'max:255', 'unique:usuarios,ci'],
             'correo' => ['required', 'string', 'email', 'max:255', 'unique:usuarios,correo'],
+            'telefono' => ['nullable', 'string', 'max:20'],
             'password' => [
                 'required',
                 'string',

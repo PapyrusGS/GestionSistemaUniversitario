@@ -21,9 +21,7 @@ const filterRol = ref('')
 const showCreateModal = ref(false)
 
 const filteredUsers = computed(() => {
-  if (!filterRol.value) {
-    return users.value
-  }
+  if (!filterRol.value) return users.value
   return users.value.filter(usr => usr.rol === filterRol.value)
 })
 
@@ -34,10 +32,75 @@ const form = reactive({
   apellido2: '',
   ci: '',
   correo: '',
+  telefono: '',
   password: '',
   idRol: '',
   idCarrera: '',
 })
+
+const formErrors = reactive({
+  nombre1: '',
+  nombre2: '',
+  apellido1: '',
+  apellido2: '',
+  ci: '',
+  correo: '',
+  telefono: '',
+  password: '',
+  idRol: '',
+  idCarrera: '',
+})
+
+const selectedRolObj = computed(() =>
+  roles.value.find(r => r.idRol === Number(form.idRol)) || null
+)
+
+const roleName = computed(() => selectedRolObj.value?.nombre || '')
+const isStudent = computed(() => roleName.value === 'Estudiante')
+const isDocente = computed(() => roleName.value === 'Docente')
+const isAdmin = computed(() => roleName.value === 'Administrador')
+
+const validators = {
+  nombre1: v => !v.trim() && 'El primer nombre es obligatorio.',
+  nombre2: v => v && v.length > 255 && 'Máximo 255 caracteres.',
+  apellido1: v => !v.trim() && 'El primer apellido es obligatorio.',
+  apellido2: v => v && v.length > 255 && 'Máximo 255 caracteres.',
+  ci: v => {
+    if (!v.trim()) return 'El CI es obligatorio.'
+    if (!/^\d+$/.test(v.trim())) return 'Solo se permiten números.'
+  },
+  correo: v => {
+    if (!v.trim()) return 'El correo es obligatorio.'
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) return 'Formato de correo inválido.'
+  },
+  telefono: v => v && !/^\d{7,15}$/.test(v.trim()) && 'Ingrese un teléfono válido (7-15 dígitos).',
+  password: v => {
+    if (!v) return 'La contraseña es obligatoria.'
+    if (v.length < 8) return 'Mínimo 8 caracteres.'
+    if (!/[a-zA-Z]/.test(v)) return 'Debe contener al menos una letra.'
+    if (!/[0-9]/.test(v)) return 'Debe contener al menos un número.'
+  },
+  idRol: v => !v && 'Seleccione un rol.',
+  idCarrera: v => isStudent.value && !v && 'Seleccione una carrera.',
+}
+
+function validateField(field) {
+  const fn = validators[field]
+  if (!fn) return
+  formErrors[field] = fn(form[field]) || ''
+}
+
+function validateAll() {
+  let valid = true
+  Object.keys(validators).forEach(field => {
+    const fn = validators[field]
+    if (!fn) return
+    const msg = fn(form[field])
+    formErrors[field] = msg || ''
+    if (msg) valid = false
+  })
+  return valid
+}
 
 async function fetchUsers() {
   loading.value = true
@@ -77,10 +140,12 @@ function resetForm() {
   form.apellido2 = ''
   form.ci = ''
   form.correo = ''
+  form.telefono = ''
   form.password = ''
   form.idRol = ''
   form.idCarrera = ''
   errors.value = {}
+  Object.keys(formErrors).forEach(k => formErrors[k] = '')
 }
 
 function resetMessages() {
@@ -88,9 +153,10 @@ function resetMessages() {
   errorMessage.value = ''
 }
 
-const isStudent = () => {
-  const selectedRol = roles.value.find(r => r.idRol === Number(form.idRol))
-  return selectedRol && selectedRol.nombre === 'Estudiante'
+function openModal() {
+  resetForm()
+  resetMessages()
+  showCreateModal.value = true
 }
 
 async function submitForm() {
@@ -98,9 +164,15 @@ async function submitForm() {
   resetMessages()
   errors.value = {}
 
+  if (!validateAll()) {
+    submittings.value = false
+    errorMessage.value = 'Corrige los errores antes de enviar.'
+    return
+  }
+
   try {
     const payload = { ...form }
-    if (!isStudent()) {
+    if (!isStudent.value) {
       delete payload.idCarrera
     }
     const { data } = await props.api.post('/users', payload)
@@ -130,476 +202,700 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="user-management">
-    <div class="header-section">
+  <div class="um-root">
+
+    <!-- Encabezado de sección -->
+    <div class="um-header">
       <div>
-        <h3>Gestión de Usuarios y Roles</h3>
-        <p class="subtitle">Registro de usuarios y asignación de roles</p>
+        <h3 class="um-title">Gestión de Usuarios</h3>
+        <p class="um-subtitle">Registro de usuarios y asignación de roles</p>
       </div>
-      <button class="primary" type="button" @click="showCreateModal = true">Agregar Usuario</button>
+      <button class="um-btn-primary" type="button" @click="openModal">
+        <i class="ti ti-user-plus"></i> Agregar Usuario
+      </button>
     </div>
 
-    <div class="layout-grid">
-      <!-- List Section -->
-      <section class="list-section card">
-        <div class="list-header">
-          <h4>Usuarios Registrados</h4>
-          <div class="list-actions">
-            <select v-model="filterRol" class="filter-select">
-              <option value="">Todos los roles</option>
-              <option value="Administrador">Administradores</option>
-              <option value="Docente">Docentes</option>
-              <option value="Estudiante">Estudiantes</option>
-            </select>
-            <button class="secondary btn-refresh" type="button" @click="fetchUsers" :disabled="loading">
-              <span v-if="loading">Cargando...</span>
-              <span v-else>Actualizar</span>
-            </button>
-          </div>
+    <!-- Barra de filtros y listado -->
+    <div class="um-list-bar">
+      <span class="um-list-count">
+        {{ filteredUsers.length }} usuario{{ filteredUsers.length !== 1 ? 's' : '' }}
+      </span>
+      <div class="um-list-actions">
+        <div class="um-filter-group">
+          <i class="ti ti-filter"></i>
+          <select v-model="filterRol" class="um-filter-select">
+            <option value="">Todos los roles</option>
+            <option value="Administrador">Administradores</option>
+            <option value="Docente">Docentes</option>
+            <option value="Estudiante">Estudiantes</option>
+          </select>
         </div>
-
-        <div class="table-container">
-          <table class="user-table">
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>CI</th>
-                <th>Correo</th>
-                <th>Rol</th>
-                <th>Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="filteredUsers.length === 0">
-                <td colspan="5" class="empty-state">No hay usuarios registrados.</td>
-              </tr>
-              <tr v-for="usr in filteredUsers" :key="usr.idUsuario">
-                <td>
-                  <div class="user-name">
-                    <strong>{{ usr.nombreCompleto }}</strong>
-                  </div>
-                </td>
-                <td><code>{{ usr.ci }}</code></td>
-                <td>{{ usr.correo }}</td>
-                <td>
-                  <span class="role-badge-small" :data-role="usr.rol">
-                    {{ usr.rol || 'Sin Rol' }}
-                  </span>
-                </td>
-                <td>
-                  <span class="status-indicator" :class="{ active: usr.estado }">
-                    {{ usr.estado ? 'Activo' : 'Inactivo' }}
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+        <button class="um-btn-ghost" type="button" @click="fetchUsers" :disabled="loading">
+          <i class="ti" :class="loading ? 'ti-loader-2 um-spin' : 'ti-refresh'"></i>
+          {{ loading ? 'Cargando...' : 'Actualizar' }}
+        </button>
+      </div>
     </div>
 
-    <!-- Modal de creación de usuario -->
-    <Teleport to="body">
-      <div v-if="showCreateModal" class="backdrop" @mousedown.self="showCreateModal = false">
-        <div class="create-modal">
-          <div class="modal-header">
-            <h4>Registrar Nuevo Usuario</h4>
-            <button class="close-btn" type="button" @click="showCreateModal = false">&times;</button>
+    <!-- Tabla -->
+    <div class="um-table-wrap">
+      <table class="um-table">
+        <thead>
+          <tr>
+            <th>Nombre completo</th>
+            <th>CI</th>
+            <th>Correo</th>
+            <th>Rol</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="filteredUsers.length === 0">
+            <td colspan="5" class="um-empty">
+              <i class="ti ti-users-minus"></i>
+              <span>No hay usuarios registrados.</span>
+            </td>
+          </tr>
+          <tr v-for="usr in filteredUsers" :key="usr.idUsuario">
+            <td><strong>{{ usr.nombreCompleto }}</strong></td>
+            <td><code class="um-code">{{ usr.ci }}</code></td>
+            <td class="um-muted">{{ usr.correo }}</td>
+            <td>
+              <span class="um-badge" :data-role="usr.rol">
+                {{ usr.rol || 'Sin Rol' }}
+              </span>
+            </td>
+            <td>
+              <span class="um-status" :class="{ 'um-status--active': usr.estado }">
+                {{ usr.estado ? 'Activo' : 'Inactivo' }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <!-- ── MODAL ───────────────────────────────────────────── -->
+  <Teleport to="body">
+    <div v-if="showCreateModal" class="um-backdrop" @mousedown.self="showCreateModal = false">
+      <div class="um-modal">
+
+        <div class="um-modal-header">
+          <h4>Registrar nuevo usuario</h4>
+          <button class="um-close" type="button" @click="showCreateModal = false">
+            <i class="ti ti-x"></i>
+          </button>
+        </div>
+
+        <div v-if="successMessage" class="uni-alert uni-alert--success">{{ successMessage }}</div>
+        <div v-if="errorMessage"   class="uni-alert uni-alert--error">{{ errorMessage }}</div>
+
+        <form @submit.prevent="submitForm" class="um-form">
+
+          <!-- Selección de rol -->
+          <div class="um-step">
+            <div class="um-step-label">
+              <span class="um-step-num">1</span>
+              Seleccionar rol
+            </div>
+            <div class="um-rol-picker">
+              <label
+                v-for="rol in roles"
+                :key="rol.idRol"
+                class="um-rol-card"
+                :class="{ 'um-rol-card--selected': Number(form.idRol) === rol.idRol }"
+                :data-role="rol.nombre"
+              >
+                <input
+                  type="radio"
+                  :value="rol.idRol"
+                  v-model.number="form.idRol"
+                  :disabled="submittings"
+                  hidden
+                  @change="validateField('idRol')"
+                />
+                <i class="ti"
+                  :class="{
+                    'ti-shield-check': rol.nombre === 'Administrador',
+                    'ti-school':       rol.nombre === 'Docente',
+                    'ti-book-2':       rol.nombre === 'Estudiante',
+                    'ti-user':         !['Administrador','Docente','Estudiante'].includes(rol.nombre),
+                  }"
+                ></i>
+                <span>{{ rol.nombre }}</span>
+              </label>
+            </div>
+            <span v-if="formErrors.idRol" class="um-field-error">{{ formErrors.idRol }}</span>
+            <span v-else-if="errors.idRol" class="um-field-error">{{ errors.idRol[0] }}</span>
           </div>
 
-          <div v-if="successMessage" class="alert success">{{ successMessage }}</div>
-          <div v-if="errorMessage" class="alert error">{{ errorMessage }}</div>
+          <!-- Campos comunes (nombre, apellido, CI, correo, password) -->
+          <template v-if="form.idRol">
+            <div class="um-step">
+              <div class="um-step-label">
+                <span class="um-step-num">2</span>
+                Datos personales
+              </div>
 
-          <form class="form-grid" @submit.prevent="submitForm">
-            <div class="two-cols">
-              <label>
-                <span>Primer nombre *</span>
-                <input v-model.trim="form.nombre1" type="text" required :disabled="submittings" />
-                <span v-if="errors.nombre1" class="field-error">{{ errors.nombre1[0] }}</span>
-              </label>
-              <label>
-                <span>Segundo nombre</span>
-                <input v-model.trim="form.nombre2" type="text" :disabled="submittings" />
-                <span v-if="errors.nombre2" class="field-error">{{ errors.nombre2[0] }}</span>
+              <div class="um-grid-2">
+                <label class="um-field">
+                  <span>Primer nombre *</span>
+                  <input v-model.trim="form.nombre1" type="text" required :disabled="submittings" placeholder="Ej: María" @input="validateField('nombre1')" />
+                  <span v-if="formErrors.nombre1" class="um-field-error">{{ formErrors.nombre1 }}</span>
+                  <span v-else-if="errors.nombre1" class="um-field-error">{{ errors.nombre1[0] }}</span>
+                </label>
+                <label class="um-field">
+                  <span>Segundo nombre</span>
+                  <input v-model.trim="form.nombre2" type="text" :disabled="submittings" placeholder="Opcional" @input="validateField('nombre2')" />
+                  <span v-if="formErrors.nombre2" class="um-field-error">{{ formErrors.nombre2 }}</span>
+                  <span v-else-if="errors.nombre2" class="um-field-error">{{ errors.nombre2[0] }}</span>
+                </label>
+                <label class="um-field">
+                  <span>Primer apellido *</span>
+                  <input v-model.trim="form.apellido1" type="text" required :disabled="submittings" placeholder="Ej: García" @input="validateField('apellido1')" />
+                  <span v-if="formErrors.apellido1" class="um-field-error">{{ formErrors.apellido1 }}</span>
+                  <span v-else-if="errors.apellido1" class="um-field-error">{{ errors.apellido1[0] }}</span>
+                </label>
+                <label class="um-field">
+                  <span>Segundo apellido</span>
+                  <input v-model.trim="form.apellido2" type="text" :disabled="submittings" placeholder="Opcional" @input="validateField('apellido2')" />
+                  <span v-if="formErrors.apellido2" class="um-field-error">{{ formErrors.apellido2 }}</span>
+                  <span v-else-if="errors.apellido2" class="um-field-error">{{ errors.apellido2[0] }}</span>
+                </label>
+                <label class="um-field">
+                  <span>Carnet (CI) *</span>
+                  <input v-model.trim="form.ci" type="text" required :disabled="submittings" placeholder="Ej: 12345678" @input="validateField('ci')" />
+                  <span v-if="formErrors.ci" class="um-field-error">{{ formErrors.ci }}</span>
+                  <span v-else-if="errors.ci" class="um-field-error">{{ errors.ci[0] }}</span>
+                </label>
+                <label class="um-field">
+                  <span>Teléfono</span>
+                  <input v-model.trim="form.telefono" type="text" :disabled="submittings" placeholder="Ej: 76543210" @input="validateField('telefono')" />
+                  <span v-if="formErrors.telefono" class="um-field-error">{{ formErrors.telefono }}</span>
+                  <span v-else-if="errors.telefono" class="um-field-error">{{ errors.telefono[0] }}</span>
+                </label>
+              </div>
+              <label class="um-field um-field--full">
+                <span>Correo institucional *</span>
+                <input v-model.trim="form.correo" type="email" required :disabled="submittings" placeholder="usuario@uni.edu.bo" @input="validateField('correo')" />
+                <span v-if="formErrors.correo" class="um-field-error">{{ formErrors.correo }}</span>
+                <span v-else-if="errors.correo" class="um-field-error">{{ errors.correo[0] }}</span>
               </label>
             </div>
 
-            <div class="two-cols">
-              <label>
-                <span>Primer apellido *</span>
-                <input v-model.trim="form.apellido1" type="text" required :disabled="submittings" />
-                <span v-if="errors.apellido1" class="field-error">{{ errors.apellido1[0] }}</span>
-              </label>
-              <label>
-                <span>Segundo apellido</span>
-                <input v-model.trim="form.apellido2" type="text" :disabled="submittings" />
-                <span v-if="errors.apellido2" class="field-error">{{ errors.apellido2[0] }}</span>
-              </label>
+            <!-- Seguridad -->
+            <div class="um-step">
+              <div class="um-step-label">
+                <span class="um-step-num">3</span>
+                Seguridad
+              </div>
+              <div class="um-grid-2">
+                <label class="um-field">
+                  <span>Contraseña *</span>
+                  <input v-model="form.password" type="password" required :disabled="submittings" autocomplete="new-password" placeholder="Mínimo 8 caracteres" @input="validateField('password')" />
+                  <span v-if="formErrors.password" class="um-field-error">{{ formErrors.password }}</span>
+                  <span v-else-if="errors.password" class="um-field-error">{{ errors.password[0] }}</span>
+                </label>
+              </div>
             </div>
 
-            <div class="two-cols">
-              <label>
-                <span>Carnet (CI) *</span>
-                <input v-model.trim="form.ci" type="text" required :disabled="submittings" />
-                <span v-if="errors.ci" class="field-error">{{ errors.ci[0] }}</span>
-              </label>
-              <label>
-                <span>Correo Institucional *</span>
-                <input v-model.trim="form.correo" type="email" required :disabled="submittings" />
-                <span v-if="errors.correo" class="field-error">{{ errors.correo[0] }}</span>
-              </label>
+            <!-- (solo Estudiante): Carrera -->
+            <div v-if="isStudent" class="um-step">
+              <div class="um-step-label">
+                <span class="um-step-num">4</span>
+                Carrera académica
+              </div>
+              <div class="um-grid-2">
+                <label class="um-field">
+                  <span>Carrera *</span>
+                  <select v-model="form.idCarrera" required :disabled="submittings" @change="validateField('idCarrera')">
+                    <option value="" disabled>Seleccione una carrera...</option>
+                    <option v-for="carrera in careers" :key="carrera.idCarrera" :value="carrera.idCarrera">
+                      {{ carrera.nombre }}
+                    </option>
+                  </select>
+                  <span v-if="formErrors.idCarrera" class="um-field-error">{{ formErrors.idCarrera }}</span>
+                  <span v-else-if="errors.idCarrera" class="um-field-error">{{ errors.idCarrera[0] }}</span>
+                </label>
+              </div>
             </div>
 
-            <div class="two-cols">
-              <label>
-                <span>Contraseña *</span>
-                <input v-model="form.password" type="password" required :disabled="submittings" autocomplete="new-password" />
-                <span v-if="errors.password" class="field-error">{{ errors.password[0] }}</span>
-              </label>
-              <label>
-                <span>Asignar Rol *</span>
-                <select v-model="form.idRol" required :disabled="submittings">
-                  <option value="" disabled>Seleccione un rol...</option>
-                  <option v-for="rol in roles" :key="rol.idRol" :value="rol.idRol">
-                    {{ rol.nombre }}
-                  </option>
-                </select>
-                <span v-if="errors.idRol" class="field-error">{{ errors.idRol[0] }}</span>
-              </label>
+            <!-- Nota contextual por rol -->
+            <div class="um-rol-note" :data-role="roleName">
+              <i class="ti"
+                :class="{
+                  'ti-info-circle': true,
+                }"
+              ></i>
+              <span v-if="isAdmin">El administrador tendrá acceso completo al sistema: usuarios, carreras, materias y reportes.</span>
+              <span v-else-if="isDocente">El docente podrá gestionar cursos, calificaciones y seguimiento de estudiantes asignados.</span>
+              <span v-else-if="isStudent">El estudiante podrá inscribirse a materias, consultar notas e historial académico.</span>
+              <span v-else>Selecciona un rol para ver los permisos correspondientes.</span>
             </div>
 
-            <div v-if="isStudent()" class="two-cols">
-              <label>
-                <span>Carrera *</span>
-                <select v-model="form.idCarrera" required :disabled="submittings">
-                  <option value="" disabled>Seleccione una carrera...</option>
-                  <option v-for="carrera in careers" :key="carrera.idCarrera" :value="carrera.idCarrera">
-                    {{ carrera.nombre }}
-                  </option>
-                </select>
-                <span v-if="errors.idCarrera" class="field-error">{{ errors.idCarrera[0] }}</span>
-              </label>
-              <div></div>
-            </div>
-
-            <div class="form-actions">
-              <button class="secondary" type="button" @click="showCreateModal = false">Cancelar</button>
-              <button class="primary" type="submit" :disabled="submittings">
-                {{ submittings ? 'Registrando...' : 'Registrar y Asignar Rol' }}
+            <!-- Acciones -->
+            <div class="um-form-actions">
+              <button class="um-btn-ghost" type="button" @click="showCreateModal = false" :disabled="submittings">
+                Cancelar
+              </button>
+              <button class="um-btn-primary" type="submit" :disabled="submittings">
+                <i class="ti" :class="submittings ? 'ti-loader-2 um-spin' : 'ti-user-check'"></i>
+                {{ submittings ? 'Registrando...' : 'Registrar usuario' }}
               </button>
             </div>
-          </form>
-        </div>
+          </template>
+
+          <!-- Estado vacío si no eligió rol -->
+          <div v-else class="um-rol-placeholder">
+            <i class="ti ti-arrow-up"></i>
+            Elige un rol para continuar con el registro
+          </div>
+
+        </form>
       </div>
-    </Teleport>
-  </div>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
-.user-management {
-  display: grid;
-  gap: 1.5rem;
+/* ── Raíz ── */
+.um-root {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
   width: 100%;
 }
 
-.header-section {
+/* ── Encabezado ── */
+.um-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
   gap: 1rem;
-  border-bottom: 1px solid var(--panel-border);
-  padding-bottom: 0.75rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-linen, #d0cfca);
+  flex-wrap: wrap;
 }
-
-.header-section h3 {
+.um-title {
   margin: 0;
-  font-size: 1.6rem;
-  color: var(--text);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+.um-subtitle {
+  margin: 3px 0 0;
+  font-size: 0.8rem;
+  color: #5b5c5e;
 }
 
-.subtitle {
-  margin: 0.25rem 0 0;
-  font-size: 0.9rem;
-  color: var(--muted);
+/* ── Botones ── */
+.um-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #4e615e;
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  padding: 9px 18px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
 }
+.um-btn-primary:hover:not(:disabled) { background: #3b4a48; }
+.um-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
-.layout-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.5rem;
-  align-items: start;
+.um-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  color: #5b5c5e;
+  border: 1.5px solid #d0cfca;
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
 }
+.um-btn-ghost:hover:not(:disabled) { background: #f4f4f2; color: #1a1a1a; }
+.um-btn-ghost:disabled { opacity: 0.6; cursor: not-allowed; }
 
-h4 {
-  margin: 0 0 1rem;
-  font-size: 1.2rem;
-  color: var(--primary);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  padding-bottom: 0.5rem;
+/* ── Barra de lista ── */
+.um-list-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
-
-.field-error {
-  display: block;
-  font-size: 0.75rem;
-  color: var(--danger);
-  margin-top: 0.25rem;
+.um-list-count {
+  font-size: 12px;
+  color: #5b5c5e;
+  font-weight: 600;
 }
-
-select {
-  width: 100%;
-  border: 1px solid rgba(180, 204, 255, 0.14);
-  border-radius: 0.9rem;
-  background: rgba(6, 10, 23, 0.72);
-  color: var(--text);
-  padding: 0.95rem 1rem;
+.um-list-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.um-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1.5px solid #d0cfca;
+  border-radius: 20px;
+  padding: 0 10px;
+  background: #fff;
+}
+.um-filter-group i { font-size: 14px; color: #5b5c5e; }
+.um-filter-select {
+  background: transparent;
+  border: none;
   outline: none;
   font-family: inherit;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23aab5d4'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 1rem center;
-  background-size: 1.25rem;
-}
-
-select:focus {
-  border-color: rgba(125, 211, 252, 0.8);
-  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.14);
-}
-
-select option {
-  background: var(--bg);
-  color: var(--text);
-}
-
-.list-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.list-header h4 {
-  margin: 0;
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.list-actions {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-}
-
-.filter-select {
-  padding: 0.45rem 2.2rem 0.45rem 0.8rem;
-  font-size: 0.85rem;
-  border: 1.5px solid #cbd5e1;
-  border-radius: 0.6rem;
-  background: #ffffff;
-  color: #0f172a;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1a1a1a;
+  padding: 7px 4px;
   cursor: pointer;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23475569'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.6rem center;
-  background-size: 1rem;
-  outline: none;
-  font-family: inherit;
 }
 
-.filter-select:focus {
-  border-color: #3c4f4d;
-  box-shadow: 0 0 0 3px rgba(60, 79, 77, 0.12);
-}
-
-.btn-refresh {
-  padding: 0.5rem 1rem;
-  font-size: 0.85rem;
-}
-
-.table-container {
+/* ── Tabla ── */
+.um-table-wrap {
   overflow-x: auto;
-  border-radius: 0.8rem;
-  border: 1px solid rgba(180, 204, 255, 0.08);
+  border-radius: 10px;
+  border: 1px solid #e8e8e5;
 }
-
-.user-table {
+.um-table {
   width: 100%;
   border-collapse: collapse;
+  font-size: 0.875rem;
   text-align: left;
-  font-size: 0.9rem;
 }
-
-.user-table th,
-.user-table td {
-  padding: 0.85rem 1rem;
-  border-bottom: 1px solid rgba(180, 204, 255, 0.05);
+.um-table th,
+.um-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #f0f0ee;
 }
-
-.user-table th {
-  background: rgba(255, 255, 255, 0.02);
-  color: var(--muted);
-  font-weight: 600;
+.um-table th {
+  background: #fafaf9;
+  font-size: 10px;
+  font-weight: 700;
   text-transform: uppercase;
-  font-size: 0.75rem;
   letter-spacing: 0.08em;
+  color: #5b5c5e;
 }
-
-.user-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.empty-state {
-  text-align: center;
-  color: var(--muted);
-  padding: 2rem !important;
-}
-
-code {
-  background: rgba(255, 255, 255, 0.05);
-  padding: 0.2rem 0.4rem;
-  border-radius: 0.35rem;
+.um-table tbody tr:last-child td { border-bottom: none; }
+.um-table tbody tr:hover { background: #fafaf9; }
+.um-muted { color: #5b5c5e; font-size: 0.8rem; }
+.um-code {
+  background: #f0f0ee;
+  padding: 2px 6px;
+  border-radius: 5px;
   font-family: monospace;
+  font-size: 0.8rem;
 }
+.um-empty {
+  text-align: center;
+  color: #8c9f96;
+  padding: 2.5rem 1rem !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+.um-empty i { font-size: 2rem; opacity: 0.4; }
 
-.role-badge-small {
+/* ── Badge de rol ── */
+.um-badge {
   display: inline-block;
-  padding: 0.25rem 0.6rem;
+  padding: 3px 10px;
   border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
+.um-badge[data-role="Administrador"] { background: #fef3c7; color: #92400e; }
+.um-badge[data-role="Docente"]       { background: #dce8f4; color: #1e4a6e; }
+.um-badge[data-role="Estudiante"]    { background: #ddf0e6; color: #1a5235; }
 
-.role-badge-small[data-role='Administrador'] {
-  color: #fef3c7;
-  background: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.24);
-}
-
-.role-badge-small[data-role='Docente'] {
-  color: #bfdbfe;
-  background: rgba(59, 130, 246, 0.12);
-  border: 1px solid rgba(59, 130, 246, 0.24);
-}
-
-.role-badge-small[data-role='Estudiante'] {
-  color: #bbf7d0;
-  background: rgba(34, 197, 94, 0.12);
-  border: 1px solid rgba(34, 197, 94, 0.24);
-}
-
-.status-indicator {
+/* ── Estado ── */
+.um-status {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 0.8rem;
-  color: var(--muted);
+  gap: 5px;
+  font-size: 11px;
+  color: #5b5c5e;
 }
-
-.status-indicator::before {
+.um-status::before {
   content: '';
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: 999px;
-  background: #f43f5e;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #d1a0a0;
+}
+.um-status--active::before {
+  background: #4e9e6b;
+  box-shadow: 0 0 6px #4e9e6b55;
 }
 
-.status-indicator.active::before {
-  background: var(--success);
-  box-shadow: 0 0 8px var(--success);
-}
-
-.backdrop {
+/* ── Backdrop ── */
+.um-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.45);
   display: grid;
   place-items: center;
   padding: 1rem;
-  z-index: 40;
+  z-index: 50;
 }
 
-.create-modal {
+/* ── Modal ── */
+.um-modal {
   width: min(100%, 36rem);
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 1.4rem;
-  padding: 2rem 1.75rem;
-  max-height: 90vh;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 24px 48px rgba(0,0,0,0.14);
   overflow-y: auto;
-  text-align: left;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  max-height: 92vh;
 }
 
-.create-modal .modal-header {
+.um-modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 0.75rem;
-  margin-bottom: 1.25rem;
+  padding: 1.5rem 1.75rem 1rem;
+  border-bottom: 1px solid #e8e8e5;
 }
-
-.create-modal .modal-header h4 {
+.um-modal-header h4 {
   margin: 0;
-  font-size: 1.15rem;
-  color: #0f172a;
-  border-bottom: none;
-  padding-bottom: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1a1a1a;
 }
-
-.create-modal .close-btn {
+.um-close {
   background: transparent;
   border: none;
-  color: #64748b;
-  font-size: 1.5rem;
+  color: #5b5c5e;
+  font-size: 1.2rem;
   cursor: pointer;
-  line-height: 1;
-  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  transition: background 0.15s;
+}
+.um-close:hover { background: #f0f0ee; color: #1a1a1a; }
+
+/* ── Formulario ── */
+.um-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0 0 1.5rem;
 }
 
-.create-modal .close-btn:hover {
-  color: #0f172a;
+/* ── Pasos ── */
+.um-step {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1.25rem 1.75rem;
+  border-bottom: 1px solid #f0f0ee;
 }
-
-.create-modal label span {
-  color: #475569;
-  font-size: 0.82rem;
+.um-step-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
+  color: #8c9f96;
+}
+.um-step-num {
+  width: 20px; height: 20px;
+  background: #4e615e;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.create-modal input,
-.create-modal select {
+/* ── Rol picker ── */
+.um-rol-picker {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.um-rol-card {
+  flex: 1;
+  min-width: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 1rem 0.5rem;
+  border: 2px solid #e8e8e5;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: #5b5c5e;
+  background: #fafaf9;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.um-rol-card i { font-size: 1.6rem; }
+.um-rol-card:hover {
+  border-color: #8c9f96;
+  background: #f4f4f2;
+  color: #1a1a1a;
+}
+.um-rol-card--selected {
+  border-color: #4e615e !important;
+  background: #edf4f2 !important;
+  color: #1a1a1a !important;
+}
+.um-rol-card--selected[data-role="Administrador"] {
+  border-color: #b07d2e !important;
+  background: #fef9ec !important;
+}
+.um-rol-card--selected[data-role="Docente"] {
+  border-color: #2a6090 !important;
+  background: #edf3fb !important;
+}
+.um-rol-card--selected[data-role="Estudiante"] {
+  border-color: #2a7a4b !important;
+  background: #edf7f1 !important;
+}
+
+/* ── Grid de campos ── */
+.um-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+}
+.um-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.um-field span {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #5b5c5e;
+}
+.um-field input,
+.um-field select {
   width: 100%;
-  border: 1.5px solid #cbd5e1;
-  border-radius: 0.9rem;
-  background: #ffffff;
-  color: #0f172a;
-  padding: 0.95rem 1rem;
-  outline: none;
+  background: #fafaf9;
+  border: 1.5px solid #d0cfca;
+  border-radius: 10px;
+  color: #1a1a1a;
+  padding: 0.7rem 0.9rem;
   font-family: inherit;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23475569'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+}
+.um-field input:focus,
+.um-field select:focus {
+  border-color: #4e615e;
+  box-shadow: 0 0 0 3px rgba(78,97,94,0.1);
+}
+.um-field input::placeholder { color: #a0a0a0; }
+.um-field select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%235b5c5e'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 1rem center;
-  background-size: 1.25rem;
+  background-position: right 0.75rem center;
+  background-size: 1rem;
+  padding-right: 2.5rem;
+}
+.um-field-error {
+  font-size: 11px;
+  color: #b85c5c;
+  margin-top: 2px;
 }
 
-.create-modal input:focus,
-.create-modal select:focus {
-  border-color: #3c4f4d;
-  box-shadow: 0 0 0 3px rgba(60, 79, 77, 0.12);
+/* ── Nota contextual ── */
+.um-rol-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 1.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #2b3d36;
+  background: #edf4f2;
+  border: 1px solid #8c9f96;
 }
+.um-rol-note i { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
 
-.form-actions {
+/* ── Placeholder sin rol ── */
+.um-rol-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 2rem 1.75rem;
+  font-size: 12px;
+  font-weight: 600;
+  color: #8c9f96;
+  text-align: center;
+}
+.um-rol-placeholder i { font-size: 1rem; }
+
+/* ── Acciones del formulario ── */
+.um-form-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.75rem;
-  margin-top: 1.5rem;
+  gap: 0.6rem;
+  padding: 1rem 1.75rem 0;
+}
+
+/* ── Spin animation ── */
+.um-spin { animation: um-rotate 0.8s linear infinite; }
+@keyframes um-rotate { to { transform: rotate(360deg); } }
+
+/* ── Alerts heredadas del sistema ── */
+.uni-alert {
+  margin: 0 1.75rem;
+  padding: 0.65rem 1rem;
+  border-radius: 10px;
+  font-size: 12px;
+  border: 1px solid;
+}
+.uni-alert--success {
+  background: #edf4f2;
+  border-color: #8c9f96;
+  color: #2b3d36;
+}
+.uni-alert--error {
+  background: #faf0f0;
+  border-color: #dca6a6;
+  color: #7a2424;
+}
+
+/* ── Responsive ── */
+@media (max-width: 480px) {
+  .um-grid-2 { grid-template-columns: 1fr; }
+  .um-rol-picker { flex-direction: column; }
+  .um-rol-card { flex-direction: row; justify-content: flex-start; padding: 0.75rem 1rem; }
 }
 </style>

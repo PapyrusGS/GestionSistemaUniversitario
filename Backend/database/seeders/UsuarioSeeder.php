@@ -21,6 +21,7 @@ class UsuarioSeeder extends Seeder
                 'ci' => '1234567',
                 'correo' => 'admin@sistema.com',
                 'password' => Hash::make('123456'), // Contraseña encriptada
+                'telefono' => 75642360,
                 'fechaRegistro' => now(),
                 'estado' => true,
                 'created_at' => now(),
@@ -36,6 +37,7 @@ class UsuarioSeeder extends Seeder
                 'ci' => '7654321',
                 'correo' => 'docente@sistema.com',
                 'password' => Hash::make('123456'),
+                'telefono' => 76452364,
                 'fechaRegistro' => now(),
                 'estado' => true,
                 'created_at' => now(),
@@ -51,6 +53,7 @@ class UsuarioSeeder extends Seeder
                 'ci' => '9876543',
                 'correo' => 'estudiante@sistema.com',
                 'password' => Hash::make('123456'),
+                'telefono' => 76452092,
                 'fechaRegistro' => now(),
                 'estado' => true,
                 'created_at' => now(),

@@ -32,6 +32,7 @@ class User extends Authenticatable
         'apellido2',
         'ci',
         'correo',
+        'telefono',
         'password',
         'fechaRegistro',
         'estado',

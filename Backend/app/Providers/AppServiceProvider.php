@@ -27,6 +27,8 @@ use App\Repositories\Eloquent\EloquentRoleRepository;
 use App\Repositories\Eloquent\EloquentStudentRepository;
 use App\Repositories\Eloquent\EloquentUserRepository;
 use Illuminate\Support\ServiceProvider;
+use App\Repositories\Contracts\ProfileRepositoryInterface;
+use App\Repositories\Eloquent\EloquentProfileRepository;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -47,6 +49,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(NotaRepositoryInterface::class, EloquentNotaRepository::class);
         $this->app->bind(RendimientoRepositoryInterface::class, EloquentRendimientoRepository::class);
         $this->app->bind(ReporteNotasRepositoryInterface::class, EloquentReporteNotasRepository::class);
+        $this->app->bind(ProfileRepositoryInterface::class,EloquentProfileRepository::class);
     }
 
     /**
@@ -56,4 +59,5 @@ class AppServiceProvider extends ServiceProvider
     {
         //
     }
+    
 }
