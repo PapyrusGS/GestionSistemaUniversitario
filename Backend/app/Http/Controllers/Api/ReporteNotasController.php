@@ -50,7 +50,7 @@ class ReporteNotasController extends Controller
                            (SELECT GROUP_CONCAT(DISTINCT CONCAT("Dia ", h.diaSemana, " ", TIME_FORMAT(h.horaInicio, "%H:%i"), "-", TIME_FORMAT(h.horaFin, "%H:%i")) SEPARATOR ", ")
                             FROM horariocurso hc
                             INNER JOIN horarios h ON h.idHorario = hc.idHorario
-                            WHERE hc.idCurso = cm.idCurso), 
+                            WHERE hc.idCursoMateria = cm.idCursoMateria), 
                            "Sin Horario"
                        ) AS turno_nombre
                 FROM cursos_materias cm
