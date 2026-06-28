@@ -1,108 +1,105 @@
 <template>
   <div class="ra">
 
-    <!-- Alertas -->
+    <!-- ── Alertas ──────────────────────────────────────────────────────── -->
     <div v-if="successMessage" class="ra-alert ra-alert--success">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>
       {{ successMessage }}
     </div>
     <div v-if="errorMessage" class="ra-alert ra-alert--error">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       {{ errorMessage }}
     </div>
     <div v-if="infoMessage" class="ra-alert ra-alert--info">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
       {{ infoMessage }}
     </div>
 
-    <!-- Panel de configuración -->
+    <!-- ── Tabs ─────────────────────────────────────────────────────────── -->
+    <div class="ra-tabs">
+      <button
+        v-for="tab in tabs" :key="tab.id"
+        class="ra-tab-btn"
+        :class="{ 'ra-tab-btn--active': activeTab === tab.id }"
+        @click="switchTab(tab.id)"
+      >
+        <span class="ra-tab-icon">{{ tab.icon }}</span>
+        {{ tab.label }}
+      </button>
+    </div>
+
+    <!-- ── Panel de filtros ──────────────────────────────────────────────── -->
     <div class="ra-panel">
 
-      <p class="ra-section-label">Tipo de reporte</p>
-
-      <div class="ra-type-grid">
-        <button
-          class="ra-type-btn"
-          :class="{ 'ra-type-btn--active': filtros.tipo === 'inscripciones' }"
-          @click="selectTipo('inscripciones')"
-        >
-          <svg class="ra-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
-          </svg>
-          <span>Inscripciones y Notas</span>
-        </button>
-
-        <button
-          class="ra-type-btn"
-          :class="{ 'ra-type-btn--active': filtros.tipo === 'cursos' }"
-          @click="selectTipo('cursos')"
-        >
-          <svg class="ra-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-          </svg>
-          <span>Catálogo de Cursos</span>
-        </button>
-
-        <button
-          class="ra-type-btn"
-          :class="{ 'ra-type-btn--active': filtros.tipo === 'docentes' }"
-          @click="selectTipo('docentes')"
-        >
-          <svg class="ra-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-          </svg>
-          <span>Plantilla Docente</span>
-        </button>
-
-        <button
-          class="ra-type-btn"
-          :class="{ 'ra-type-btn--active': filtros.tipo === 'materias' }"
-          @click="selectTipo('materias')"
-        >
-          <svg class="ra-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
-          </svg>
-          <span>Catálogo de Materias</span>
-        </button>
-      </div>
-
-      <!-- Filtros Curso / Materia -->
-      <div v-if="filtros.tipo === 'inscripciones' || filtros.tipo === 'cursos'" class="ra-filters">
-        <div class="ra-filter-group">
-          <label class="ra-label">Curso</label>
-          <select v-model="filtros.curso" class="ra-select">
-            <option value="">Todos los cursos</option>
-            <option v-for="c in listadoCursos" :key="c.idCurso" :value="c.idCurso">{{ c.idCurso }}</option>
-          </select>
+      <!-- ── Tab: Rendimiento ── -->
+      <template v-if="activeTab === 'rendimiento'">
+        <p class="ra-section-label">Filtros — Rendimiento Académico</p>
+        <div class="ra-filters">
+          <div class="ra-filter-group">
+            <label class="ra-label" for="sel-periodo-rend">Período Académico</label>
+            <select id="sel-periodo-rend" v-model="filtrosRendimiento.idPeriodo" class="ra-select">
+              <option value="">Todos los períodos</option>
+              <option v-for="p in listadoPeriodos" :key="p.idPeriodo" :value="p.idPeriodo">{{ p.nombre }}</option>
+            </select>
+          </div>
+          <div class="ra-filter-group">
+            <label class="ra-label" for="sel-carrera-rend">Carrera</label>
+            <select id="sel-carrera-rend" v-model="filtrosRendimiento.idCarrera" class="ra-select">
+              <option value="">Todas las carreras</option>
+              <option v-for="c in listadoCarreras" :key="c.idCarrera" :value="c.idCarrera">{{ c.nombre }}</option>
+            </select>
+          </div>
         </div>
-        <div class="ra-filter-group">
-          <label class="ra-label">Materia</label>
-          <select v-model="filtros.materia" class="ra-select">
-            <option value="">Todas las materias</option>
-            <option v-for="m in listadoMaterias" :key="m.idMateria" :value="m.idMateria">{{ m.sigla || m.idMateria }} — {{ m.nombre }}</option>
-          </select>
-        </div>
-      </div>
+      </template>
 
-      <!-- Filtros Carrera / Semestre -->
-      <div v-if="filtros.tipo === 'materias'" class="ra-filters">
-        <div class="ra-filter-group">
-          <label class="ra-label">Carrera</label>
-          <select v-model="filtros.carrera" class="ra-select">
-            <option value="">Todas las carreras</option>
-            <option v-for="car in listadoCarreras" :key="car.idCarrera" :value="car.idCarrera">{{ car.nombre }}</option>
-          </select>
+      <!-- ── Tab: Kárdex ── -->
+      <template v-else-if="activeTab === 'kardex'">
+        <p class="ra-section-label">Filtros — Kárdex de Estudiante</p>
+        <div class="ra-filters">
+          <div class="ra-filter-group">
+            <label class="ra-label" for="input-ci">Cédula de Identidad (C.I.)</label>
+            <input
+              id="input-ci"
+              v-model="filtrosKardex.ci"
+              type="text"
+              class="ra-input"
+              placeholder="Ej: 12345678"
+              @keyup.enter="cargarReporte"
+            />
+          </div>
         </div>
-        <div class="ra-filter-group">
-          <label class="ra-label">Semestre</label>
-          <select v-model="filtros.semestre" class="ra-select">
-            <option value="">Todos los semestres</option>
-            <option v-for="s in 10" :key="s" :value="s">Semestre {{ s }}</option>
-          </select>
-        </div>
-      </div>
+      </template>
 
-      <!-- Acciones -->
+      <!-- ── Tab: Auditoría ── -->
+      <template v-else-if="activeTab === 'auditoria'">
+        <p class="ra-section-label">Filtros — Auditoría de Notas</p>
+        <div class="ra-filters">
+          <div class="ra-filter-group">
+            <label class="ra-label" for="date-desde">Fecha Desde</label>
+            <input id="date-desde" v-model="filtrosAuditoria.fecha_desde" type="date" class="ra-input" />
+          </div>
+          <div class="ra-filter-group">
+            <label class="ra-label" for="date-hasta">Fecha Hasta</label>
+            <input id="date-hasta" v-model="filtrosAuditoria.fecha_hasta" type="date" class="ra-input" />
+          </div>
+        </div>
+      </template>
+
+      <!-- ── Tab: Ocupación ── -->
+      <template v-else-if="activeTab === 'ocupacion'">
+        <p class="ra-section-label">Filtros — Ocupación de Cursos</p>
+        <div class="ra-filters">
+          <div class="ra-filter-group">
+            <label class="ra-label" for="sel-periodo-ocup">Período Académico</label>
+            <select id="sel-periodo-ocup" v-model="filtrosOcupacion.idPeriodo" class="ra-select">
+              <option value="">Todos los períodos</option>
+              <option v-for="p in listadoPeriodos" :key="p.idPeriodo" :value="p.idPeriodo">{{ p.nombre }}</option>
+            </select>
+          </div>
+        </div>
+      </template>
+
+      <!-- ── Botón procesar ── -->
       <div class="ra-actions">
         <button class="uni-btn-action-success" :disabled="loading" @click="cargarReporte">
           <span v-if="loading" class="ra-spinner"></span>
@@ -110,26 +107,25 @@
           {{ loading ? 'Calculando...' : 'Procesar solicitud' }}
         </button>
       </div>
-
     </div>
 
-    <!-- Barra de exportación -->
-    <div v-if="reporte.length > 0" class="ra-export-bar">
-      <span class="ra-export-count">{{ reporte.length }} registros encontrados</span>
+    <!-- ── Barra de exportación ─────────────────────────────────────────── -->
+    <div v-if="currentRowCount > 0" class="ra-export-bar">
+      <span class="ra-export-count">{{ currentRowCount }} registros encontrados</span>
       <div class="ra-export-btns">
         <button class="ra-btn-export ra-btn-export--pdf" :disabled="exporting" @click="exportar('pdf')">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          Exportar PDF
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          PDF
         </button>
         <button class="ra-btn-export ra-btn-export--excel" :disabled="exporting" @click="exportar('excel')">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Exportar Excel
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Excel
         </button>
       </div>
     </div>
 
-    <!-- Estado vacío -->
-    <div v-if="searched && reporte.length === 0 && !loading" class="ra-empty">
+    <!-- ── Estado vacío ─────────────────────────────────────────────────── -->
+    <div v-if="searched[activeTab] && currentRowCount === 0 && !loading" class="ra-empty">
       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
         <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
       </svg>
@@ -137,18 +133,139 @@
       <p class="ra-empty-sub">No hay información disponible para los filtros aplicados.</p>
     </div>
 
-    <!-- Tabla -->
-    <div v-if="reporte.length > 0" class="ra-table-wrap">
+    <!-- ── Tabla Rendimiento ─────────────────────────────────────────────── -->
+    <div v-if="activeTab === 'rendimiento' && resultRendimiento.data.length > 0" class="ra-table-wrap">
       <div class="ra-table-scroll">
         <table class="ra-table">
-          <thead>
-            <tr>
-              <th v-for="(head, i) in headings" :key="i">{{ head }}</th>
-            </tr>
-          </thead>
+          <thead><tr><th v-for="(h, i) in resultRendimiento.headings" :key="i">{{ h }}</th></tr></thead>
           <tbody>
-            <tr v-for="(fila, i) in reporte" :key="i">
-              <td v-for="(celda, j) in fila" :key="j">{{ celda ?? '—' }}</td>
+            <tr v-for="(row, i) in resultRendimiento.data" :key="i">
+              <td>{{ row[0] }}</td>
+              <td>{{ row[1] }}</td>
+              <td>{{ row[2] }}</td>
+              <td>{{ row[3] }}</td>
+              <td class="ra-num">{{ row[4] }}</td>
+              <td>
+                <span
+                  class="ra-badge"
+                  :class="row[5] === 'Sin notas' ? 'ra-badge--gray' : parseFloat(row[5]) >= 51 ? 'ra-badge--green' : 'ra-badge--yellow'"
+                >{{ row[5] }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Tabla Kárdex ──────────────────────────────────────────────────── -->
+    <template v-if="activeTab === 'kardex' && resultKardex.historial.length > 0">
+      <div class="ra-kardex-card">
+        <div class="ra-kardex-field">
+          <span class="ra-kardex-label">Estudiante</span>
+          <span class="ra-kardex-value">{{ resultKardex.cabecera.nombre }}</span>
+        </div>
+        <div class="ra-kardex-field">
+          <span class="ra-kardex-label">C.I.</span>
+          <span class="ra-kardex-value">{{ resultKardex.cabecera.ci }}</span>
+        </div>
+        <div class="ra-kardex-field">
+          <span class="ra-kardex-label">Correo</span>
+          <span class="ra-kardex-value">{{ resultKardex.cabecera.correo }}</span>
+        </div>
+        <div class="ra-kardex-field">
+          <span class="ra-kardex-label">Carrera</span>
+          <span class="ra-kardex-value">{{ resultKardex.cabecera.carrera }}</span>
+        </div>
+      </div>
+      <div class="ra-table-wrap">
+        <div class="ra-table-scroll">
+          <table class="ra-table">
+            <thead>
+              <tr>
+                <th>Período</th><th>Materia</th><th>Sem.</th><th>Nota</th><th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(fila, i) in resultKardex.historial" :key="i">
+                <td>{{ fila.periodo }}</td>
+                <td>{{ fila.materia }}</td>
+                <td class="ra-num">{{ fila.semestre }}</td>
+                <td class="ra-num">{{ fila.nota ?? '—' }}</td>
+                <td>
+                  <span
+                    class="ra-badge"
+                    :class="{
+                      'ra-badge--green':  fila.estadoAcademico === 'Aprobada',
+                      'ra-badge--red':    fila.estadoAcademico === 'Reprobada',
+                      'ra-badge--gray':   fila.estadoAcademico === 'Sin nota'
+                    }"
+                  >{{ fila.estadoAcademico }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </template>
+
+    <!-- ── Tabla Auditoría ───────────────────────────────────────────────── -->
+    <div v-if="activeTab === 'auditoria' && resultAuditoria.data.length > 0" class="ra-table-wrap">
+      <div class="ra-table-scroll">
+        <table class="ra-table">
+          <thead><tr><th v-for="(h, i) in resultAuditoria.headings" :key="i">{{ h }}</th></tr></thead>
+          <tbody>
+            <tr v-for="(row, i) in resultAuditoria.data" :key="i">
+              <td class="ra-mono">{{ row[0] }}</td>
+              <td>{{ row[1] }}</td>
+              <td>
+                <span
+                  class="ra-badge"
+                  :class="{
+                    'ra-badge--green':  row[2] === 'Inserción',
+                    'ra-badge--blue':   row[2] === 'Actualización',
+                    'ra-badge--red':    row[2] === 'Eliminación'
+                  }"
+                >{{ row[2] }}</span>
+              </td>
+              <td>{{ row[3] }}</td>
+              <td class="ra-mono ra-val">{{ row[4] }}</td>
+              <td class="ra-mono ra-val">{{ row[5] }}</td>
+              <td class="ra-mono">{{ row[6] }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Tabla Ocupación ───────────────────────────────────────────────── -->
+    <div v-if="activeTab === 'ocupacion' && resultOcupacion.data.length > 0" class="ra-table-wrap">
+      <div class="ra-table-scroll">
+        <table class="ra-table">
+          <thead><tr><th v-for="(h, i) in resultOcupacion.headings" :key="i">{{ h }}</th></tr></thead>
+          <tbody>
+            <tr v-for="(row, i) in resultOcupacion.data" :key="i">
+              <td>{{ row[0] }}</td>
+              <td>{{ row[1] }}</td>
+              <td class="ra-num">{{ row[2] }}</td>
+              <td>{{ row[3] }}</td>
+              <td>{{ row[4] }}</td>
+              <td class="ra-num">{{ row[5] }}</td>
+              <td class="ra-num">{{ row[6] }}</td>
+              <td class="ra-num">{{ row[7] }}</td>
+              <td>
+                <div class="ra-ocup-cell">
+                  <div class="ra-bar-wrap">
+                    <div
+                      class="ra-bar-fill"
+                      :style="{ width: row[8], background: ocupBarColor(row[8]) }"
+                    ></div>
+                  </div>
+                  <span
+                    class="ra-ocup-pct"
+                    :class="ocupBadgeClass(row[8])"
+                  >{{ row[8] }}</span>
+                </div>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -159,151 +276,255 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 
 const props = defineProps({
   api: { type: Object, required: true }
 });
 
-const loading    = ref(false);
-const exporting  = ref(false);
-const searched   = ref(false);
-const reporte    = ref([]);
-const headings   = ref([]);
-const listadoCursos   = ref([]);
-const listadoMaterias = ref([]);
+// ── Tabs ────────────────────────────────────────────────────────────────────
+const tabs = [
+  { id: 'rendimiento', label: 'Rendimiento',  icon: '📊' },
+  { id: 'kardex',      label: 'Kárdex',       icon: '🎓' },
+  { id: 'auditoria',   label: 'Auditoría',    icon: '🔍' },
+  { id: 'ocupacion',   label: 'Ocupación',    icon: '📋' },
+];
+const activeTab = ref('rendimiento');
+
+// ── Estado global ────────────────────────────────────────────────────────────
+const loading       = ref(false);
+const exporting     = ref(false);
+const successMessage = ref('');
+const errorMessage   = ref('');
+const infoMessage    = ref('');
+
+const searched = reactive({ rendimiento: false, kardex: false, auditoria: false, ocupacion: false });
+
+// ── Listas de opciones ───────────────────────────────────────────────────────
+const listadoPeriodos = ref([]);
 const listadoCarreras = ref([]);
-const successMessage  = ref('');
-const errorMessage    = ref('');
-const infoMessage     = ref('');
 
-const filtros = reactive({ tipo: 'inscripciones', curso: '', materia: '', carrera: '', semestre: '' });
+// ── Filtros por tab ──────────────────────────────────────────────────────────
+const filtrosRendimiento = reactive({ idPeriodo: '', idCarrera: '' });
+const filtrosKardex      = reactive({ ci: '' });
+const filtrosAuditoria   = reactive({ fecha_desde: '', fecha_hasta: '' });
+const filtrosOcupacion   = reactive({ idPeriodo: '' });
 
+// ── Resultados por tab ───────────────────────────────────────────────────────
+const resultRendimiento = reactive({ headings: [], data: [] });
+const resultKardex      = reactive({ cabecera: null, historial: [] });
+const resultAuditoria   = reactive({ headings: [], data: [] });
+const resultOcupacion   = reactive({ headings: [], data: [] });
+
+// ── Cantidad de filas del tab activo ────────────────────────────────────────
+const currentRowCount = computed(() => {
+  if (activeTab.value === 'rendimiento') return resultRendimiento.data.length;
+  if (activeTab.value === 'kardex')      return resultKardex.historial.length;
+  if (activeTab.value === 'auditoria')   return resultAuditoria.data.length;
+  if (activeTab.value === 'ocupacion')   return resultOcupacion.data.length;
+  return 0;
+});
+
+// ── Helpers de mensajes ──────────────────────────────────────────────────────
 const resetMessages = () => { successMessage.value = ''; errorMessage.value = ''; infoMessage.value = ''; };
-
-const selectTipo = (t) => {
-  filtros.tipo = t;
-  filtros.curso = '';
-  filtros.materia = '';
-  filtros.carrera = '';
-  filtros.semestre = '';
-  reporte.value = [];
-  headings.value = [];
-  searched.value = false;
+const flash = (type, msg, ms = 3500) => {
+  if (type === 'success') { successMessage.value = msg; setTimeout(() => successMessage.value = '', ms); }
+  if (type === 'error')   { errorMessage.value   = msg; }
+  if (type === 'info')    { infoMessage.value     = msg; }
 };
 
+// ── Cambiar tab ──────────────────────────────────────────────────────────────
+const switchTab = (id) => {
+  activeTab.value = id;
+  resetMessages();
+};
+
+// ── Carga inicial de opciones ────────────────────────────────────────────────
 onMounted(async () => {
   try {
     const { data } = await props.api.get('/reportes/filtros');
-    listadoCursos.value   = data.cursos   || [];
-    listadoMaterias.value = data.materias || [];
+    listadoPeriodos.value = data.periodos || [];
     listadoCarreras.value = data.carreras || [];
   } catch (e) {
     console.error('Error cargando filtros', e);
   }
 });
 
-const buildParams = () => {
-  const p = new URLSearchParams();
-  p.append('tipo', filtros.tipo);
-  if (filtros.curso   && (filtros.tipo === 'inscripciones' || filtros.tipo === 'cursos')) p.append('curso',   filtros.curso);
-  if (filtros.materia && (filtros.tipo === 'inscripciones' || filtros.tipo === 'cursos')) p.append('materia', filtros.materia);
-  if (filtros.carrera  && filtros.tipo === 'materias') p.append('carrera',  filtros.carrera);
-  if (filtros.semestre && filtros.tipo === 'materias') p.append('semestre', filtros.semestre);
-  return p;
-};
-
+// ── Procesar reporte ─────────────────────────────────────────────────────────
 const cargarReporte = async () => {
-  loading.value = true;
-  searched.value = true;
   resetMessages();
+  loading.value = true;
+  searched[activeTab.value] = true;
+
   try {
-    const { data } = await props.api.get(`/reportes?${buildParams()}`);
-    reporte.value  = data.data     || [];
-    headings.value = data.headings || [];
-    if (reporte.value.length > 0) {
-      successMessage.value = 'Reporte generado correctamente.';
-      setTimeout(() => successMessage.value = '', 3000);
+    if (activeTab.value === 'rendimiento') {
+      const params = new URLSearchParams();
+      if (filtrosRendimiento.idPeriodo) params.append('idPeriodo', filtrosRendimiento.idPeriodo);
+      if (filtrosRendimiento.idCarrera)  params.append('idCarrera',  filtrosRendimiento.idCarrera);
+      const { data } = await props.api.get(`/reportes/rendimiento?${params}`);
+      resultRendimiento.headings = data.headings || [];
+      resultRendimiento.data     = data.data     || [];
+
+    } else if (activeTab.value === 'kardex') {
+      const ci = filtrosKardex.ci.trim();
+      if (!ci) { flash('error', 'Ingresa el CI del estudiante.'); return; }
+      const { data } = await props.api.get(`/reportes/kardex?ci=${encodeURIComponent(ci)}`);
+      resultKardex.cabecera  = data.cabecera  || null;
+      resultKardex.historial = data.historial || [];
+
+    } else if (activeTab.value === 'auditoria') {
+      const params = new URLSearchParams();
+      if (filtrosAuditoria.fecha_desde) params.append('fecha_desde', filtrosAuditoria.fecha_desde);
+      if (filtrosAuditoria.fecha_hasta) params.append('fecha_hasta', filtrosAuditoria.fecha_hasta);
+      const { data } = await props.api.get(`/reportes/auditoria-notas?${params}`);
+      resultAuditoria.headings = data.headings || [];
+      resultAuditoria.data     = data.data     || [];
+
+    } else if (activeTab.value === 'ocupacion') {
+      const params = new URLSearchParams();
+      if (filtrosOcupacion.idPeriodo) params.append('idPeriodo', filtrosOcupacion.idPeriodo);
+      const { data } = await props.api.get(`/reportes/ocupacion?${params}`);
+      resultOcupacion.headings = data.headings || [];
+      resultOcupacion.data     = data.data     || [];
     }
+
+    if (currentRowCount.value > 0) flash('success', 'Reporte generado correctamente.');
+
   } catch (e) {
     console.error(e);
-    errorMessage.value = 'Error al comunicarse con el servidor.';
-    reporte.value  = [];
-    headings.value = [];
+    const msg = e?.response?.data?.message || 'Error al comunicarse con el servidor.';
+    flash('error', msg);
   } finally {
     loading.value = false;
   }
 };
 
+// ── Exportar ─────────────────────────────────────────────────────────────────
 const exportar = async (formato) => {
   exporting.value = true;
   resetMessages();
-  infoMessage.value = `Generando ${formato.toUpperCase()}...`;
+  flash('info', `Generando ${formato.toUpperCase()}...`);
+
   try {
-    const p = buildParams();
-    p.append('formato', formato);
-    const response = await props.api.get(`/reportes/exportar?${p}`, {
+    let url   = '';
+    const ext = formato === 'pdf' ? 'pdf' : 'xlsx';
+
+    if (activeTab.value === 'rendimiento') {
+      const p = new URLSearchParams({ formato });
+      if (filtrosRendimiento.idPeriodo) p.append('idPeriodo', filtrosRendimiento.idPeriodo);
+      if (filtrosRendimiento.idCarrera)  p.append('idCarrera',  filtrosRendimiento.idCarrera);
+      url = `/reportes/rendimiento/exportar?${p}`;
+
+    } else if (activeTab.value === 'kardex') {
+      const p = new URLSearchParams({ ci: filtrosKardex.ci.trim(), formato });
+      url = `/reportes/kardex/exportar?${p}`;
+
+    } else if (activeTab.value === 'auditoria') {
+      const p = new URLSearchParams({ formato });
+      if (filtrosAuditoria.fecha_desde) p.append('fecha_desde', filtrosAuditoria.fecha_desde);
+      if (filtrosAuditoria.fecha_hasta) p.append('fecha_hasta', filtrosAuditoria.fecha_hasta);
+      url = `/reportes/auditoria-notas/exportar?${p}`;
+
+    } else if (activeTab.value === 'ocupacion') {
+      const p = new URLSearchParams({ formato });
+      if (filtrosOcupacion.idPeriodo) p.append('idPeriodo', filtrosOcupacion.idPeriodo);
+      url = `/reportes/ocupacion/exportar?${p}`;
+    }
+
+    const accept = formato === 'pdf'
+      ? 'application/pdf'
+      : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+    const response = await props.api.get(url, {
       responseType: 'blob',
-      headers: { Accept: formato === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
+      headers: { Accept: accept },
     });
-    const url  = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href  = url;
-    link.setAttribute('download', `reporte_${filtros.tipo}_${Date.now()}.${formato === 'pdf' ? 'pdf' : 'xlsx'}`);
+
+    const blobUrl  = window.URL.createObjectURL(new Blob([response.data]));
+    const link     = document.createElement('a');
+    link.href      = blobUrl;
+    link.setAttribute('download', `reporte_${activeTab.value}_${Date.now()}.${ext}`);
     document.body.appendChild(link);
     link.click();
     link.remove();
-    window.URL.revokeObjectURL(url);
+    window.URL.revokeObjectURL(blobUrl);
+
     infoMessage.value = '';
-    successMessage.value = 'Archivo descargado correctamente.';
-    setTimeout(() => successMessage.value = '', 3000);
+    flash('success', 'Archivo descargado correctamente.');
   } catch (e) {
     console.error(e);
     infoMessage.value = '';
-    errorMessage.value = `No se pudo exportar a ${formato.toUpperCase()}.`;
+    flash('error', `No se pudo exportar a ${formato.toUpperCase()}.`);
   } finally {
     exporting.value = false;
   }
 };
+
+// ── Helpers visuales para Ocupación ─────────────────────────────────────────
+const ocupBarColor = (pctStr) => {
+  const v = parseFloat(pctStr);
+  if (v >= 90) return '#fc8181';
+  if (v >= 60) return '#f6ad55';
+  if (v >= 30) return '#63b3ed';
+  return '#68d391';
+};
+const ocupBadgeClass = (pctStr) => {
+  const v = parseFloat(pctStr);
+  if (v >= 90) return 'ra-ocup-pct--full';
+  if (v >= 60) return 'ra-ocup-pct--high';
+  if (v >= 30) return 'ra-ocup-pct--medium';
+  return 'ra-ocup-pct--low';
+};
 </script>
 
 <style scoped>
-/* ── Variables locales que heredan del sistema global ── */
+/* ── Contenedor principal ── */
 .ra {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  max-width: 1000px;
+  max-width: 1100px;
   color: var(--uni-text);
 }
 
-/* ── Alertas — reutilizan tokens del App.vue ── */
+/* ── Alertas ── */
 .ra-alert {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.65rem 1rem;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
-  border: 1px solid;
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.65rem 1rem; border-radius: 20px;
+  font-size: 12px; font-weight: 500; border: 1px solid;
 }
 .ra-alert svg { flex-shrink: 0; }
-.ra-alert--success {
-  background: var(--uni-success-bg);
-  border-color: var(--uni-success-border);
-  color: var(--uni-success-text);
+.ra-alert--success { background: var(--uni-success-bg); border-color: var(--uni-success-border); color: var(--uni-success-text); }
+.ra-alert--error   { background: var(--uni-error-bg);   border-color: var(--uni-error-border);   color: var(--uni-error-text);   }
+.ra-alert--info    { background: #eef3f8; border-color: #a8c4dc; color: #1e4a6e; }
+
+/* ── Tabs ── */
+.ra-tabs {
+  display: flex;
+  gap: 0.35rem;
+  background: #fafafa;
+  border: 1px solid rgba(0,0,0,.07);
+  border-radius: 12px;
+  padding: 0.4rem;
 }
-.ra-alert--error {
-  background: var(--uni-error-bg);
-  border-color: var(--uni-error-border);
-  color: var(--uni-error-text);
+.ra-tab-btn {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+  padding: 0.55rem 0.6rem;
+  font-size: 11px; font-weight: 600; font-family: inherit;
+  border: none; border-radius: 8px;
+  background: transparent; color: var(--uni-muted);
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+  white-space: nowrap;
 }
-.ra-alert--info {
-  background: #eef3f8;
-  border-color: #a8c4dc;
-  color: #1e4a6e;
+.ra-tab-btn:hover { background: var(--color-linen); color: var(--uni-text); }
+.ra-tab-btn--active {
+  background: var(--color-mint-dark, #2d6a4f);
+  color: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,.15);
 }
+.ra-tab-icon { font-size: 13px; }
 
 /* ── Panel principal ── */
 .ra-panel {
@@ -311,239 +532,134 @@ const exportar = async (formato) => {
   border: 1px solid rgba(0,0,0,.06);
   border-radius: 12px;
   padding: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: flex; flex-direction: column; gap: 1rem;
 }
-
 .ra-section-label {
   margin: 0;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
   color: var(--uni-muted);
-}
-
-/* ── Tarjetas de tipo ── */
-.ra-type-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.6rem;
-}
-@media (min-width: 600px) {
-  .ra-type-grid { grid-template-columns: repeat(4, 1fr); }
-}
-
-.ra-type-btn {
-  background: var(--color-white);
-  border: 1.5px solid var(--color-linen);
-  border-radius: 10px;
-  padding: 0.85rem 0.6rem;
-  cursor: pointer;
-  color: var(--uni-muted);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 11px;
-  font-weight: 600;
-  text-align: center;
-  transition: border-color 0.2s, color 0.2s, background 0.2s;
-  line-height: 1.3;
-}
-.ra-type-btn:hover {
-  border-color: var(--color-mint-light);
-  color: var(--color-mint-dark);
-  background: var(--color-white);
-}
-.ra-type-btn--active {
-  border-color: var(--color-mint-dark);
-  background: var(--uni-success-bg);
-  color: var(--color-mint-dark);
-}
-.ra-type-icon {
-  width: 24px;
-  height: 24px;
-  flex-shrink: 0;
 }
 
 /* ── Filtros ── */
-.ra-filters {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--color-linen);
-}
-@media (min-width: 600px) {
-  .ra-filters { flex-direction: row; }
-}
+.ra-filters { display: flex; flex-direction: column; gap: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--color-linen); }
+@media (min-width: 600px) { .ra-filters { flex-direction: row; } }
 
-.ra-filter-group {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
+.ra-filter-group { flex: 1; display: flex; flex-direction: column; gap: 0.3rem; }
 
 .ra-label {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
   color: var(--uni-muted);
 }
 
-.ra-select {
+.ra-select, .ra-input {
   width: 100%;
   background: var(--color-white);
   border: 1.5px solid var(--color-linen);
   color: var(--uni-text);
   padding: 0.55rem 0.85rem;
   border-radius: 20px;
-  font-size: 12px;
-  font-family: inherit;
+  font-size: 12px; font-family: inherit;
   outline: none;
-  appearance: none;
-  cursor: pointer;
   transition: border-color 0.2s;
 }
-.ra-select:focus { border-color: var(--color-mint-dark); }
+.ra-select { appearance: none; cursor: pointer; }
+.ra-select:focus, .ra-input:focus { border-color: var(--color-mint-dark); }
 
-/* ── Botón procesar — hereda .uni-btn-action-success del App.vue ── */
-.ra-actions {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 0.25rem;
-}
+/* ── Acciones ── */
+.ra-actions { display: flex; justify-content: flex-end; padding-top: 0.25rem; }
 
 .ra-spinner {
-  width: 12px;
-  height: 12px;
-  border: 2px solid rgba(255,255,255,0.4);
-  border-top-color: #fff;
+  width: 12px; height: 12px;
+  border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff;
   border-radius: 50%;
-  animation: ra-spin 0.75s linear infinite;
-  flex-shrink: 0;
+  animation: ra-spin 0.75s linear infinite; flex-shrink: 0;
 }
 @keyframes ra-spin { to { transform: rotate(360deg); } }
 
 /* ── Barra de exportación ── */
 .ra-export-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  background: #fafafa;
-  border: 1px solid rgba(0,0,0,.06);
-  border-radius: 12px;
-  padding: 0.65rem 1rem;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 0.75rem;
+  background: #fafafa; border: 1px solid rgba(0,0,0,.06);
+  border-radius: 12px; padding: 0.65rem 1rem;
 }
-
-.ra-export-count {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--uni-muted);
-}
-
-.ra-export-btns {
-  display: flex;
-  gap: 0.5rem;
-}
-
+.ra-export-count { font-size: 11px; font-weight: 600; color: var(--uni-muted); }
+.ra-export-btns { display: flex; gap: 0.5rem; }
 .ra-btn-export {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  border-radius: 20px;
-  padding: 0.45rem 0.9rem;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: inherit;
-  border: 1px solid transparent;
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  border-radius: 20px; padding: 0.45rem 0.9rem;
+  font-size: 11px; font-weight: 700; cursor: pointer;
+  font-family: inherit; border: 1px solid transparent;
   transition: background 0.2s;
 }
 .ra-btn-export:disabled { opacity: 0.45; cursor: not-allowed; }
-
-.ra-btn-export--pdf {
-  background: var(--uni-error-bg);
-  border-color: var(--uni-error-border);
-  color: var(--uni-error-text);
-}
+.ra-btn-export--pdf { background: var(--uni-error-bg); border-color: var(--uni-error-border); color: var(--uni-error-text); }
 .ra-btn-export--pdf:hover:not(:disabled) { background: #f5e0e0; }
-
-.ra-btn-export--excel {
-  background: var(--uni-success-bg);
-  border-color: var(--uni-success-border);
-  color: var(--uni-success-text);
-}
+.ra-btn-export--excel { background: var(--uni-success-bg); border-color: var(--uni-success-border); color: var(--uni-success-text); }
 .ra-btn-export--excel:hover:not(:disabled) { background: #d8ece6; }
 
 /* ── Estado vacío ── */
 .ra-empty {
-  background: #fafafa;
-  border: 1.5px dashed var(--color-linen);
-  border-radius: 12px;
-  padding: 2.5rem 2rem;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.4rem;
+  background: #fafafa; border: 1.5px dashed var(--color-linen);
+  border-radius: 12px; padding: 2.5rem 2rem; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
   color: var(--uni-muted);
 }
-.ra-empty-title {
-  margin: 0;
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--color-dark-gray);
-}
-.ra-empty-sub {
-  margin: 0;
-  font-size: 11px;
-  color: var(--uni-muted);
-}
+.ra-empty-title { margin: 0; font-size: 0.9rem; font-weight: 700; color: var(--color-dark-gray); }
+.ra-empty-sub   { margin: 0; font-size: 11px; color: var(--uni-muted); }
 
-/* ── Tabla ── */
+/* ── Tabla genérica ── */
 .ra-table-wrap {
   background: var(--color-white);
   border: 1px solid rgba(0,0,0,.06);
-  border-radius: 12px;
-  overflow: hidden;
+  border-radius: 12px; overflow: hidden;
 }
 .ra-table-scroll { overflow-x: auto; }
-
-.ra-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.ra-table thead tr {
-  background: #fafafa;
-  border-bottom: 1px solid var(--color-linen);
-}
-
+.ra-table { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+.ra-table thead tr { background: #fafafa; border-bottom: 1px solid var(--color-linen); }
 .ra-table th {
-  padding: 0.75rem 1rem;
-  text-align: left;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--uni-muted);
+  padding: 0.75rem 1rem; text-align: left;
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--uni-muted);
 }
-
-.ra-table td {
-  padding: 0.75rem 1rem;
-  color: var(--uni-text);
-  border-bottom: 1px solid rgba(0,0,0,.04);
-}
-
+.ra-table td { padding: 0.7rem 1rem; color: var(--uni-text); border-bottom: 1px solid rgba(0,0,0,.04); }
 .ra-table tbody tr:hover { background: #f7f7f5; }
 .ra-table tbody tr:last-child td { border-bottom: none; }
+.ra-num  { text-align: right; font-variant-numeric: tabular-nums; }
+.ra-mono { font-family: monospace; font-size: 11px; }
+.ra-val  { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Badges ── */
+.ra-badge {
+  display: inline-block; padding: 2px 9px; border-radius: 20px;
+  font-size: 10px; font-weight: 700;
+}
+.ra-badge--green  { background: #c6f6d5; color: #22543d; }
+.ra-badge--yellow { background: #fefcbf; color: #744210; }
+.ra-badge--red    { background: #fed7d7; color: #822727; }
+.ra-badge--blue   { background: #bee3f8; color: #1a365d; }
+.ra-badge--gray   { background: #e2e8f0; color: #4a5568; }
+
+/* ── Kárdex header card ── */
+.ra-kardex-card {
+  display: flex; flex-wrap: wrap; gap: 1rem;
+  background: #faf5ff;
+  border: 1px solid #d6bcfa;
+  border-radius: 12px; padding: 1rem 1.25rem;
+}
+.ra-kardex-field { display: flex; flex-direction: column; gap: 0.15rem; min-width: 160px; }
+.ra-kardex-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #805ad5; }
+.ra-kardex-value { font-size: 12px; font-weight: 600; color: var(--uni-text); }
+
+/* ── Ocupación — barra de progreso ── */
+.ra-ocup-cell { display: flex; align-items: center; gap: 6px; min-width: 110px; }
+.ra-bar-wrap  { width: 55px; height: 7px; background: #e2e8f0; border-radius: 4px; overflow: hidden; flex-shrink: 0; }
+.ra-bar-fill  { height: 100%; border-radius: 4px; transition: width 0.3s; }
+.ra-ocup-pct  { font-size: 11px; font-weight: 700; }
+.ra-ocup-pct--full   { color: #c53030; }
+.ra-ocup-pct--high   { color: #c05621; }
+.ra-ocup-pct--medium { color: #2b6cb0; }
+.ra-ocup-pct--low    { color: #276749; }
 </style>

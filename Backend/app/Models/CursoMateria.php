@@ -4,6 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class CursoMateria extends Model
 {
@@ -54,8 +57,28 @@ class CursoMateria extends Model
         return $this->belongsTo(User::class, 'idDocente', 'idUsuario');
     }
 
-    public function inscripciones()
+    public function inscripciones(): HasMany
     {
         return $this->hasMany(Inscripcion::class, 'idCursoMateria', 'idCursoMateria');
+    }
+
+    public function periodo(): BelongsTo
+    {
+        return $this->belongsTo(Periodo::class, 'idPeriodo', 'idPeriodo');
+    }
+
+    /**
+     * Usado por withAvg para calcular el promedio de notas sin N+1.
+     */
+    public function notasDeInscritos(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Nota::class,
+            Inscripcion::class,
+            'idCursoMateria', // FK en estudiantemateria
+            'idInscripcion',  // FK en notas
+            'idCursoMateria', // PK local
+            'idInscripcion'   // PK en estudiantemateria
+        );
     }
 }
