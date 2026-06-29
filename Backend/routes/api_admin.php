@@ -57,4 +57,8 @@ Route::middleware(['auth:sanctum', 'role:Administrador'])->group(function () {
     // 4. Ocupación de Cursos (capacidad vs inscritos, por período)
     Route::get('/reportes/ocupacion',          [ReporteController::class, 'reporteOcupacion']);
     Route::get('/reportes/ocupacion/exportar', [ReporteController::class, 'exportarOcupacion']);
+
+    // 5. Horario de Docente
+    Route::get('/reportes/horario-docente',          [ReporteController::class, 'reporteHorarioDocente']);
+    Route::get('/reportes/horario-docente/exportar', [ReporteController::class, 'exportarHorarioDocente']);
 });

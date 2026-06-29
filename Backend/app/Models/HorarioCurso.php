@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 
 class HorarioCurso extends Pivot
 {
+    use Auditable;
+
     protected $table = 'horariocurso';
 
     protected $primaryKey = 'idHorarioCurso';

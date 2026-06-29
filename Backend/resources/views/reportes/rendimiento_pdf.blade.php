@@ -4,36 +4,53 @@
 <meta charset="UTF-8">
 <title>Reporte de Rendimiento Académico</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 10px; color: #1a202c; background: #fff; }
-  .header { padding: 18px 24px 14px; border-bottom: 3px solid #2b6cb0; margin-bottom: 18px; }
-  .header h1 { font-size: 18px; color: #1a365d; font-weight: 700; }
-  .header p { font-size: 10px; color: #718096; margin-top: 3px; }
-  .meta { display: flex; justify-content: space-between; font-size: 9px; color: #718096; padding: 0 24px 14px; }
-  table { width: 100%; border-collapse: collapse; margin: 0 0 20px; }
+  @page { margin: 2cm; }
+  body { margin: 0; padding: 0; }
+  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 10px; color: #000; background: #fff; }
+
+  /* ── Encabezado ── */
+  .header { border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 16px; }
+  .header-inst { font-size: 14px; font-weight: 700; color: #000; letter-spacing: 0.01em; }
+  .header-report { font-size: 11px; font-weight: 600; color: #000; margin-top: 3px; }
+  .header-meta { font-size: 9px; color: #444; margin-top: 5px; }
+
+  /* ── Tabla ── */
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; }
   thead th {
-    background: #2b6cb0; color: #fff;
-    padding: 8px 10px; text-align: left;
+    background: #ebebeb; color: #000;
+    padding: 7px 9px; text-align: left;
     font-size: 8.5px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.05em;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    border: 1px solid #bbb;
   }
-  tbody td { padding: 7px 10px; border-bottom: 1px solid #e2e8f0; color: #2d3748; }
-  tbody tr:nth-child(even) { background: #ebf8ff; }
-  .badge {
-    display: inline-block; padding: 2px 8px; border-radius: 20px;
-    font-size: 8px; font-weight: 700;
+  tbody td {
+    padding: 6px 9px;
+    border: 1px solid #ccc;
+    color: #000;
+    vertical-align: top;
   }
-  .badge-ok  { background: #c6f6d5; color: #22543d; }
-  .badge-warn { background: #fefcbf; color: #744210; }
-  .badge-none { background: #e2e8f0; color: #4a5568; }
-  .footer { position: fixed; bottom: 0; left: 0; right: 0; border-top: 1px solid #e2e8f0; padding: 6px 24px; font-size: 8px; color: #a0aec0; display: flex; justify-content: space-between; }
+  tbody tr:nth-child(even) { background: #f4f4f4; }
+
+  /* ── Nota ── */
+  .nota-cell { text-align: right; font-weight: 600; }
+  .nota-sin { color: #666; font-style: italic; }
+
+  /* ── Pie de página ── */
+  .footer {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    border-top: 1px solid #000;
+    padding: 5px 0;
+    font-size: 8px; color: #333;
+    display: flex; justify-content: space-between;
+  }
   .page-number:after { content: counter(page); }
 </style>
 </head>
 <body>
 <div class="header">
-  <h1>📊 Reporte de Rendimiento Académico</h1>
-  <p>Sistema de Gestión Universitaria — Generado el {{ now()->format('d/m/Y H:i') }}</p>
+  <div class="header-inst">Sistema de Gestión Universitaria</div>
+  <div class="header-report">Reporte de Rendimiento Académico</div>
+  <div class="header-meta">Generado el {{ now()->format('d/m/Y \a \l\a\s H:i') }}</div>
 </div>
 
 <table>
@@ -45,31 +62,24 @@
     </tr>
   </thead>
   <tbody>
-    @foreach($data as $row)
+    @forelse($data as $row)
     <tr>
-      @foreach($row as $i => $celda)
-        @if($i === 5)
-          <td>
-            @if($celda === 'Sin notas')
-              <span class="badge badge-none">{{ $celda }}</span>
-            @elseif((float)$celda >= 51)
-              <span class="badge badge-ok">{{ $celda }}</span>
-            @else
-              <span class="badge badge-warn">{{ $celda }}</span>
-            @endif
-          </td>
-        @else
-          <td>{{ $celda ?? '—' }}</td>
-        @endif
-      @endforeach
+      <td>{{ $row[0] }}</td>
+      <td class="nota-cell">{{ $row[1] }}</td>
+      <td>{{ $row[2] }}</td>
+      <td>{{ $row[3] }}</td>
+      <td class="nota-cell">{{ $row[4] }}</td>
+      <td class="nota-cell {{ $row[5] === 'Sin notas' ? 'nota-sin' : '' }}">{{ $row[5] }}</td>
     </tr>
-    @endforeach
+    @empty
+    <tr><td colspan="{{ count($headings) }}" style="text-align:center;padding:20px;color:#666;">Sin resultados.</td></tr>
+    @endforelse
   </tbody>
 </table>
 
 <div class="footer">
   <span>Universidad — Documento Confidencial</span>
-  <span>Página <span class="page-number"></span></span>
+  <span>Pág. <span class="page-number"></span></span>
 </div>
 </body>
 </html>

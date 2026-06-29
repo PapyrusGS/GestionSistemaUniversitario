@@ -35,12 +35,19 @@ class ReporteController extends Controller
         $materias = Materia::where('estado', 1)->get(['idMateria', 'nombre', 'semestre']);
         $carreras = Carrera::where('estado', 1)->get(['idCarrera', 'nombre']);
         $periodos = Periodo::where('estado', 1)->orderByDesc('idPeriodo')->get(['idPeriodo', 'nombre']);
+        
+        $docentes = User::where('estado', 1)
+            ->whereHas('rol', fn ($q) => $q->where('nombre', 'Docente'))
+            ->get()->map(function($d) {
+                return ['idDocente' => $d->idUsuario, 'nombre' => trim("{$d->nombre1} {$d->apellido1} {$d->apellido2}")];
+            });
 
         return response()->json([
             'cursos'   => $cursos,
             'materias' => $materias,
             'carreras' => $carreras,
             'periodos' => $periodos,
+            'docentes' => $docentes,
         ]);
     }
 
@@ -220,7 +227,7 @@ class ReporteController extends Controller
             return Excel::download(new ReporteExport($payload['data'], $payload['headings']), 'rendimiento.xlsx');
         }
         $pdf = Pdf::loadView('reportes.rendimiento_pdf', ['headings' => $payload['headings'], 'data' => $payload['data']]);
-        return $pdf->setPaper('a4', 'landscape')->download('rendimiento.pdf');
+        return $pdf->setPaper('letter', 'portrait')->download('rendimiento.pdf');
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -319,7 +326,7 @@ class ReporteController extends Controller
             'historial' => $result['historial'],
             'fecha'     => now()->format('d/m/Y H:i'),
         ]);
-        return $pdf->download("kardex_{$ci}.pdf");
+        return $pdf->setPaper('letter', 'portrait')->download("kardex_{$ci}.pdf");
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -346,7 +353,7 @@ class ReporteController extends Controller
             $a->fecha_a?->format('Y-m-d H:i:s') ?? '—',
             $a->usuarioResponsable?->nombreCompleto ?? 'Sistema',
             match ($a->accion) {
-                'I' => 'Inserción',
+                'C' => 'Creación',
                 'U' => 'Actualización',
                 'D' => 'Eliminación',
                 default => $a->accion ?? '—',
@@ -379,7 +386,7 @@ class ReporteController extends Controller
             return Excel::download(new ReporteExport($payload['data'], $payload['headings']), 'auditoria_notas.xlsx');
         }
         $pdf = Pdf::loadView('reportes.auditoria_pdf', ['headings' => $payload['headings'], 'data' => $payload['data']]);
-        return $pdf->setPaper('a4', 'landscape')->download('auditoria_notas.pdf');
+        return $pdf->setPaper('letter', 'portrait')->download('auditoria_notas.pdf');
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -389,6 +396,7 @@ class ReporteController extends Controller
     private function buildOcupacionData(Request $request): array
     {
         $idPeriodo = $request->query('idPeriodo');
+        $idCarrera = $request->query('idCarrera');
 
         $query = CursoMateria::query()
             ->with(['curso', 'materia', 'docente', 'periodo'])
@@ -399,6 +407,12 @@ class ReporteController extends Controller
 
         if ($idPeriodo) {
             $query->where('cursos_materias.idPeriodo', $idPeriodo);
+        }
+        
+        if ($idCarrera) {
+            $query->whereHas('materia', function ($q) use ($idCarrera) {
+                $q->where('idCarrera', $idCarrera);
+            });
         }
 
         $resultados = $query->get();
@@ -447,6 +461,108 @@ class ReporteController extends Controller
             return Excel::download(new ReporteExport($payload['data'], $payload['headings']), 'ocupacion_cursos.xlsx');
         }
         $pdf = Pdf::loadView('reportes.ocupacion_pdf', ['headings' => $payload['headings'], 'data' => $payload['data']]);
-        return $pdf->setPaper('a4', 'landscape')->download('ocupacion_cursos.pdf');
+        return $pdf->setPaper('letter', 'portrait')->download('ocupacion_cursos.pdf');
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // REPORTE 5: HORARIO DE DOCENTE
+    // ──────────────────────────────────────────────────────────────────────────
+
+    private function buildHorarioDocenteData(Request $request): array
+    {
+        $idDocente = $request->query('idDocente');
+        $idPeriodo = $request->query('idPeriodo');
+
+        if (!$idDocente) {
+            return ['error' => 'Debe seleccionar un docente.'];
+        }
+
+        $docente = User::where('idUsuario', $idDocente)
+            ->whereHas('rol', fn ($q) => $q->where('nombre', 'Docente'))
+            ->first();
+
+        if (!$docente) {
+            return ['error' => 'Docente no encontrado.'];
+        }
+
+        $query = CursoMateria::with(['materia', 'curso.horarios', 'periodo'])
+            ->where('idDocente', $idDocente)
+            ->where('cursos_materias.estado', 1);
+
+        if ($idPeriodo) {
+            $query->where('cursos_materias.idPeriodo', $idPeriodo);
+        }
+
+        $cursosMaterias = $query->get();
+
+        $diasSemana = [
+            1 => 'Lunes', 2 => 'Martes', 3 => 'Miércoles',
+            4 => 'Jueves', 5 => 'Viernes', 6 => 'Sábado', 7 => 'Domingo'
+        ];
+
+        $data = [];
+        foreach ($cursosMaterias as $cm) {
+            $horariosFormateados = [];
+            foreach (($cm->curso?->horarios ?? []) as $h) {
+                $dia = $diasSemana[$h->diaSemana] ?? $h->diaSemana;
+                $inicio = substr($h->horaInicio, 0, 5);
+                $fin = substr($h->horaFin, 0, 5);
+                $horariosFormateados[] = "{$dia} {$inicio}-{$fin}";
+            }
+
+            $data[] = [
+                $cm->periodo ? $cm->periodo->nombre : 'Sin periodo',
+                $cm->materia ? $cm->materia->nombre : 'N/A',
+                $cm->curso ? $cm->curso->idCurso : 'N/A',
+                empty($horariosFormateados) ? 'Sin horario asignado' : implode("\n", $horariosFormateados)
+            ];
+        }
+
+        $headings = ['Periodo', 'Materia', 'Curso', 'Horarios Asignados'];
+        return ['headings' => $headings, 'data' => collect($data), 'docente' => $docente];
+    }
+
+    public function reporteHorarioDocente(Request $request): JsonResponse
+    {
+        $payload = $this->buildHorarioDocenteData($request);
+        
+        if (isset($payload['error'])) {
+            return response()->json(['message' => $payload['error']], 400);
+        }
+
+        if ($payload['data']->isEmpty()) {
+            return response()->json(['message' => 'El docente no tiene clases asignadas en este periodo.', 'headings' => $payload['headings'], 'data' => []], 200);
+        }
+
+        return response()->json([
+            'docente' => $payload['docente']->nombreCompleto,
+            'headings' => $payload['headings'],
+            'data' => $payload['data']
+        ]);
+    }
+
+    public function exportarHorarioDocente(Request $request)
+    {
+        $payload = $this->buildHorarioDocenteData($request);
+
+        if (isset($payload['error'])) {
+            return response()->json(['message' => $payload['error']], 400);
+        }
+
+        if ($payload['data']->isEmpty()) {
+            return response()->json(['message' => 'Sin datos para exportar.'], 404);
+        }
+
+        if ($request->query('formato') === 'excel') {
+            return Excel::download(new ReporteExport($payload['data'], $payload['headings']), 'horario_docente.xlsx');
+        }
+
+        $pdf = Pdf::loadView('reportes.horario_docente_pdf', [
+            'docente' => $payload['docente']->nombreCompleto,
+            'headings' => $payload['headings'],
+            'data' => $payload['data'],
+            'fecha' => now()->format('d/m/Y H:i')
+        ]);
+        return $pdf->setPaper('letter', 'portrait')->download('horario_docente.pdf');
     }
 }

@@ -96,6 +96,34 @@
               <option v-for="p in listadoPeriodos" :key="p.idPeriodo" :value="p.idPeriodo">{{ p.nombre }}</option>
             </select>
           </div>
+          <div class="ra-filter-group">
+            <label class="ra-label" for="sel-carrera-ocup">Carrera</label>
+            <select id="sel-carrera-ocup" v-model="filtrosOcupacion.idCarrera" class="ra-select">
+              <option value="">Todas las carreras</option>
+              <option v-for="c in listadoCarreras" :key="c.idCarrera" :value="c.idCarrera">{{ c.nombre }}</option>
+            </select>
+          </div>
+        </div>
+      </template>
+
+      <!-- ── Tab: Horario ── -->
+      <template v-else-if="activeTab === 'horario'">
+        <p class="ra-section-label">Filtros — Horario de Docente</p>
+        <div class="ra-filters">
+          <div class="ra-filter-group">
+            <label class="ra-label" for="sel-docente-hor">Docente</label>
+            <select id="sel-docente-hor" v-model="filtrosHorario.idDocente" class="ra-select">
+              <option value="" disabled>Selecciona un docente</option>
+              <option v-for="d in listadoDocentes" :key="d.idDocente" :value="d.idDocente">{{ d.nombre }}</option>
+            </select>
+          </div>
+          <div class="ra-filter-group">
+            <label class="ra-label" for="sel-periodo-hor">Período Académico</label>
+            <select id="sel-periodo-hor" v-model="filtrosHorario.idPeriodo" class="ra-select">
+              <option value="">Todos los períodos</option>
+              <option v-for="p in listadoPeriodos" :key="p.idPeriodo" :value="p.idPeriodo">{{ p.nombre }}</option>
+            </select>
+          </div>
         </div>
       </template>
 
@@ -272,6 +300,31 @@
       </div>
     </div>
 
+    <!-- ── Tabla Horario Docente ─────────────────────────────────────────── -->
+    <template v-if="activeTab === 'horario' && resultHorario.data.length > 0">
+      <div class="ra-kardex-card">
+        <div class="ra-kardex-field">
+          <span class="ra-kardex-label">Docente</span>
+          <span class="ra-kardex-value">{{ resultHorario.docente }}</span>
+        </div>
+      </div>
+      <div class="ra-table-wrap">
+        <div class="ra-table-scroll">
+          <table class="ra-table">
+            <thead><tr><th v-for="(h, i) in resultHorario.headings" :key="i">{{ h }}</th></tr></thead>
+            <tbody>
+              <tr v-for="(row, i) in resultHorario.data" :key="i">
+                <td>{{ row[0] }}</td>
+                <td>{{ row[1] }}</td>
+                <td>{{ row[2] }}</td>
+                <td style="white-space: pre-wrap;">{{ row[3] }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </template>
+
   </div>
 </template>
 
@@ -288,6 +341,7 @@ const tabs = [
   { id: 'kardex',      label: 'Kárdex',       icon: '🎓' },
   { id: 'auditoria',   label: 'Auditoría',    icon: '🔍' },
   { id: 'ocupacion',   label: 'Ocupación',    icon: '📋' },
+  { id: 'horario',     label: 'Horario Docente', icon: '⏰' },
 ];
 const activeTab = ref('rendimiento');
 
@@ -298,23 +352,26 @@ const successMessage = ref('');
 const errorMessage   = ref('');
 const infoMessage    = ref('');
 
-const searched = reactive({ rendimiento: false, kardex: false, auditoria: false, ocupacion: false });
+const searched = reactive({ rendimiento: false, kardex: false, auditoria: false, ocupacion: false, horario: false });
 
 // ── Listas de opciones ───────────────────────────────────────────────────────
 const listadoPeriodos = ref([]);
 const listadoCarreras = ref([]);
+const listadoDocentes = ref([]);
 
 // ── Filtros por tab ──────────────────────────────────────────────────────────
 const filtrosRendimiento = reactive({ idPeriodo: '', idCarrera: '' });
 const filtrosKardex      = reactive({ ci: '' });
 const filtrosAuditoria   = reactive({ fecha_desde: '', fecha_hasta: '' });
-const filtrosOcupacion   = reactive({ idPeriodo: '' });
+const filtrosOcupacion   = reactive({ idPeriodo: '', idCarrera: '' });
+const filtrosHorario     = reactive({ idDocente: '', idPeriodo: '' });
 
 // ── Resultados por tab ───────────────────────────────────────────────────────
 const resultRendimiento = reactive({ headings: [], data: [] });
 const resultKardex      = reactive({ cabecera: null, historial: [] });
 const resultAuditoria   = reactive({ headings: [], data: [] });
 const resultOcupacion   = reactive({ headings: [], data: [] });
+const resultHorario     = reactive({ docente: '', headings: [], data: [] });
 
 // ── Cantidad de filas del tab activo ────────────────────────────────────────
 const currentRowCount = computed(() => {
@@ -322,6 +379,7 @@ const currentRowCount = computed(() => {
   if (activeTab.value === 'kardex')      return resultKardex.historial.length;
   if (activeTab.value === 'auditoria')   return resultAuditoria.data.length;
   if (activeTab.value === 'ocupacion')   return resultOcupacion.data.length;
+  if (activeTab.value === 'horario')     return resultHorario.data.length;
   return 0;
 });
 
@@ -345,6 +403,7 @@ onMounted(async () => {
     const { data } = await props.api.get('/reportes/filtros');
     listadoPeriodos.value = data.periodos || [];
     listadoCarreras.value = data.carreras || [];
+    listadoDocentes.value = data.docentes || [];
   } catch (e) {
     console.error('Error cargando filtros', e);
   }
@@ -383,9 +442,20 @@ const cargarReporte = async () => {
     } else if (activeTab.value === 'ocupacion') {
       const params = new URLSearchParams();
       if (filtrosOcupacion.idPeriodo) params.append('idPeriodo', filtrosOcupacion.idPeriodo);
+      if (filtrosOcupacion.idCarrera) params.append('idCarrera', filtrosOcupacion.idCarrera);
       const { data } = await props.api.get(`/reportes/ocupacion?${params}`);
       resultOcupacion.headings = data.headings || [];
       resultOcupacion.data     = data.data     || [];
+
+    } else if (activeTab.value === 'horario') {
+      if (!filtrosHorario.idDocente) { flash('error', 'Debes seleccionar un docente.'); loading.value = false; return; }
+      const params = new URLSearchParams();
+      params.append('idDocente', filtrosHorario.idDocente);
+      if (filtrosHorario.idPeriodo) params.append('idPeriodo', filtrosHorario.idPeriodo);
+      const { data } = await props.api.get(`/reportes/horario-docente?${params}`);
+      resultHorario.docente  = data.docente  || '';
+      resultHorario.headings = data.headings || [];
+      resultHorario.data     = data.data     || [];
     }
 
     if (currentRowCount.value > 0) flash('success', 'Reporte generado correctamente.');
@@ -428,7 +498,14 @@ const exportar = async (formato) => {
     } else if (activeTab.value === 'ocupacion') {
       const p = new URLSearchParams({ formato });
       if (filtrosOcupacion.idPeriodo) p.append('idPeriodo', filtrosOcupacion.idPeriodo);
+      if (filtrosOcupacion.idCarrera) p.append('idCarrera', filtrosOcupacion.idCarrera);
       url = `/reportes/ocupacion/exportar?${p}`;
+
+    } else if (activeTab.value === 'horario') {
+      const p = new URLSearchParams({ formato });
+      p.append('idDocente', filtrosHorario.idDocente);
+      if (filtrosHorario.idPeriodo) p.append('idPeriodo', filtrosHorario.idPeriodo);
+      url = `/reportes/horario-docente/exportar?${p}`;
     }
 
     const accept = formato === 'pdf'
