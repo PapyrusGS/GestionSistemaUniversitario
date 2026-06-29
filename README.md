@@ -22,8 +22,14 @@ Sigue estos pasos para levantar el entorno de la API:
     ```
 
 2.  **Instalar dependencias de PHP:**
+    Ejecuta el siguiente comando para instalar todas las dependencias del proyecto (incluyendo las librerías para la generación de reportes en PDF y Excel):
     ```bash
     composer install
+    ```
+    *Nota: Si por alguna razón necesitas instalar o reinstalar de forma manual las dependencias específicas de reportes, puedes ejecutar:*
+    ```bash
+    composer require barryvdh/laravel-dompdf
+    composer require maatwebsite/excel
     ```
 
 3.  **Configurar las variables de entorno:**
