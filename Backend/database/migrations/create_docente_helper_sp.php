@@ -53,7 +53,7 @@ BEGIN
     FROM estudiantemateria em
     INNER JOIN estudiante e ON e.idEstudiante = em.idEstudiante
     INNER JOIN usuarios u ON u.idUsuario = e.idUsuario
-    WHERE em.idCursoMateria = p_idCursoMateria AND em.estado = 'Inscrito';
+    WHERE em.idCursoMateria = p_idCursoMateria AND em.estado = 1;
 END
 SQL);
 
