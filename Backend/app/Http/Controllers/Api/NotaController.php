@@ -103,8 +103,8 @@ class NotaController extends Controller
                 return ApiResponse::error('El parámetro idCursoMateria es requerido.', null, 400);
             }
             
-            // CORRECCIÓN: Llamamos exactamente al procedimiento que creó tu compañero
-            $estudiantes = \Illuminate\Support\Facades\DB::select('CALL sp_curso_estudiantes_listar(?)', [$idCursoMateria]);
+            // Revertido al procedimiento correcto que retorna idInscripcion
+            $estudiantes = \Illuminate\Support\Facades\DB::select('CALL sp_docente_estudiantes(?)', [$idCursoMateria]);
             
             return ApiResponse::success($estudiantes, 'Estudiantes cargados correctamente.');
         } catch (\Throwable $e) {

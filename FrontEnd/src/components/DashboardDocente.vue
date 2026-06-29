@@ -216,15 +216,187 @@ onMounted(obtenerCursos)
 </template>
 
 <style scoped>
+/*<<<<<<< Updated upstream*/
 /* Fade animación */
 .uni-section-body > * { animation: fadeIn .2s ease-out; }
+/*=======*/
+/*<<<<<<< Updated upstream*/
+.mb-4 { margin-bottom: 1.5rem; }
+.txt-right { text-align: right; }
+.font-medium { font-weight: 500; }
+.font-mono { font-family: monospace; font-size: 0.85rem; color: var(--color-mint-dark) !important; }
+.text-muted { color: var(--uni-muted); }
+.text-cyan { color: var(--color-mint-dark); }
+.primary-cell { color: var(--color-black) !important; font-weight: 600; }
+
+.fade-in-view { animation: fadeIn 0.25s ease-out; }
+/*>>>>>>> Stashed changes*/
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/*<<<<<<< Updated upstream*/
 /* CUADRÍCULA DE TARJETAS PARA CURSOS */
 .doc-cards-container {
+/*=======*/
+/* ── Welcome ──────────────────────────────────── */
+.welcome-card {
+  background: var(--color-linen);
+  padding: 1.5rem 2rem;
+}
+}
+/* ESTRUCTURA GENERAL DE 3 COLUMNAS OSCURAS */
+.premium-dashboard-container {
+  display: grid;
+  grid-template-columns: 240px 1fr 280px;
+  width: 100%;
+  height: 100vh;
+  background: #0b0f19;
+  color: #f1f5f9;
+  font-family: system-ui, -apple-system, sans-serif;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* COLUMNA 1: SIDEBAR DE NAVEGACIÓN TRASLÚCIDA */
+.sidebar-navigation {
+  background: rgba(15, 23, 42, 0.6);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 2.5rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+}
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 2.5rem;
+  padding-left: 0.5rem;
+}
+.brand-dot {
+  width: 12px;
+  height: 12px;
+  background: #38bdf8;
+  border-radius: 50%;
+  box-shadow: 0 0 12px #38bdf8;
+}
+.brand-txt {
+  font-weight: 800;
+  font-size: 0.9rem;
+  letter-spacing: 0.15em;
+  color: #f8fafc;
+}
+.sidebar-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.sidebar-menu button {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.8rem 1rem;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.sidebar-menu button:hover {
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.03);
+}
+.sidebar-menu button.active {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.08);
+}
+.menu-icon {
+  width: 18px;
+  height: 18px;
+}
+.sidebar-footer {
+  margin-top: auto;
+}
+.btn-logout-minimal {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.8rem 1rem;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: #ef4444;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: all 0.2s;
+}
+.btn-logout-minimal:hover {
+  background: rgba(239, 68, 68, 0.05);
+  opacity: 1;
+}
+
+/* COLUMNA 2: MAIN WORKSPACE CENTRAL */
+.main-workspace {
+  padding: 2.5rem 3rem;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  background: #0f172a;
+  min-height: 0;
+}
+.workspace-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2.5rem;
+}
+.context-path {
+  font-size: 0.75rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.workspace-topbar h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-top: 0.25rem;
+  color: #f8fafc;
+}
+
+/* CARDS DE BIENVENIDA E INDICADORES */
+.welcome-banner {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.4));
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 2rem;
+/* >>>>>>> Stashed changes */
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+}
+.welcome-card h3 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.25rem;
+  margin: 0 0 0.4rem;
+  color: var(--color-black);
+}
+.welcome-card p {
+  color: var(--uni-muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ── Metric cards ─────────────────────────────── */
+.docente-cards-grid {
+/*>>>>>>> Stashed changes*/
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1.5rem;

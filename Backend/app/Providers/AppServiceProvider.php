@@ -11,6 +11,7 @@ use App\Repositories\Contracts\NotaRepositoryInterface;
 use App\Repositories\Contracts\PeriodoRepositoryInterface;
 use App\Repositories\Contracts\RendimientoRepositoryInterface;
 use App\Repositories\Contracts\ReporteNotasRepositoryInterface;
+use App\Repositories\Contracts\ReporteDocenteRepositoryInterface;
 use App\Repositories\Contracts\RoleRepositoryInterface;
 use App\Repositories\Contracts\StudentRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
@@ -23,6 +24,7 @@ use App\Repositories\Eloquent\EloquentNotaRepository;
 use App\Repositories\Eloquent\EloquentPeriodoRepository;
 use App\Repositories\Eloquent\EloquentRendimientoRepository;
 use App\Repositories\Eloquent\EloquentReporteNotasRepository;
+use App\Repositories\Eloquent\EloquentReporteDocenteRepository;
 use App\Repositories\Eloquent\EloquentRoleRepository;
 use App\Repositories\Eloquent\EloquentStudentRepository;
 use App\Repositories\Eloquent\EloquentUserRepository;
@@ -49,6 +51,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(NotaRepositoryInterface::class, EloquentNotaRepository::class);
         $this->app->bind(RendimientoRepositoryInterface::class, EloquentRendimientoRepository::class);
         $this->app->bind(ReporteNotasRepositoryInterface::class, EloquentReporteNotasRepository::class);
+        $this->app->bind(ReporteDocenteRepositoryInterface::class, EloquentReporteDocenteRepository::class);
         $this->app->bind(ProfileRepositoryInterface::class,EloquentProfileRepository::class);
     }
 

@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 
 const props = defineProps({
   user: Object,
-  api: Object,
+  api: [Object, Function],
   badgeTone: String
 })
 

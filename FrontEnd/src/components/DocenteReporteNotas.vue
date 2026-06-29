@@ -3,20 +3,35 @@ import { ref, onMounted } from 'vue'
 
 const props = defineProps({
   user: Object,
-  api: Object,
+  api: [Object, Function],
   badgeTone: String
 })
 
-// ── Estado principal ─────────────────────────────────────────────────────────
+// ── Pestaña activa ───────────────────────────────────────────────────────────
+const tabActiva = ref('curso')
+
+// ── Estado global ────────────────────────────────────────────────────────────
 const loading = ref(false)
 const exportingPdf = ref(false)
 const exportingExcel = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 
+// ── HU-DOC-07: Reporte por Curso ─────────────────────────────────────────────
 const cursos = ref([])
 const idCursoMateria = ref('')
 const reportData = ref(null)
+
+// ── HU-DOC-08: Reporte por Semestre ──────────────────────────────────────────
+const periodos = ref([])
+const idPeriodoSemestre = ref('')
+const reportSemestre = ref(null)
+
+// ── HU-DOC-10: Estadísticas ─────────────────────────────────────────────────
+const materias = ref([])
+const idPeriodoEstadistica = ref('')
+const idMateriaEstadistica = ref('')
+const reportEstadisticas = ref(null)
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function resetMessages() {
@@ -24,7 +39,18 @@ function resetMessages() {
   successMessage.value = ''
 }
 
-// ── Cargar cursos (reutilizando el endpoint estándar) ─────────────────────────
+function cambiarTab(tab) {
+  tabActiva.value = tab
+  resetMessages()
+  // Limpiar resultados al cambiar de tab
+  reportData.value = null
+  reportSemestre.value = null
+  reportEstadisticas.value = null
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// HU-DOC-07: REPORTE POR CURSO (lógica existente)
+// ════════════════════════════════════════════════════════════════════════════════
 async function cargarCursos() {
   loading.value = true
   resetMessages()
@@ -38,7 +64,6 @@ async function cargarCursos() {
   }
 }
 
-// ── Obtener reporte JSON ──────────────────────────────────────────────────────
 async function generarReporte() {
   if (!idCursoMateria.value) {
     errorMessage.value = 'Debe seleccionar un curso primero.'
@@ -65,7 +90,6 @@ async function generarReporte() {
   }
 }
 
-// ── Descarga de Archivos Binarios (Blob) ──────────────────────────────────────
 async function exportarReporte(tipo) {
   if (!idCursoMateria.value) return
 
@@ -80,7 +104,6 @@ async function exportarReporte(tipo) {
       responseType: 'blob'
     })
 
-    // Leer encabezado Content-Disposition para nombre del archivo
     const disposition = response.headers['content-disposition']
     let filename = `reporte_notas_curso_${idCursoMateria.value}.${isPdf ? 'pdf' : 'csv'}`
     
@@ -92,7 +115,6 @@ async function exportarReporte(tipo) {
       }
     }
 
-    // Crear Blob y disparar descarga nativa directa sin abrir pestañas nuevas
     const blob = new Blob([response.data], { type: response.headers['content-type'] })
     const link = document.createElement('a')
     link.href = window.URL.createObjectURL(blob)
@@ -100,13 +122,184 @@ async function exportarReporte(tipo) {
     document.body.appendChild(link)
     link.click()
     
-    // Liberación de recursos de memoria
     document.body.removeChild(link)
     window.URL.revokeObjectURL(link.href)
 
     successMessage.value = `Archivo ${isPdf ? 'PDF' : 'CSV (Excel)'} descargado correctamente.`
   } catch (error) {
     errorMessage.value = `Error al exportar el reporte a ${isPdf ? 'PDF' : 'Excel'}.`
+  } finally {
+    if (isPdf) exportingPdf.value = false
+    else exportingExcel.value = false
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// FILTROS COMPARTIDOS (HU-DOC-08 y HU-DOC-10)
+// ════════════════════════════════════════════════════════════════════════════════
+let filtrosCargados = false
+
+async function cargarFiltros() {
+  if (filtrosCargados) return
+  loading.value = true
+  resetMessages()
+  try {
+    const { data } = await props.api.get('/docente/reportes/filtros')
+    const filtros = data.data ?? data
+    periodos.value = filtros.periodos ?? []
+    materias.value = filtros.materias ?? []
+    filtrosCargados = true
+  } catch {
+    errorMessage.value = 'No se pudieron cargar los filtros de reportes.'
+  } finally {
+    loading.value = false
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// HU-DOC-08: REPORTE POR SEMESTRE
+// ════════════════════════════════════════════════════════════════════════════════
+async function generarReporteSemestre() {
+  if (!idPeriodoSemestre.value) {
+    errorMessage.value = 'Debe seleccionar un semestre primero.'
+    return
+  }
+
+  loading.value = true
+  resetMessages()
+  reportSemestre.value = null
+
+  try {
+    const { data } = await props.api.get(`/docente/reportes/semestre/${idPeriodoSemestre.value}`)
+    reportSemestre.value = data.data ?? data
+    if (reportSemestre.value?.rows?.length === 0) {
+      successMessage.value = 'No hay datos disponibles para el semestre seleccionado.'
+    } else {
+      successMessage.value = 'Reporte semestral generado con éxito.'
+    }
+  } catch (error) {
+    const d = error.response?.data
+    errorMessage.value = d?.message || 'Error al generar el reporte semestral.'
+  } finally {
+    loading.value = false
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════════
+// HU-DOC-10: ESTADÍSTICAS DE APROBACIÓN
+// ════════════════════════════════════════════════════════════════════════════════
+async function generarEstadisticas() {
+  loading.value = true
+  resetMessages()
+  reportEstadisticas.value = null
+
+  try {
+    const params = {}
+    if (idPeriodoEstadistica.value) params.idPeriodo = idPeriodoEstadistica.value
+    if (idMateriaEstadistica.value) params.idMateria = idMateriaEstadistica.value
+
+    const { data } = await props.api.get('/docente/reportes/estadisticas', { params })
+    reportEstadisticas.value = data.data ?? data
+    if (reportEstadisticas.value?.rows?.length === 0) {
+      successMessage.value = 'No hay datos estadísticos para los filtros seleccionados.'
+    } else {
+      successMessage.value = 'Estadísticas generadas correctamente.'
+    }
+  } catch (error) {
+    const d = error.response?.data
+    errorMessage.value = d?.message || 'Error al generar las estadísticas.'
+  } finally {
+    loading.value = false
+  }
+}
+
+// ── Exportar Semestre a PDF/Excel ──────────────────────────────────────────
+async function exportarReporteSemestre(tipo) {
+  if (!idPeriodoSemestre.value) return
+
+  const isPdf = tipo === 'pdf'
+  if (isPdf) exportingPdf.value = true
+  else exportingExcel.value = true
+
+  resetMessages()
+
+  try {
+    const response = await props.api.get(`/docente/reportes/semestre/${idPeriodoSemestre.value}/${tipo}`, {
+      responseType: 'blob'
+    })
+
+    const disposition = response.headers['content-disposition']
+    let filename = `reporte_notas_semestre_${idPeriodoSemestre.value}.${isPdf ? 'pdf' : 'csv'}`
+    
+    if (disposition && disposition.indexOf('attachment') !== -1) {
+      const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/
+      const matches = filenameRegex.exec(disposition)
+      if (matches != null && matches[1]) { 
+        filename = matches[1].replace(/['"]/g, '')
+      }
+    }
+
+    const blob = new Blob([response.data], { type: response.headers['content-type'] })
+    const link = document.createElement('a')
+    link.href = window.URL.createObjectURL(blob)
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(link.href)
+
+    successMessage.value = `Archivo ${isPdf ? 'PDF' : 'CSV (Excel)'} descargado correctamente.`
+  } catch (error) {
+    errorMessage.value = `Error al exportar el reporte semestral a ${isPdf ? 'PDF' : 'Excel'}.`
+  } finally {
+    if (isPdf) exportingPdf.value = false
+    else exportingExcel.value = false
+  }
+}
+
+// ── Exportar Estadísticas a PDF/Excel ──────────────────────────────────────
+async function exportarEstadisticas(tipo) {
+  const isPdf = tipo === 'pdf'
+  if (isPdf) exportingPdf.value = true
+  else exportingExcel.value = true
+
+  resetMessages()
+
+  try {
+    const params = {}
+    if (idPeriodoEstadistica.value) params.idPeriodo = idPeriodoEstadistica.value
+    if (idMateriaEstadistica.value) params.idMateria = idMateriaEstadistica.value
+
+    const response = await props.api.get(`/docente/reportes/estadisticas/${tipo}`, {
+      params,
+      responseType: 'blob'
+    })
+
+    const disposition = response.headers['content-disposition']
+    let filename = `reporte_estadisticas_aprobacion.${isPdf ? 'pdf' : 'csv'}`
+    
+    if (disposition && disposition.indexOf('attachment') !== -1) {
+      const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/
+      const matches = filenameRegex.exec(disposition)
+      if (matches != null && matches[1]) { 
+        filename = matches[1].replace(/['"]/g, '')
+      }
+    }
+
+    const blob = new Blob([response.data], { type: response.headers['content-type'] })
+    const link = document.createElement('a')
+    link.href = window.URL.createObjectURL(blob)
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(link.href)
+
+    successMessage.value = `Estadísticas exportadas a ${isPdf ? 'PDF' : 'CSV (Excel)'} correctamente.`
+  } catch (error) {
+    errorMessage.value = `Error al exportar las estadísticas a ${isPdf ? 'PDF' : 'Excel'}.`
   } finally {
     if (isPdf) exportingPdf.value = false
     else exportingExcel.value = false
@@ -123,152 +316,486 @@ onMounted(cargarCursos)
     <div class="workspace-topbar">
       <div class="topbar-left">
         <span class="context-path">Docentes / Reportes</span>
-        <h2>Reporte de Notas por Curso</h2>
-        <p class="subtitle-text">Generación y exportación de reportes académicos oficiales</p>
+        <h2>Centro de Reportes Académicos</h2>
+        <p class="subtitle-text">Generación y análisis de reportes académicos del docente</p>
       </div>
+    </div>
+
+    <!-- ═══ BARRA DE PESTAÑAS ═══ -->
+    <div class="report-tabs mb-4">
+      <button class="report-tab" :class="{ active: tabActiva === 'curso' }"
+              @click="cambiarTab('curso')">
+        📊 Por Curso
+      </button>
+      <button class="report-tab" :class="{ active: tabActiva === 'semestre' }"
+              @click="cambiarTab('semestre'); cargarFiltros()">
+        📅 Por Semestre
+      </button>
+      <button class="report-tab" :class="{ active: tabActiva === 'estadisticas' }"
+              @click="cambiarTab('estadisticas'); cargarFiltros()">
+        📈 Estadísticas
+      </button>
     </div>
 
     <!-- Alerts -->
     <div v-if="successMessage" class="alert-inline success mb-4">{{ successMessage }}</div>
     <div v-if="errorMessage"   class="alert-inline error mb-4">{{ errorMessage }}</div>
 
-    <!-- Filtros de Generación -->
-    <section class="card-panel mb-4">
-      <div class="panel-header">
-        <h4>Panel de Control del Reporte</h4>
-      </div>
-      <div class="generation-bar">
-        <div class="selector-field">
-          <label>
-            <span>Seleccione Curso *</span>
-            <select v-model="idCursoMateria" :disabled="loading || exportingPdf || exportingExcel">
-              <option value="" disabled>Seleccione un curso asignado</option>
-              <option v-for="curso in cursos" :key="curso.idCursoMateria" :value="curso.idCursoMateria">
-                {{ curso.materia_nombre }} — {{ curso.turno_nombre }}
-              </option>
-            </select>
-          </label>
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- TAB 1: POR CURSO (HU-DOC-07 — lógica existente) -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <template v-if="tabActiva === 'curso'">
+
+      <!-- Filtros de Generación -->
+      <section class="card-panel mb-4">
+        <div class="panel-header">
+          <h4>Panel de Control del Reporte</h4>
         </div>
-        <button class="primary-btn shrink-btn" @click="generarReporte"
-                :disabled="!idCursoMateria || loading || exportingPdf || exportingExcel">
-          <span v-if="loading">Generando...</span>
-          <span v-else>📊 Generar Reporte</span>
-        </button>
-      </div>
-    </section>
-
-    <!-- Indicador de Carga -->
-    <div v-if="loading" class="spinner-container">
-      <div class="loading-spinner"></div>
-      <span class="loading-text">Cargando reporte de notas...</span>
-    </div>
-
-    <!-- Resultados del Reporte -->
-    <div v-else-if="reportData" class="fade-in-view">
-
-      <!-- Cards de Resumen Académico -->
-      <div class="dashboard-cards-grid mb-4">
-        
-        <!-- Total Estudiantes -->
-        <div class="metric-card card-blue">
-          <div class="metric-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-              <circle cx="9" cy="7" r="4"></circle>
-            </svg>
+        <div class="generation-bar">
+          <div class="selector-field">
+            <label>
+              <span>Seleccione Curso *</span>
+              <select v-model="idCursoMateria" :disabled="loading || exportingPdf || exportingExcel">
+                <option value="" disabled>Seleccione un curso asignado</option>
+                <option v-for="curso in cursos" :key="curso.idCursoMateria" :value="curso.idCursoMateria">
+                  {{ curso.materia_nombre }} — {{ curso.turno_nombre }}
+                </option>
+              </select>
+            </label>
           </div>
-          <div class="metric-info">
-            <span class="lbl">Total Estudiantes</span>
-            <strong class="val">{{ reportData.summary.total_estudiantes }} alumnos</strong>
-          </div>
-        </div>
-
-        <!-- Evaluados / Con Calificación -->
-        <div class="metric-card card-green">
-          <div class="metric-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-              <polyline points="22 4 12 14.01 9 11.01"></polyline>
-            </svg>
-          </div>
-          <div class="metric-info">
-            <span class="lbl">Evaluados</span>
-            <strong class="val">{{ reportData.summary.total_con_nota }} calificados</strong>
-          </div>
-        </div>
-
-        <!-- Promedio General -->
-        <div class="metric-card card-purple">
-          <div class="metric-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-            </svg>
-          </div>
-          <div class="metric-info">
-            <span class="lbl">Promedio General</span>
-            <strong class="val">{{ Number(reportData.summary.promedio_general).toFixed(2) }} pts</strong>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- Tabla de Estudiantes e Inscripciones -->
-      <section class="table-card-wrapper mb-4">
-        <div class="table-card-header flex-header">
-          <h4>Listado de Calificaciones</h4>
-          
-          <!-- Botones de Exportación Real -->
-          <div class="export-actions" v-if="reportData.rows.length > 0">
-            <button class="export-btn btn-pdf" @click="exportarReporte('pdf')" :disabled="exportingPdf || exportingExcel">
-              <span v-if="exportingPdf">Generando PDF...</span>
-              <span v-else>📄 Exportar PDF</span>
-            </button>
-            <button class="export-btn btn-excel" @click="exportarReporte('excel')" :disabled="exportingPdf || exportingExcel">
-              <span v-if="exportingExcel">Generando Excel...</span>
-              <span v-else>🟢 Exportar Excel</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="table-responsive">
-          <table class="workspace-table">
-            <thead>
-              <tr>
-                <th style="width: 15%;">ID Inscripción</th>
-                <th>Estudiante</th>
-                <th class="txt-center" style="width: 15%;">Calificación</th>
-                <th class="txt-center" style="width: 25%;">Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="row in reportData.rows" :key="row.idInscripcion">
-                <td class="font-mono">{{ row.idInscripcion }}</td>
-                <td class="primary-cell font-medium">{{ row.nombreCompleto }}</td>
-                <td class="font-medium txt-center font-mono">
-                  {{ row.nota !== null ? Number(row.nota).toFixed(1) : '-' }}
-                </td>
-                <td class="txt-center">
-                  <span class="badge-state" :class="row.estadoAcademico.toLowerCase().replace(' ', '-')">
-                    {{ row.estadoAcademico }}
-                  </span>
-                </td>
-              </tr>
-              <tr v-if="reportData.rows.length === 0">
-                <td colspan="4" class="empty-table-msg">
-                  ⚠️ No existen estudiantes o calificaciones para visualizar en este curso.
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <button class="primary-btn shrink-btn" @click="generarReporte"
+                  :disabled="!idCursoMateria || loading || exportingPdf || exportingExcel">
+            <span v-if="loading">Generando...</span>
+            <span v-else>📊 Generar Reporte</span>
+          </button>
         </div>
       </section>
 
-    </div>
+      <!-- Indicador de Carga -->
+      <div v-if="loading" class="spinner-container">
+        <div class="loading-spinner"></div>
+        <span class="loading-text">Cargando reporte de notas...</span>
+      </div>
 
-    <!-- Pantalla Inicial de Espera -->
-    <div v-else class="card-panel text-center-msg">
-      <p class="text-muted">Por favor, seleccione un curso de la barra superior y pulse "Generar Reporte".</p>
-    </div>
+      <!-- Resultados del Reporte -->
+      <div v-else-if="reportData" class="fade-in-view">
+
+        <!-- Cards de Resumen Académico -->
+        <div class="dashboard-cards-grid mb-4">
+          
+          <!-- Total Estudiantes -->
+          <div class="metric-card card-blue">
+            <div class="metric-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+              </svg>
+            </div>
+            <div class="metric-info">
+              <span class="lbl">Total Estudiantes</span>
+              <strong class="val">{{ reportData.summary.total_estudiantes }} alumnos</strong>
+            </div>
+          </div>
+
+          <!-- Evaluados / Con Calificación -->
+          <div class="metric-card card-green">
+            <div class="metric-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+            </div>
+            <div class="metric-info">
+              <span class="lbl">Evaluados</span>
+              <strong class="val">{{ reportData.summary.total_con_nota }} calificados</strong>
+            </div>
+          </div>
+
+          <!-- Promedio General -->
+          <div class="metric-card card-purple">
+            <div class="metric-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+              </svg>
+            </div>
+            <div class="metric-info">
+              <span class="lbl">Promedio General</span>
+              <strong class="val">{{ Number(reportData.summary.promedio_general).toFixed(2) }} pts</strong>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Tabla de Estudiantes e Inscripciones -->
+        <section class="table-card-wrapper mb-4">
+          <div class="table-card-header flex-header">
+            <h4>Listado de Calificaciones</h4>
+            
+            <!-- Botones de Exportación Real -->
+            <div class="export-actions" v-if="reportData.rows.length > 0">
+              <button class="export-btn btn-pdf" @click="exportarReporte('pdf')" :disabled="exportingPdf || exportingExcel">
+                <span v-if="exportingPdf">Generando PDF...</span>
+                <span v-else>📄 Exportar PDF</span>
+              </button>
+              <button class="export-btn btn-excel" @click="exportarReporte('excel')" :disabled="exportingPdf || exportingExcel">
+                <span v-if="exportingExcel">Generando Excel...</span>
+                <span v-else>🟢 Exportar Excel</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="workspace-table">
+              <thead>
+                <tr>
+                  <th style="width: 15%;">ID Inscripción</th>
+                  <th>Estudiante</th>
+                  <th class="txt-center" style="width: 15%;">Calificación</th>
+                  <th class="txt-center" style="width: 25%;">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in reportData.rows" :key="row.idInscripcion">
+                  <td class="font-mono">{{ row.idInscripcion }}</td>
+                  <td class="primary-cell font-medium">{{ row.nombreCompleto }}</td>
+                  <td class="font-medium txt-center font-mono">
+                    {{ row.nota !== null ? Number(row.nota).toFixed(1) : '-' }}
+                  </td>
+                  <td class="txt-center">
+                    <span class="badge-state" :class="row.estadoAcademico.toLowerCase().replace(' ', '-')">
+                      {{ row.estadoAcademico }}
+                    </span>
+                  </td>
+                </tr>
+                <tr v-if="reportData.rows.length === 0">
+                  <td colspan="4" class="empty-table-msg">
+                    ⚠️ No existen estudiantes o calificaciones para visualizar en este curso.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- Pantalla Inicial de Espera (Curso) -->
+      <div v-else class="card-panel text-center-msg">
+        <p class="text-muted">Por favor, seleccione un curso de la barra superior y pulse "Generar Reporte".</p>
+      </div>
+
+    </template>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- TAB 2: POR SEMESTRE (HU-DOC-08) -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <template v-else-if="tabActiva === 'semestre'">
+
+      <!-- Filtro Semestre -->
+      <section class="card-panel mb-4">
+        <div class="panel-header">
+          <h4>Filtro por Semestre Académico</h4>
+        </div>
+        <div class="generation-bar">
+          <div class="selector-field">
+            <label>
+              <span>Seleccione Semestre *</span>
+              <select v-model="idPeriodoSemestre" :disabled="loading">
+                <option value="" disabled>Seleccione un periodo académico</option>
+                <option v-for="p in periodos" :key="p.id" :value="p.id">
+                  {{ p.nombre }}
+                </option>
+              </select>
+            </label>
+          </div>
+          <button class="primary-btn shrink-btn" @click="generarReporteSemestre"
+                  :disabled="!idPeriodoSemestre || loading">
+            <span v-if="loading">Generando...</span>
+            <span v-else>📅 Generar Reporte</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Carga -->
+      <div v-if="loading" class="spinner-container">
+        <div class="loading-spinner"></div>
+        <span class="loading-text">Cargando reporte semestral...</span>
+      </div>
+
+      <!-- Resultados Semestre -->
+      <div v-else-if="reportSemestre" class="fade-in-view">
+
+        <!-- Cards Resumen Semestral -->
+        <div class="dashboard-cards-grid mb-4">
+          <div class="metric-card card-blue">
+            <div class="metric-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+              </svg>
+            </div>
+            <div class="metric-info">
+              <span class="lbl">Total Estudiantes</span>
+              <strong class="val">{{ reportSemestre.summary.total_estudiantes }}</strong>
+            </div>
+          </div>
+          <div class="metric-card card-green">
+            <div class="metric-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+            </div>
+            <div class="metric-info">
+              <span class="lbl">Aprobados</span>
+              <strong class="val">{{ reportSemestre.summary.total_aprobados }}</strong>
+            </div>
+          </div>
+          <div class="metric-card card-red">
+            <div class="metric-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
+              </svg>
+            </div>
+            <div class="metric-info">
+              <span class="lbl">Reprobados</span>
+              <strong class="val">{{ reportSemestre.summary.total_reprobados }}</strong>
+            </div>
+          </div>
+          <div class="metric-card card-purple">
+            <div class="metric-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+              </svg>
+            </div>
+            <div class="metric-info">
+              <span class="lbl">Promedio General</span>
+              <strong class="val">{{ Number(reportSemestre.summary.promedio_general).toFixed(2) }} pts</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabla Semestral -->
+        <section class="table-card-wrapper mb-4">
+          <div class="table-card-header flex-header">
+            <h4>Detalle de Estudiantes en el Semestre</h4>
+            <div class="export-actions" v-if="reportSemestre.rows.length > 0">
+              <button class="export-btn btn-pdf" @click="exportarReporteSemestre('pdf')" :disabled="exportingPdf || exportingExcel">
+                <span v-if="exportingPdf">Generando PDF...</span>
+                <span v-else>📄 Exportar PDF</span>
+              </button>
+              <button class="export-btn btn-excel" @click="exportarReporteSemestre('excel')" :disabled="exportingPdf || exportingExcel">
+                <span v-if="exportingExcel">Generando Excel...</span>
+                <span v-else>🟢 Exportar Excel</span>
+              </button>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="workspace-table">
+              <thead>
+                <tr>
+                  <th>Estudiante</th>
+                  <th>Materia</th>
+                  <th class="txt-center" style="width: 12%;">Nota</th>
+                  <th class="txt-center" style="width: 18%;">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, idx) in reportSemestre.rows" :key="idx">
+                  <td class="primary-cell font-medium">{{ row.nombreCompleto }}</td>
+                  <td>{{ row.materia_nombre }}</td>
+                  <td class="font-medium txt-center font-mono">
+                    {{ row.nota !== null ? Number(row.nota).toFixed(1) : '-' }}
+                  </td>
+                  <td class="txt-center">
+                    <span class="badge-state" :class="row.estadoAcademico.toLowerCase().replace(/\s/g, '-')">
+                      {{ row.estadoAcademico }}
+                    </span>
+                  </td>
+                </tr>
+                <tr v-if="reportSemestre.rows.length === 0">
+                  <td colspan="4" class="empty-table-msg">
+                    ⚠️ No hay registros para el semestre seleccionado.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- Espera Semestre -->
+      <div v-else class="card-panel text-center-msg">
+        <p class="text-muted">Seleccione un semestre académico y pulse "Generar Reporte" para visualizar los resultados.</p>
+      </div>
+
+    </template>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- TAB 3: ESTADÍSTICAS APROBADOS/REPROBADOS (HU-DOC-10) -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <template v-else-if="tabActiva === 'estadisticas'">
+
+      <!-- Filtros combinados -->
+      <section class="card-panel mb-4">
+        <div class="panel-header">
+          <h4>Filtros de Estadísticas</h4>
+        </div>
+        <div class="generation-bar generation-bar--multi">
+          <div class="selector-field">
+            <label>
+              <span>Semestre (opcional)</span>
+              <select v-model="idPeriodoEstadistica" :disabled="loading">
+                <option value="">Todos los semestres</option>
+                <option v-for="p in periodos" :key="p.id" :value="p.id">
+                  {{ p.nombre }}
+                </option>
+              </select>
+            </label>
+          </div>
+          <div class="selector-field">
+            <label>
+              <span>Materia (opcional)</span>
+              <select v-model="idMateriaEstadistica" :disabled="loading">
+                <option value="">Todas las materias</option>
+                <option v-for="m in materias" :key="m.id" :value="m.id">
+                  {{ m.nombre }}
+                </option>
+              </select>
+            </label>
+          </div>
+          <button class="primary-btn shrink-btn" @click="generarEstadisticas" :disabled="loading">
+            <span v-if="loading">Generando...</span>
+            <span v-else>📈 Generar Estadísticas</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Carga -->
+      <div v-if="loading" class="spinner-container">
+        <div class="loading-spinner"></div>
+        <span class="loading-text">Calculando estadísticas...</span>
+      </div>
+
+      <!-- Resultados Estadísticas -->
+      <div v-else-if="reportEstadisticas" class="fade-in-view">
+
+        <!-- Cards de Resumen Global -->
+        <div class="dashboard-cards-grid mb-4">
+          <div class="metric-card card-green">
+            <div class="metric-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+            </div>
+            <div class="metric-info">
+              <span class="lbl">Total Aprobados</span>
+              <strong class="val">{{ reportEstadisticas.summary.total_aprobados }}</strong>
+            </div>
+          </div>
+          <div class="metric-card card-red">
+            <div class="metric-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="15" y1="9" x2="9" y2="15"></line>
+                <line x1="9" y1="9" x2="15" y2="15"></line>
+              </svg>
+            </div>
+            <div class="metric-info">
+              <span class="lbl">Total Reprobados</span>
+              <strong class="val">{{ reportEstadisticas.summary.total_reprobados }}</strong>
+            </div>
+          </div>
+          <div class="metric-card card-amber">
+            <div class="metric-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 20V10M12 20V4M6 20v-6"></path>
+              </svg>
+            </div>
+            <div class="metric-info">
+              <span class="lbl">% Aprobación</span>
+              <strong class="val">{{ reportEstadisticas.summary.porcentaje_aprobacion }}%</strong>
+            </div>
+          </div>
+          <div class="metric-card card-purple">
+            <div class="metric-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+              </svg>
+            </div>
+            <div class="metric-info">
+              <span class="lbl">Promedio General</span>
+              <strong class="val">{{ reportEstadisticas.summary.promedio_general }} pts</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabla de Detalle por Materia/Periodo -->
+        <section class="table-card-wrapper mb-4">
+          <div class="table-card-header flex-header">
+            <h4>Detalle por Materia y Semestre</h4>
+            <div class="export-actions" v-if="reportEstadisticas.rows.length > 0">
+              <button class="export-btn btn-pdf" @click="exportarEstadisticas('pdf')" :disabled="exportingPdf || exportingExcel">
+                <span v-if="exportingPdf">Generando PDF...</span>
+                <span v-else>📄 Exportar PDF</span>
+              </button>
+              <button class="export-btn btn-excel" @click="exportarEstadisticas('excel')" :disabled="exportingPdf || exportingExcel">
+                <span v-if="exportingExcel">Generando Excel...</span>
+                <span v-else>🟢 Exportar Excel</span>
+              </button>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="workspace-table">
+              <thead>
+                <tr>
+                  <th>Materia</th>
+                  <th>Semestre</th>
+                  <th class="txt-center">Aprobados</th>
+                  <th class="txt-center">Reprobados</th>
+                  <th class="txt-center">Total</th>
+                  <th class="txt-center">% Aprobación</th>
+                  <th class="txt-center">Promedio</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, idx) in reportEstadisticas.rows" :key="idx">
+                  <td class="primary-cell font-medium">{{ row.materia_nombre }}</td>
+                  <td>{{ row.periodo_nombre }}</td>
+                  <td class="txt-center">
+                    <span class="badge-state aprobado">{{ row.aprobados }}</span>
+                  </td>
+                  <td class="txt-center">
+                    <span class="badge-state reprobado">{{ row.reprobados }}</span>
+                  </td>
+                  <td class="txt-center font-mono">{{ row.total_notas }}</td>
+                  <td class="txt-center">
+                    <span class="badge-pct" :class="row.porcentaje_aprobacion >= 60 ? 'pct-high' : 'pct-low'">
+                      {{ row.porcentaje_aprobacion }}%
+                    </span>
+                  </td>
+                  <td class="txt-center font-mono">{{ row.promedio_general }}</td>
+                </tr>
+                <tr v-if="reportEstadisticas.rows.length === 0">
+                  <td colspan="7" class="empty-table-msg">
+                    ⚠️ No hay registros para los filtros seleccionados.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- Espera Estadísticas -->
+      <div v-else class="card-panel text-center-msg">
+        <p class="text-muted">Configure los filtros opcionales y pulse "Generar Estadísticas" para analizar aprobación y reprobación.</p>
+      </div>
+
+    </template>
 
   </div>
 </template>
@@ -277,6 +804,36 @@ onMounted(cargarCursos)
 .subtitle-text { font-size: 0.9rem; color: #6b7280; margin-top: 0.2rem; }
 .mb-4 { margin-bottom: 1.5rem; }
 
+/* ═══ TABS ═══ */
+.report-tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.06);
+  padding-bottom: 0;
+}
+.report-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 8px 8px 0 0;
+}
+.report-tab:hover {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.04);
+}
+.report-tab.active {
+  color: #38bdf8;
+  border-bottom-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.06);
+}
+
+/* ═══ CARDS / PANEL ═══ */
 .card-panel {
   background: #fafafa;
   border: 1px solid rgba(0, 0, 0, 0.06);
@@ -297,12 +854,16 @@ onMounted(cargarCursos)
   gap: 1.5rem;
   width: 100%;
 }
+.generation-bar--multi {
+  flex-wrap: wrap;
+}
 @media (max-width: 768px) {
   .generation-bar { flex-direction: column; align-items: stretch; }
 }
 
 .selector-field {
   flex: 1;
+  min-width: 200px;
 }
 
 label { display: flex; flex-direction: column; font-size: 0.85rem; color: #6b7280; font-weight: 600; }
@@ -339,13 +900,15 @@ select:disabled { opacity: 0.5; cursor: not-allowed; }
   justify-content: center;
   transition: all 0.2s ease;
   height: 44px;
+  white-space: nowrap;
 }
 .primary-btn:hover:not(:disabled) { background: #0ea5e9; transform: translateY(-1px); }
 .primary-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
+/* ═══ METRIC CARDS ═══ */
 .dashboard-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 1.25rem;
 }
 
@@ -365,6 +928,7 @@ select:disabled { opacity: 0.5; cursor: not-allowed; }
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.04);
+  flex-shrink: 0;
 }
 .metric-icon svg { width: 22px; height: 22px; }
 
@@ -381,6 +945,13 @@ select:disabled { opacity: 0.5; cursor: not-allowed; }
 .card-purple { background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.15); color: #c084fc; }
 .card-purple .metric-info .val { color: var(--color-black); }
 
+.card-red { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.15); color: #f87171; }
+.card-red .metric-info .val { color: var(--color-black); }
+
+.card-amber { background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.15); color: #f59e0b; }
+.card-amber .metric-info .val { color: var(--color-black); }
+
+/* ═══ TABLE ═══ */
 .table-card-wrapper {
   background: var(--color-white);
   border: 1px solid rgba(0, 0, 0, 0.06);
@@ -463,6 +1034,7 @@ select:disabled { opacity: 0.5; cursor: not-allowed; }
 .font-mono    { font-family: monospace; font-size: 0.85rem; color: #6b7280; }
 .txt-center   { text-align: center; }
 
+/* ═══ BADGES ═══ */
 .badge-state {
   padding: 0.25rem 0.6rem;
   border-radius: 6px;
@@ -475,8 +1047,19 @@ select:disabled { opacity: 0.5; cursor: not-allowed; }
 .badge-state.reprobado { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
 .badge-state.sin-registro { background: rgba(148, 163, 184, 0.1); color: #6b7280; }
 
+.badge-pct {
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: inline-block;
+}
+.badge-pct.pct-high { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+.badge-pct.pct-low  { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+
 .empty-table-msg { text-align: center; color: #6b7280; padding: 3rem !important; }
 
+/* ═══ SPINNER ═══ */
 .spinner-container {
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
@@ -492,6 +1075,7 @@ select:disabled { opacity: 0.5; cursor: not-allowed; }
 .loading-text { font-size: 0.85rem; color: #6b7280; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ═══ ALERTS ═══ */
 .alert-inline {
   padding: 0.75rem 1rem;
   border-radius: 8px;
