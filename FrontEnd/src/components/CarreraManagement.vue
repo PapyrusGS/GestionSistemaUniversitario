@@ -8,13 +8,12 @@ const props = defineProps({
   },
 })
 
-// ─── State ────────────────────────────────────────────────────────────────────
 const carreras       = ref([])
 const loading        = ref(false)
 const submitting     = ref(false)
 const showModal      = ref(false)
 const isEditing      = ref(false)
-const confirmTarget  = ref(null)   // carrera to be disabled (confirm dialog)
+const confirmTarget  = ref(null)
 const successMessage = ref('')
 const errorMessage   = ref('')
 const errors         = ref({})
@@ -25,7 +24,6 @@ const form = reactive({
   descripcion: '',
 })
 
-// ─── API calls ────────────────────────────────────────────────────────────────
 async function fetchCarreras() {
   loading.value = true
   clearMessages()
@@ -62,7 +60,6 @@ async function submitForm() {
       const payload = data.data ?? data
       carreras.value.push(payload.carrera)
     }
-
     successMessage.value = data.message
     closeModal()
   } catch (error) {
@@ -86,83 +83,75 @@ async function confirmDisable() {
   try {
     const { data } = await props.api.delete(`/carreras/${confirmTarget.value.idCarrera}`)
     const idx = carreras.value.findIndex(c => c.idCarrera === confirmTarget.value.idCarrera)
-    const payload = data.data ?? data
     if (idx !== -1) carreras.value.splice(idx, 1)
     successMessage.value = data.message
   } catch (error) {
-    errorMessage.value =
-      error.response?.data?.message || 'No se pudo deshabilitar la carrera.'
+    errorMessage.value = error.response?.data?.message || 'No se pudo deshabilitar la carrera.'
   } finally {
     submitting.value = false
     confirmTarget.value = null
   }
 }
 
-// ─── Modal helpers ────────────────────────────────────────────────────────────
 function openCreate() {
-  isEditing.value    = false
-  form.idCarrera     = null
-  form.nombre        = ''
-  form.descripcion   = ''
-  errors.value       = {}
-  showModal.value    = true
+  isEditing.value  = false
+  form.idCarrera   = null
+  form.nombre      = ''
+  form.descripcion = ''
+  errors.value     = {}
+  clearMessages()
+  showModal.value  = true
 }
 
 function openEdit(carrera) {
-  isEditing.value    = true
-  form.idCarrera     = carrera.idCarrera
-  form.nombre        = carrera.nombre
-  form.descripcion   = carrera.descripcion ?? ''
-  errors.value       = {}
-  showModal.value    = true
+  isEditing.value  = true
+  form.idCarrera   = carrera.idCarrera
+  form.nombre      = carrera.nombre
+  form.descripcion = carrera.descripcion ?? ''
+  errors.value     = {}
+  clearMessages()
+  showModal.value  = true
 }
 
-function closeModal() {
-  showModal.value = false
-}
-
-function requestDisable(carrera) {
-  confirmTarget.value = carrera
-}
-
-function cancelDisable() {
-  confirmTarget.value = null
-}
-
-function clearMessages() {
-  successMessage.value = ''
-  errorMessage.value   = ''
-}
+function closeModal() { showModal.value = false }
+function requestDisable(carrera) { confirmTarget.value = carrera }
+function cancelDisable() { confirmTarget.value = null }
+function clearMessages() { successMessage.value = ''; errorMessage.value = '' }
 
 onMounted(fetchCarreras)
 </script>
 
 <template>
-  <div class="carrera-management">
+  <div class="cm-root">
 
     <!-- Header -->
     <div class="cm-header">
       <div>
-        <h3>Administración de Carreras</h3>
-        <p class="cm-subtitle">HU-ADM-04 · Borrado lógico habilitado</p>
+        <h3 class="cm-title">Administración de Carreras</h3>
+        <p class="cm-subtitle">Registro, edición y baja lógica de carreras académicas</p>
       </div>
-      <button class="btn-primary" @click="openCreate">
-        <span class="btn-icon">＋</span> Nueva Carrera
+      <button class="cm-btn-primary" @click="openCreate">
+        <i class="ti ti-plus"></i> Nueva Carrera
       </button>
     </div>
 
-    <!-- Alerts -->
-    <div v-if="successMessage" class="alert success">{{ successMessage }}</div>
-    <div v-if="errorMessage"   class="alert error">{{ errorMessage }}</div>
+    <!-- Alertas -->
+    <div v-if="successMessage" class="uni-alert uni-alert--success">
+      <i class="ti ti-circle-check"></i> {{ successMessage }}
+    </div>
+    <div v-if="errorMessage" class="uni-alert uni-alert--error">
+      <i class="ti ti-alert-circle"></i> {{ errorMessage }}
+    </div>
 
-    <!-- Table -->
-    <div class="table-wrapper">
-      <div v-if="loading" class="loading-overlay">
-        <div class="spinner"></div>
-        <span>Cargando...</span>
+    <!-- Tabla -->
+    <div class="cm-table-wrap">
+      <!-- Loading overlay -->
+      <div v-if="loading" class="cm-loading">
+        <i class="ti ti-loader-2 cm-spin"></i>
+        <span>Cargando carreras...</span>
       </div>
 
-      <table class="cm-table" :class="{ dimmed: loading }">
+      <table class="cm-table" :class="{ 'cm-table--dim': loading }">
         <thead>
           <tr>
             <th>#</th>
@@ -175,37 +164,34 @@ onMounted(fetchCarreras)
         </thead>
         <tbody>
           <tr v-if="!loading && carreras.length === 0">
-            <td colspan="6" class="empty-row">No hay carreras registradas.</td>
-          </tr>
-          <tr
-            v-for="c in carreras"
-            :key="c.idCarrera"
-            :class="{ 'row-disabled': !c.estado }"
-          >
-            <td><code>{{ c.idCarrera }}</code></td>
-            <td>
-              <span class="carrera-name">{{ c.nombre }}</span>
+            <td colspan="6" class="cm-empty">
+              <i class="ti ti-building-off"></i>
+              <span>No hay carreras registradas.</span>
             </td>
-            <td class="text-muted">{{ c.descripcion || '—' }}</td>
+          </tr>
+          <tr v-for="c in carreras" :key="c.idCarrera" :class="{ 'cm-row--inactive': !c.estado }">
+            <td><code class="cm-code">{{ c.idCarrera }}</code></td>
+            <td><strong class="cm-carrera-name">{{ c.nombre }}</strong></td>
+            <td class="cm-muted">{{ c.descripcion || '—' }}</td>
             <td>
-              <span class="status-badge" :class="c.estado ? 'badge-active' : 'badge-inactive'">
+              <span class="cm-badge" :class="c.estado ? 'cm-badge--active' : 'cm-badge--inactive'">
                 {{ c.estado ? 'Activa' : 'Deshabilitada' }}
               </span>
             </td>
-            <td class="text-muted">{{ c.fechaRegistro }}</td>
+            <td class="cm-muted">{{ c.fechaRegistro }}</td>
             <td>
-              <div class="action-group">
-                <button class="btn-action btn-edit" @click="openEdit(c)" title="Editar carrera">
-                  ✏️
+              <div class="cm-actions">
+                <button class="cm-btn-icon" @click="openEdit(c)" title="Editar carrera">
+                  <i class="ti ti-pencil"></i>
                 </button>
                 <button
                   v-if="c.estado"
-                  class="btn-action btn-disable"
+                  class="cm-btn-icon cm-btn-icon--danger"
                   :disabled="submitting"
                   @click="requestDisable(c)"
                   title="Deshabilitar carrera"
                 >
-                  🚫
+                  <i class="ti ti-ban"></i>
                 </button>
               </div>
             </td>
@@ -214,19 +200,24 @@ onMounted(fetchCarreras)
       </table>
     </div>
 
-    <!-- ── Create / Edit Modal ──────────────────────────────────────────────── -->
+    <!-- Modal: crear / editar -->
     <Teleport to="body">
-      <div v-if="showModal" class="modal-backdrop" @mousedown.self="closeModal">
-        <div class="modal-card" role="dialog" aria-modal="true">
-          <div class="modal-header">
+      <div v-if="showModal" class="cm-backdrop" @mousedown.self="closeModal">
+        <div class="cm-modal" role="dialog" aria-modal="true">
+
+          <div class="cm-modal-header">
             <h4>{{ isEditing ? 'Editar Carrera' : 'Registrar Nueva Carrera' }}</h4>
-            <button class="modal-close" @click="closeModal" aria-label="Cerrar">✕</button>
+            <button class="cm-close" @click="closeModal" aria-label="Cerrar">
+              <i class="ti ti-x"></i>
+            </button>
           </div>
 
-          <div v-if="errorMessage" class="alert error alert-sm">{{ errorMessage }}</div>
+          <div v-if="errorMessage" class="uni-alert uni-alert--error cm-alert-sm">
+            <i class="ti ti-alert-circle"></i> {{ errorMessage }}
+          </div>
 
-          <form class="modal-form" @submit.prevent="submitForm">
-            <label>
+          <form class="cm-form" @submit.prevent="submitForm">
+            <label class="cm-field">
               <span>Nombre de la Carrera <em>*</em></span>
               <input
                 v-model.trim="form.nombre"
@@ -235,10 +226,10 @@ onMounted(fetchCarreras)
                 :disabled="submitting"
                 placeholder="Ej: Ingeniería en Sistemas"
               />
-              <span v-if="errors.nombre" class="field-error">{{ errors.nombre[0] }}</span>
+              <span v-if="errors.nombre" class="cm-field-error">{{ errors.nombre[0] }}</span>
             </label>
 
-            <label>
+            <label class="cm-field">
               <span>Descripción</span>
               <textarea
                 v-model.trim="form.descripcion"
@@ -246,16 +237,16 @@ onMounted(fetchCarreras)
                 rows="3"
                 placeholder="Descripción opcional de la carrera..."
               ></textarea>
-              <span v-if="errors.descripcion" class="field-error">{{ errors.descripcion[0] }}</span>
+              <span v-if="errors.descripcion" class="cm-field-error">{{ errors.descripcion[0] }}</span>
             </label>
 
-            <div class="modal-actions">
-              <button type="button" class="btn-secondary" @click="closeModal" :disabled="submitting">
+            <div class="cm-form-actions">
+              <button type="button" class="cm-btn-ghost" @click="closeModal" :disabled="submitting">
                 Cancelar
               </button>
-              <button type="submit" class="btn-primary" :disabled="submitting">
-                <span v-if="submitting">Guardando...</span>
-                <span v-else>{{ isEditing ? 'Guardar Cambios' : 'Crear Carrera' }}</span>
+              <button type="submit" class="cm-btn-primary" :disabled="submitting">
+                <i class="ti" :class="submitting ? 'ti-loader-2 cm-spin' : (isEditing ? 'ti-device-floppy' : 'ti-plus')"></i>
+                {{ submitting ? 'Guardando...' : (isEditing ? 'Guardar Cambios' : 'Crear Carrera') }}
               </button>
             </div>
           </form>
@@ -263,23 +254,26 @@ onMounted(fetchCarreras)
       </div>
     </Teleport>
 
-    <!-- ── Confirm Disable Dialog ───────────────────────────────────────────── -->
+    <!-- Modal: confirmar deshabilitar -->
     <Teleport to="body">
-      <div v-if="confirmTarget" class="modal-backdrop" @mousedown.self="cancelDisable">
-        <div class="modal-card confirm-card" role="alertdialog" aria-modal="true">
-          <div class="confirm-icon">⚠️</div>
-          <h4>¿Deshabilitar esta carrera?</h4>
-          <p class="confirm-detail">
-            La carrera <strong>{{ confirmTarget.nombre }}</strong> quedará marcada como inactiva.<br />
-            <span class="text-muted">Los registros históricos relacionados serán conservados.</span>
+      <div v-if="confirmTarget" class="cm-backdrop" @mousedown.self="cancelDisable">
+        <div class="cm-modal cm-modal--confirm" role="alertdialog" aria-modal="true">
+          <div class="cm-confirm-icon">
+            <i class="ti ti-alert-triangle"></i>
+          </div>
+          <h4 class="cm-confirm-title">¿Deshabilitar esta carrera?</h4>
+          <p class="cm-confirm-body">
+            La carrera <strong>{{ confirmTarget.nombre }}</strong> quedará marcada como inactiva.
+            <br />
+            <span class="cm-muted">Los registros históricos relacionados serán conservados.</span>
           </p>
-          <div class="modal-actions">
-            <button class="btn-secondary" @click="cancelDisable" :disabled="submitting">
+          <div class="cm-form-actions cm-form-actions--center">
+            <button class="cm-btn-ghost" @click="cancelDisable" :disabled="submitting">
               Cancelar
             </button>
-            <button class="btn-danger" @click="confirmDisable" :disabled="submitting">
-              <span v-if="submitting">Deshabilitando...</span>
-              <span v-else>Sí, deshabilitar</span>
+            <button class="cm-btn-danger" @click="confirmDisable" :disabled="submitting">
+              <i class="ti" :class="submitting ? 'ti-loader-2 cm-spin' : 'ti-ban'"></i>
+              {{ submitting ? 'Deshabilitando...' : 'Sí, deshabilitar' }}
             </button>
           </div>
         </div>
@@ -290,370 +284,334 @@ onMounted(fetchCarreras)
 </template>
 
 <style scoped>
-/* ── Layout ─────────────────────────────────────────────────────────────── */
-.carrera-management {
-  display: grid;
+/* ── Raíz ── */
+.cm-root {
+  display: flex;
+  flex-direction: column;
   gap: 1.25rem;
   width: 100%;
 }
 
+/* ── Header ── */
 .cm-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
   gap: 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--panel-border);
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-linen, #d0cfca);
+  flex-wrap: wrap;
 }
-
-.cm-header h3 {
-  margin: 0;
-  font-size: 1.6rem;
-  color: var(--text);
+.cm-title {
+  margin: 0 0 3px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1a1a1a;
 }
-
 .cm-subtitle {
-  margin: 0.2rem 0 0;
-  font-size: 0.82rem;
-  color: var(--muted);
+  margin: 0;
+  font-size: 0.8rem;
+  color: #5b5c5e;
 }
 
-/* ── Table ──────────────────────────────────────────────────────────────── */
-.table-wrapper {
+/* ── Alertas heredadas ── */
+.uni-alert {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0.65rem 1rem;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid;
+}
+.uni-alert--success { background: #edf4f2; border-color: #8c9f96; color: #2b3d36; }
+.uni-alert--error   { background: #faf0f0; border-color: #dca6a6; color: #7a2424; }
+.cm-alert-sm { margin-bottom: 0.5rem; }
+
+/* ── Tabla ── */
+.cm-table-wrap {
   position: relative;
-  border-radius: 1rem;
-  border: 1px solid rgba(180, 204, 255, 0.08);
+  border: 1px solid #e8e8e5;
+  border-radius: 12px;
   overflow: auto;
 }
-
-.loading-overlay {
+.cm-loading {
   position: absolute;
   inset: 0;
   z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
-  background: rgba(11, 16, 32, 0.7);
-  backdrop-filter: blur(4px);
-  color: var(--muted);
-  font-size: 0.9rem;
+  gap: 0.6rem;
+  background: rgba(255,255,255,0.8);
+  font-size: 12px;
+  font-weight: 600;
+  color: #5b5c5e;
+  border-radius: 12px;
 }
-
-.spinner {
-  width: 1.4rem;
-  height: 1.4rem;
-  border: 2px solid rgba(125, 211, 252, 0.3);
-  border-top-color: var(--primary);
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-
-@keyframes spin { to { transform: rotate(360deg); } }
-
+.cm-loading i { font-size: 1.2rem; }
 .cm-table {
   width: 100%;
   border-collapse: collapse;
+  font-size: 0.875rem;
   text-align: left;
-  font-size: 0.88rem;
-  transition: opacity 0.25s ease;
+  transition: opacity 0.2s;
 }
-
-.cm-table.dimmed { opacity: 0.4; pointer-events: none; }
-
+.cm-table--dim { opacity: 0.35; pointer-events: none; }
 .cm-table th,
 .cm-table td {
-  padding: 0.85rem 1rem;
-  border-bottom: 1px solid rgba(180, 204, 255, 0.05);
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #f0f0ee;
   vertical-align: middle;
 }
-
 .cm-table th {
-  background: rgba(255, 255, 255, 0.02);
-  color: var(--muted);
-  font-weight: 600;
+  background: #fafaf9;
+  font-size: 10px;
+  font-weight: 700;
   text-transform: uppercase;
-  font-size: 0.72rem;
   letter-spacing: 0.08em;
-  white-space: nowrap;
+  color: #5b5c5e;
 }
-
-.cm-table tbody tr {
-  transition: background 0.15s ease;
-}
-
-.cm-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.row-disabled {
-  opacity: 0.55;
-}
-
-.carrera-name {
-  font-weight: 500;
-  color: var(--text);
-}
-
-.text-muted { color: var(--muted); font-size: 0.84rem; }
-
-.empty-row {
-  text-align: center;
-  color: var(--muted);
-  padding: 2.5rem !important;
-}
-
-code {
-  background: rgba(255, 255, 255, 0.05);
-  padding: 0.15rem 0.4rem;
-  border-radius: 0.3rem;
+.cm-table tbody tr:hover { background: #fafaf9; }
+.cm-table tbody tr:last-child td { border-bottom: none; }
+.cm-row--inactive { opacity: 0.5; }
+.cm-carrera-name { font-weight: 600; color: #1a1a1a; }
+.cm-muted { color: #5b5c5e; font-size: 0.82rem; }
+.cm-code {
+  background: #f0f0ee;
+  padding: 2px 6px;
+  border-radius: 5px;
   font-family: monospace;
   font-size: 0.8rem;
 }
+.cm-empty {
+  text-align: center;
+  padding: 2.5rem 1rem !important;
+  color: #8c9f96;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+}
+.cm-empty i { font-size: 2rem; opacity: 0.5; }
 
-/* ── Badges ─────────────────────────────────────────────────────────────── */
-.status-badge {
+/* ── Badges ── */
+.cm-badge {
   display: inline-block;
-  padding: 0.25rem 0.65rem;
+  padding: 3px 10px;
   border-radius: 999px;
-  font-size: 0.74rem;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   white-space: nowrap;
 }
+.cm-badge--active   { background: #ddf0e6; color: #1a5235; border: 1px solid #8ec9a2; }
+.cm-badge--inactive { background: #faf0f0; color: #7a2424; border: 1px solid #dca6a6; }
 
-.badge-active {
-  color: #bbf7d0;
-  background: rgba(34, 197, 94, 0.12);
-  border: 1px solid rgba(34, 197, 94, 0.24);
-}
-
-.badge-inactive {
-  color: #fca5a5;
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.26);
-}
-
-/* ── Action buttons ─────────────────────────────────────────────────────── */
-.action-group {
-  display: flex;
-  gap: 0.4rem;
-  align-items: center;
-}
-
-.btn-action {
-  border: none;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 0.5rem;
-  padding: 0.35rem 0.55rem;
-  cursor: pointer;
-  font-size: 1rem;
-  line-height: 1;
-  transition: background 0.18s ease, transform 0.15s ease;
-}
-
-.btn-action:hover { background: rgba(255, 255, 255, 0.1); transform: translateY(-1px); }
-.btn-action:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-
-/* ── Shared buttons ─────────────────────────────────────────────────────── */
-.btn-primary {
+/* ── Acciones de fila ── */
+.cm-actions { display: flex; gap: 5px; align-items: center; }
+.cm-btn-icon {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  border: none;
-  border-radius: 0.85rem;
-  padding: 0.7rem 1.1rem;
-  font-weight: 700;
-  font-size: 0.88rem;
+  justify-content: center;
+  width: 30px; height: 30px;
+  border: 1.5px solid #e8e8e5;
+  border-radius: 8px;
+  background: #fff;
+  color: #5b5c5e;
   cursor: pointer;
-  color: #02131e;
-  background: linear-gradient(135deg, #67e8f9, #7dd3fc 50%, #38bdf8);
-  box-shadow: 0 8px 28px rgba(56, 189, 248, 0.24);
-  transition: transform 0.18s ease, opacity 0.18s ease;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
+.cm-btn-icon:hover { background: #f4f4f2; border-color: #8c9f96; color: #1a1a1a; }
+.cm-btn-icon--danger { color: #b85c5c; }
+.cm-btn-icon--danger:hover { background: #faf0f0; border-color: #dca6a6; color: #7a2424; }
+.cm-btn-icon:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.btn-primary:hover   { transform: translateY(-1px); }
-.btn-primary:disabled { opacity: 0.6; cursor: wait; transform: none; }
-
-.btn-secondary {
-  border: 1px solid rgba(180, 204, 255, 0.18);
-  border-radius: 0.85rem;
-  padding: 0.7rem 1.1rem;
-  font-weight: 600;
-  font-size: 0.88rem;
-  cursor: pointer;
-  color: var(--text);
-  background: rgba(255, 255, 255, 0.06);
-  transition: background 0.18s ease, transform 0.15s ease;
-}
-
-.btn-secondary:hover    { background: rgba(255, 255, 255, 0.1); transform: translateY(-1px); }
-.btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-
-.btn-danger {
-  border: none;
-  border-radius: 0.85rem;
-  padding: 0.7rem 1.2rem;
-  font-weight: 700;
-  font-size: 0.88rem;
-  cursor: pointer;
+/* ── Botones compartidos ── */
+.cm-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #4e615e;
   color: #fff;
-  background: linear-gradient(135deg, #ef4444, #f87171);
-  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.28);
-  transition: transform 0.18s ease, opacity 0.18s ease;
+  border: none;
+  border-radius: 20px;
+  padding: 9px 18px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
 }
+.cm-btn-primary:hover:not(:disabled) { background: #3b4a48; }
+.cm-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
-.btn-danger:hover    { transform: translateY(-1px); }
-.btn-danger:disabled { opacity: 0.6; cursor: wait; transform: none; }
+.cm-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  color: #5b5c5e;
+  border: 1.5px solid #d0cfca;
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.cm-btn-ghost:hover:not(:disabled) { background: #f4f4f2; color: #1a1a1a; }
+.cm-btn-ghost:disabled { opacity: 0.6; cursor: not-allowed; }
 
-/* ── Modal ──────────────────────────────────────────────────────────────── */
-.modal-backdrop {
+.cm-btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #b85c5c;
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  padding: 9px 18px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.cm-btn-danger:hover:not(:disabled) { background: #9c4646; }
+.cm-btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ── Backdrop ── */
+.cm-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 9000;
+  z-index: 50;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(6px);
-  animation: fade-in 0.18s ease;
+  background: rgba(0,0,0,0.4);
+  padding: 1rem;
 }
 
-@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-
-.modal-card {
-  width: min(92vw, 32rem);
-  background: linear-gradient(180deg, rgba(14, 20, 41, 0.98), rgba(11, 16, 32, 0.96));
-  border: 1px solid var(--panel-border);
-  border-radius: 1.5rem;
-  padding: 1.75rem;
-  box-shadow: 0 40px 100px rgba(3, 8, 20, 0.65);
-  animation: slide-up 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+/* ── Modal ── */
+.cm-modal {
+  width: min(100%, 32rem);
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 24px 48px rgba(0,0,0,0.12);
+  overflow: hidden;
+}
+.cm-modal--confirm {
+  max-width: 26rem;
+  padding: 2rem;
+  text-align: center;
 }
 
-@keyframes slide-up {
-  from { transform: translateY(24px); opacity: 0; }
-  to   { transform: translateY(0);    opacity: 1; }
-}
-
-.modal-header {
+.cm-modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.25rem;
+  padding: 1.5rem 1.75rem 1rem;
+  border-bottom: 1px solid #e8e8e5;
 }
-
-.modal-header h4 {
+.cm-modal-header h4 {
   margin: 0;
-  font-size: 1.15rem;
-  color: var(--primary);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1a1a1a;
 }
-
-.modal-close {
+.cm-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px; height: 30px;
+  background: transparent;
   border: none;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 0.5rem;
-  padding: 0.35rem 0.55rem;
+  border-radius: 50%;
+  color: #5b5c5e;
+  font-size: 1rem;
   cursor: pointer;
-  color: var(--muted);
-  font-size: 0.9rem;
-  transition: background 0.15s ease;
+  transition: background 0.15s;
 }
+.cm-close:hover { background: #f0f0ee; color: #1a1a1a; }
 
-.modal-close:hover { background: rgba(255, 255, 255, 0.1); color: var(--text); }
-
-.modal-form {
-  display: grid;
+/* ── Formulario del modal ── */
+.cm-form {
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
+  padding: 1.25rem 1.75rem 1.75rem;
 }
-
-.modal-form label {
-  display: grid;
-  gap: 0.5rem;
+.cm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
-
-.modal-form span {
-  font-size: 0.8rem;
-  color: var(--muted);
+.cm-field > span {
+  font-size: 10px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
+  color: #5b5c5e;
 }
-
-.modal-form em {
-  color: var(--danger);
-  font-style: normal;
-}
-
-.modal-form input,
-.modal-form textarea {
+.cm-field em { color: #b85c5c; font-style: normal; }
+.cm-field input,
+.cm-field textarea {
   width: 100%;
-  border: 1px solid rgba(180, 204, 255, 0.14);
-  border-radius: 0.8rem;
-  background: rgba(6, 10, 23, 0.72);
-  color: var(--text);
-  padding: 0.85rem 1rem;
+  background: #fafaf9;
+  border: 1.5px solid #d0cfca;
+  border-radius: 10px;
+  color: #1a1a1a;
+  padding: 0.75rem 1rem;
   font: inherit;
+  font-size: 13px;
   outline: none;
   resize: vertical;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.cm-field input:focus,
+.cm-field textarea:focus {
+  border-color: #4e615e;
+  box-shadow: 0 0 0 3px rgba(78,97,94,0.1);
+}
+.cm-field input::placeholder,
+.cm-field textarea::placeholder { color: #a0a0a0; }
+.cm-field-error {
+  font-size: 11px;
+  color: #b85c5c;
 }
 
-.modal-form input:focus,
-.modal-form textarea:focus {
-  border-color: rgba(125, 211, 252, 0.7);
-  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.12);
-}
-
-.field-error {
-  font-size: 0.75rem;
-  color: var(--danger);
-  margin-top: 0.1rem;
-}
-
-.modal-actions {
+.cm-form-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
+  gap: 0.6rem;
+  margin-top: 0.25rem;
 }
+.cm-form-actions--center { justify-content: center; }
 
-/* ── Confirm dialog ─────────────────────────────────────────────────────── */
-.confirm-card {
-  text-align: center;
-  max-width: 26rem;
-}
-
-.confirm-icon {
-  font-size: 2.4rem;
+/* ── Confirm dialog ── */
+.cm-confirm-icon {
+  font-size: 2.5rem;
+  color: #b07d2e;
   margin-bottom: 0.75rem;
 }
-
-.confirm-card h4 {
+.cm-confirm-title {
   margin: 0 0 0.6rem;
-  font-size: 1.2rem;
-  color: var(--text);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a1a1a;
 }
-
-.confirm-detail {
-  margin: 0 0 1.25rem;
-  font-size: 0.9rem;
+.cm-confirm-body {
+  margin: 0 0 1.5rem;
+  font-size: 0.875rem;
   line-height: 1.65;
-  color: var(--muted);
+  color: #5b5c5e;
 }
+.cm-confirm-body strong { color: #1a1a1a; }
 
-.confirm-detail strong {
-  color: var(--text);
-}
-
-.confirm-card .modal-actions {
-  justify-content: center;
-}
-
-/* ── Alert inline (modal) ───────────────────────────────────────────────── */
-.alert.alert-sm {
-  padding: 0.6rem 0.85rem;
-  font-size: 0.82rem;
-  margin-bottom: 0.75rem;
-}
+/* ── Spin ── */
+.cm-spin { animation: cm-rotate 0.8s linear infinite; }
+@keyframes cm-rotate { to { transform: rotate(360deg); } }
 </style>

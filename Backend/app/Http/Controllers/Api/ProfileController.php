@@ -26,6 +26,7 @@ class ProfileController extends Controller
             $request->user(),
             $request->validated()['current_password'],
             $request->validated()['password'],
+            $request->ip(),
         );
 
         return ApiResponse::success(
@@ -41,6 +42,7 @@ class ProfileController extends Controller
         $user = $this->profileService->updateProfile(
             $request->user(),
             $request->validated(),
+            $request->ip(),
         );
 
         return ApiResponse::success(

@@ -1,5 +1,8 @@
 <script setup>
 import { ref } from 'vue'
+const exportingPdf = ref(false)
+const exportingCsv = ref(false)
+
 function getReportTitle() {
   const titles = {
     inscripciones: 'Reporte de Materias Inscritas',
@@ -63,18 +66,58 @@ function displayValue(value) {
 
 async function generarReporte() {
   loading.value = true
+  reporte.value = null
   try {
     const body = { tipo: reporteTipo.value }
-    if (reportePeriodo.value !== 'todos') {
-      body.periodo = reportePeriodo.value
-    }
+    if (reportePeriodo.value !== 'todos') body.periodo = reportePeriodo.value
     const { data: res } = await props.api.post('/estudiante/reporte', body)
-    const payload = res.data ?? res
-    reporte.value = payload
+    reporte.value = res.data ?? res
   } catch (e) {
     emit('message', { type: 'error', text: e.response?.data?.message || 'No pudimos generar el reporte.' })
   } finally {
     loading.value = false
+  }
+}
+
+async function exportarReporte(tipo) {
+  const isPdf = tipo === 'pdf'
+  if (isPdf) exportingPdf.value = true
+  else exportingCsv.value = true
+
+  try {
+    const body = { tipo: reporteTipo.value }
+    if (reportePeriodo.value !== 'todos') body.periodo = reportePeriodo.value
+
+    // El backend recibe el tipo de export como query param o en el body
+    const response = await props.api.post(
+      `/estudiante/reporte/${tipo}`,   // ← ajusta según tu ruta real
+      body,
+      { responseType: 'blob' }
+    )
+
+    // Leer nombre del header o usar fallback
+    const disposition = response.headers['content-disposition']
+    let filename = `reporte-${reporteTipo.value}.${isPdf ? 'pdf' : 'csv'}`
+    if (disposition?.indexOf('attachment') !== -1) {
+      const match = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition)
+      if (match?.[1]) filename = match[1].replace(/['"]/g, '')
+    }
+
+    // Disparar descarga
+    const blob = new Blob([response.data], { type: response.headers['content-type'] })
+    const link = document.createElement('a')
+    link.href = window.URL.createObjectURL(blob)
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(link.href)
+
+  } catch {
+    emit('message', { type: 'error', text: `Error al exportar el reporte a ${isPdf ? 'PDF' : 'CSV'}.` })
+  } finally {
+    if (isPdf) exportingPdf.value = false
+    else exportingCsv.value = false
   }
 }
 
@@ -246,15 +289,13 @@ function downloadPdf() {
           <p>{{ reporte.estudiante }} · {{ reporte.generadoEn }}</p>
         </div>
         <div class="reporte-actions">
-          <button class="secondary" @click="exportCsv">
-            Exportar CSV
+          <button class="secondary" @click="exportarReporte('csv')"
+                  :disabled="exportingCsv || exportingPdf">
+            {{ exportingCsv ? 'Generando...' : 'Exportar CSV' }}
           </button>
-
-          <button
-            class="secondary"
-            @click="downloadPdf"
-          >
-            Descargar PDF
+          <button class="secondary" @click="exportarReporte('pdf')"
+                  :disabled="exportingPdf || exportingCsv">
+            {{ exportingPdf ? 'Generando PDF...' : 'Descargar PDF' }}
           </button>
         </div>
       </div>

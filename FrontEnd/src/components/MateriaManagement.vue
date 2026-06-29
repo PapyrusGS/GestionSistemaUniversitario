@@ -37,14 +37,12 @@ const form = reactive({
 
 const prerequisitosFiltrados = () => {
   if (!form.idCarrera) {
-    return materiasActivas.value.filter((materia) => materia.idMateria !== form.idMateria)
+    return materiasActivas.value.filter((m) => m.idMateria !== form.idMateria)
   }
-
   const carreraId = Number(form.idCarrera)
-
-  return materiasActivas.value.filter((materia) => {
-    return Number(materia.idCarrera) === carreraId && materia.idMateria !== form.idMateria
-  })
+  return materiasActivas.value.filter(
+    (m) => Number(m.idCarrera) === carreraId && m.idMateria !== form.idMateria
+  )
 }
 
 function resetMessages() {
@@ -91,27 +89,16 @@ function payloadFromResponse(data) {
 async function fetchMateriaData() {
   loading.value = true
   resetMessages()
-
   try {
     const params = {}
-
-    if (filtros.carrera) {
-      params.carrera = filtros.carrera
-    }
-
-    if (filtros.codigo) {
-      params.q = filtros.codigo
-    }
-
-    if (filtros.semestre) {
-      params.semestre = filtros.semestre
-    }
+    if (filtros.carrera)  params.carrera  = filtros.carrera
+    if (filtros.codigo)   params.q        = filtros.codigo
+    if (filtros.semestre) params.semestre = filtros.semestre
 
     const [materiasResponse, formDataResponse] = await Promise.all([
       props.api.get('/materias', { params }),
       props.api.get('/materias/form-data'),
     ])
-
     materias.value = payloadFromResponse(materiasResponse.data).materias || []
     const formData = payloadFromResponse(formDataResponse.data)
     carreras.value = formData.carreras || []
@@ -127,7 +114,6 @@ async function submitForm() {
   submitting.value = true
   resetMessages()
   errors.value = {}
-
   try {
     const body = {
       idMateria: form.idMateria,
@@ -136,7 +122,6 @@ async function submitForm() {
       nombre: form.nombre,
       semestre: Number(form.semestre),
     }
-
     const response = isEditing.value
       ? await props.api.put(`/materias/${form.idMateria}`, body)
       : await props.api.post('/materias', body)
@@ -145,15 +130,12 @@ async function submitForm() {
     successMessage.value = response.data.message || 'Materia guardada correctamente.'
 
     if (isEditing.value) {
-      const index = materias.value.findIndex((materia) => materia.idMateria === form.idMateria)
-      if (index !== -1) {
-        materias.value[index] = payload.materia
-      }
+      const index = materias.value.findIndex((m) => m.idMateria === form.idMateria)
+      if (index !== -1) materias.value[index] = payload.materia
     } else {
       materias.value.unshift(payload.materia)
       materiasActivas.value.unshift(payload.materia)
     }
-
     closeModal()
     resetForm()
   } catch (error) {
@@ -162,7 +144,7 @@ async function submitForm() {
       errors.value = response.errors
       errorMessage.value = 'Por favor, corrige los errores del formulario.'
     } else {
-      errorMessage.value = response?.message || 'Ocurrio un error inesperado.'
+      errorMessage.value = response?.message || 'Ocurrió un error inesperado.'
     }
   } finally {
     submitting.value = false
@@ -181,21 +163,15 @@ function cancelDisable() {
 
 async function confirmDisableMateria() {
   if (!materiaToDisable.value) return
-
   const materia = materiaToDisable.value
   showConfirmModal.value = false
   submitting.value = true
   resetMessages()
-
   try {
     const response = await props.api.delete(`/materias/${materia.idMateria}`)
     const payload = payloadFromResponse(response.data)
     const index = materias.value.findIndex((item) => item.idMateria === materia.idMateria)
-
-    if (index !== -1) {
-      materias.value[index] = payload.materia
-    }
-
+    if (index !== -1) materias.value[index] = payload.materia
     successMessage.value = response.data.message || 'Materia deshabilitada correctamente.'
   } catch (error) {
     errorMessage.value = error.response?.data?.message || 'No se pudo deshabilitar la materia.'
@@ -214,114 +190,113 @@ function resetFilters() {
 watch(
   () => [filtros.carrera, filtros.codigo, filtros.semestre],
   () => {
-    if (searchTimeout) {
-      clearTimeout(searchTimeout)
-    }
-
-    searchTimeout = setTimeout(() => {
-      fetchMateriaData()
-    }, 350)
+    if (searchTimeout) clearTimeout(searchTimeout)
+    searchTimeout = setTimeout(() => fetchMateriaData(), 350)
   }
 )
 
 onBeforeUnmount(() => {
-  if (searchTimeout) {
-    clearTimeout(searchTimeout)
-  }
+  if (searchTimeout) clearTimeout(searchTimeout)
 })
 
 onMounted(fetchMateriaData)
 </script>
 
 <template>
-  <div class="materia-management">
-    <div class="header-section">
+  <div class="mm">
+
+    <!-- Cabecera -->
+    <div class="mm-header">
       <div>
-        <h3>Administracion de Materias</h3>
-        <p class="subtitle">HU-ADM-05 - Registro, edicion, deshabilitacion y prerrequisitos</p>
+        <h3 class="mm-title">Administración de Materias</h3>
+        <p class="mm-subtitle">HU-ADM-05 · Registro, edición, deshabilitación y prerrequisitos</p>
       </div>
-      <button class="primary" type="button" @click="openCreate">Nueva Materia</button>
+      <button class="uni-btn-action-success" type="button" @click="openCreate">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Nueva Materia
+      </button>
     </div>
 
-    <div v-if="successMessage" class="alert success">{{ successMessage }}</div>
-    <div v-if="errorMessage" class="alert error">{{ errorMessage }}</div>
+    <!-- Alertas -->
+    <div v-if="successMessage" class="mm-alert mm-alert--success">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>
+      {{ successMessage }}
+    </div>
+    <div v-if="errorMessage" class="mm-alert mm-alert--error">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      {{ errorMessage }}
+    </div>
 
-    <div class="table-card">
-      <div class="table-head">
-        <h4>Materias registradas</h4>
-        <div class="head-actions">
-          <button class="secondary" type="button" @click="resetFilters">Limpiar filtros</button>
-        </div>
+    <!-- Tabla card -->
+    <div class="mm-card">
+
+      <div class="mm-card-head">
+        <span class="mm-card-label">Materias registradas</span>
+        <button class="mm-btn-secondary" type="button" @click="resetFilters">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Limpiar filtros
+        </button>
       </div>
 
-      <div class="filters-grid">
-        <label>
-          <span>Buscar por carrera</span>
-          <select v-model="filtros.carrera">
+      <!-- Filtros -->
+      <div class="mm-filters">
+        <div class="mm-filter-group">
+          <label class="mm-label">Carrera</label>
+          <select v-model="filtros.carrera" class="mm-select">
             <option value="">Todas las carreras</option>
             <option v-for="carrera in carreras" :key="carrera.idCarrera" :value="String(carrera.idCarrera)">
               {{ carrera.nombre }}
             </option>
           </select>
-        </label>
-
-        <label>
-          <span>Buscar por codigo</span>
-          <input
-            v-model.trim="filtros.codigo"
-            type="text"
-            placeholder="Ej: SIS-100"
-          />
-        </label>
-
-        <label>
-          <span>Buscar por semestre</span>
-          <input
-            v-model.trim="filtros.semestre"
-            type="number"
-            min="1"
-            max="20"
-            placeholder="Ej: 3"
-          />
-        </label>
+        </div>
+        <div class="mm-filter-group">
+          <label class="mm-label">Código</label>
+          <input v-model.trim="filtros.codigo" type="text" class="mm-input" placeholder="Ej: SIS-100" />
+        </div>
+        <div class="mm-filter-group">
+          <label class="mm-label">Semestre</label>
+          <input v-model.trim="filtros.semestre" type="number" min="1" max="20" class="mm-input" placeholder="Ej: 3" />
+        </div>
       </div>
 
-      <div class="table-wrap">
-        <table class="data-table">
+      <!-- Tabla -->
+      <div class="mm-table-wrap">
+        <table class="mm-table">
           <thead>
             <tr>
-              <th>Codigo</th>
+              <th>Código</th>
               <th>Materia</th>
               <th>Carrera</th>
               <th>Semestre</th>
-              <th>Prerequisito</th>
+              <th>Prerrequisito</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="materias.length === 0">
-              <td colspan="7" class="empty-state">No hay materias registradas.</td>
+              <td colspan="7" class="mm-empty">No hay materias registradas.</td>
             </tr>
-            <tr v-for="materia in materias" :key="materia.idMateria" :class="{ inactive: !materia.estado }">
-              <td><code>{{ materia.idMateria }}</code></td>
-              <td>
-                <strong>{{ materia.nombre }}</strong>
-              </td>
+            <tr v-for="materia in materias" :key="materia.idMateria" :class="{ 'mm-row--inactive': !materia.estado }">
+              <td><code class="mm-code">{{ materia.idMateria }}</code></td>
+              <td><strong>{{ materia.nombre }}</strong></td>
               <td>{{ materia.carrera || 'Sin carrera' }}</td>
               <td>{{ materia.semestre }}</td>
-              <td>{{ materia.prerrequisito || 'Sin prerrequisito' }}</td>
+              <td>{{ materia.prerrequisito || '—' }}</td>
               <td>
-                <span class="status-badge" :class="materia.estado ? 'active' : 'inactive'">
+                <span class="mm-badge" :class="materia.estado ? 'mm-badge--active' : 'mm-badge--inactive'">
                   {{ materia.estado ? 'Activa' : 'Inactiva' }}
                 </span>
               </td>
               <td>
-                <div class="actions">
-                  <button class="icon-btn" type="button" @click="openEdit(materia)">Editar</button>
+                <div class="mm-actions">
+                  <button class="mm-btn-action" type="button" @click="openEdit(materia)">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    Editar
+                  </button>
                   <button
                     v-if="materia.estado"
-                    class="icon-btn danger"
+                    class="uni-btn-action-danger mm-btn-sm"
                     type="button"
                     :disabled="submitting"
                     @click="askDisableMateria(materia)"
@@ -336,483 +311,404 @@ onMounted(fetchMateriaData)
       </div>
     </div>
 
+    <!-- Modal: Crear / Editar -->
     <Teleport to="body">
-      <div v-if="showModal" class="backdrop" @mousedown.self="closeModal">
-        <div class="modal-card">
-          <div class="modal-header">
+      <div v-if="showModal" class="mm-backdrop" @mousedown.self="closeModal">
+        <div class="mm-modal">
+
+          <div class="mm-modal-header">
             <div>
-              <h4>{{ isEditing ? 'Editar materia' : 'Registrar materia' }}</h4>
-              <p>Configura la carrera, el semestre y el prerrequisito si corresponde.</p>
+              <h4 class="mm-modal-title">{{ isEditing ? 'Editar materia' : 'Registrar materia' }}</h4>
+              <p class="mm-modal-sub">Configura la carrera, el semestre y el prerrequisito si corresponde.</p>
             </div>
-            <button class="close-btn" type="button" @click="closeModal">×</button>
+            <button class="mm-close-btn" type="button" @click="closeModal">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
           </div>
 
-          <form class="modal-form" @submit.prevent="submitForm">
-            <div class="two-cols">
-              <label>
-                <span>Codigo *</span>
-                <input
-                  v-model.trim="form.idMateria"
-                  type="text"
-                  :disabled="isEditing || submitting"
-                  placeholder="Ej: SIS-100"
-                  required
-                />
-                <small v-if="errors.idMateria" class="field-error">{{ errors.idMateria[0] }}</small>
-              </label>
+          <form class="mm-form" @submit.prevent="submitForm">
 
-              <label>
-                <span>Carrera *</span>
-                <select v-model="form.idCarrera" :disabled="submitting" required>
+            <div class="mm-two-cols">
+              <div class="mm-field">
+                <label class="mm-label">Código *</label>
+                <input v-model.trim="form.idMateria" type="text" class="mm-input" :disabled="isEditing || submitting" placeholder="Ej: SIS-100" required />
+                <small v-if="errors.idMateria" class="mm-field-error">{{ errors.idMateria[0] }}</small>
+              </div>
+              <div class="mm-field">
+                <label class="mm-label">Carrera *</label>
+                <select v-model="form.idCarrera" class="mm-select" :disabled="submitting" required>
                   <option value="" disabled>Seleccione una carrera</option>
                   <option v-for="carrera in carreras" :key="carrera.idCarrera" :value="String(carrera.idCarrera)">
                     {{ carrera.nombre }}
                   </option>
                 </select>
-                <small v-if="errors.idCarrera" class="field-error">{{ errors.idCarrera[0] }}</small>
-              </label>
+                <small v-if="errors.idCarrera" class="mm-field-error">{{ errors.idCarrera[0] }}</small>
+              </div>
             </div>
 
-            <div class="two-cols">
-              <label>
-                <span>Nombre *</span>
-                <input v-model.trim="form.nombre" type="text" :disabled="submitting" required />
-                <small v-if="errors.nombre" class="field-error">{{ errors.nombre[0] }}</small>
-              </label>
-
-              <label>
-                <span>Semestre *</span>
-                <input
-                  v-model="form.semestre"
-                  type="number"
-                  min="1"
-                  max="20"
-                  :disabled="submitting"
-                  required
-                />
-                <small v-if="errors.semestre" class="field-error">{{ errors.semestre[0] }}</small>
-              </label>
+            <div class="mm-two-cols">
+              <div class="mm-field">
+                <label class="mm-label">Nombre *</label>
+                <input v-model.trim="form.nombre" type="text" class="mm-input" :disabled="submitting" required />
+                <small v-if="errors.nombre" class="mm-field-error">{{ errors.nombre[0] }}</small>
+              </div>
+              <div class="mm-field">
+                <label class="mm-label">Semestre *</label>
+                <input v-model="form.semestre" type="number" min="1" max="20" class="mm-input" :disabled="submitting" required />
+                <small v-if="errors.semestre" class="mm-field-error">{{ errors.semestre[0] }}</small>
+              </div>
             </div>
 
-            <label>
-              <span>Prerrequisito</span>
-              <select v-model="form.idMateriaPrevia" :disabled="submitting">
+            <div class="mm-field">
+              <label class="mm-label">Prerrequisito <span class="mm-optional">(opcional)</span></label>
+              <select v-model="form.idMateriaPrevia" class="mm-select" :disabled="submitting">
                 <option value="">Sin prerrequisito</option>
-                <option
-                  v-for="materia in prerequisitosFiltrados()"
-                  :key="materia.idMateria"
-                  :value="materia.idMateria"
-                >
+                <option v-for="materia in prerequisitosFiltrados()" :key="materia.idMateria" :value="materia.idMateria">
                   {{ materia.nombre }} ({{ materia.idMateria }})
                 </option>
               </select>
-              <small v-if="errors.idMateriaPrevia" class="field-error">
-                {{ errors.idMateriaPrevia[0] }}
-              </small>
-            </label>
+              <small v-if="errors.idMateriaPrevia" class="mm-field-error">{{ errors.idMateriaPrevia[0] }}</small>
+            </div>
 
-            <div class="modal-actions">
-              <button class="secondary" type="button" :disabled="submitting" @click="closeModal">
-                Cancelar
-              </button>
-              <button class="primary" type="submit" :disabled="submitting">
+            <div class="mm-form-actions">
+              <button class="mm-btn-secondary" type="button" :disabled="submitting" @click="closeModal">Cancelar</button>
+              <button class="uni-btn-action-success" type="submit" :disabled="submitting">
                 {{ submitting ? 'Guardando...' : 'Guardar materia' }}
               </button>
             </div>
+
           </form>
         </div>
       </div>
     </Teleport>
 
-    <!-- Modal confirmación deshabilitar -->
+    <!-- Modal: Confirmar deshabilitar -->
     <Teleport to="body">
-      <div v-if="showConfirmModal" class="backdrop" @mousedown.self="cancelDisable">
-        <div class="modal-card confirm-modal">
-          <div class="confirm-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <div v-if="showConfirmModal" class="mm-backdrop" @mousedown.self="cancelDisable">
+        <div class="mm-confirm-modal">
+
+          <div class="mm-confirm-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
               <line x1="12" y1="9" x2="12" y2="13"/>
               <line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
           </div>
-          <h4>Deshabilitar materia</h4>
-          <p class="confirm-name">{{ materiaToDisable?.nombre }} <code>{{ materiaToDisable?.idMateria }}</code></p>
-          <p class="confirm-warning">
+
+          <h4 class="mm-confirm-title">Deshabilitar materia</h4>
+
+          <p class="mm-confirm-subject">
+            {{ materiaToDisable?.nombre }}
+            <code class="mm-code">{{ materiaToDisable?.idMateria }}</code>
+          </p>
+
+          <p class="mm-confirm-warning">
             Esta acción <strong>deshabilitará</strong> la materia del sistema. No se eliminará ningún dato
             histórico, pero la materia dejará de estar disponible para nuevas ofertas de cursos.
           </p>
-          <div class="confirm-actions">
-            <button class="secondary" type="button" :disabled="submitting" @click="cancelDisable">Cancelar</button>
-            <button class="danger-btn" type="button" :disabled="submitting" @click="confirmDisableMateria">
+
+          <div class="mm-confirm-actions">
+            <button class="mm-btn-secondary" type="button" :disabled="submitting" @click="cancelDisable">Cancelar</button>
+            <button class="uni-btn-action-danger" type="button" :disabled="submitting" @click="confirmDisableMateria">
               {{ submitting ? 'Deshabilitando...' : 'Confirmar deshabilitar' }}
             </button>
           </div>
+
         </div>
       </div>
     </Teleport>
+
   </div>
 </template>
 
 <style scoped>
-.materia-management {
-  display: grid;
-  gap: 1.25rem;
+.mm {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  color: var(--uni-text);
 }
 
-.header-section {
+/* Cabecera */
+.mm-header {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
   align-items: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--panel-border);
+  border-bottom: 1px solid var(--color-linen);
 }
+.mm-title  { margin: 0 0 2px; font-size: 1rem; font-weight: 700; }
+.mm-subtitle { margin: 0; font-size: 11px; color: var(--uni-muted); }
 
-.header-section h3 {
-  margin: 0;
-  font-size: 1.5rem;
+/* Alertas */
+.mm-alert {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid;
 }
+.mm-alert--success { background: var(--uni-success-bg); border-color: var(--uni-success-border); color: var(--uni-success-text); }
+.mm-alert--error   { background: var(--uni-error-bg);   border-color: var(--uni-error-border);   color: var(--uni-error-text); }
 
-.subtitle {
-  margin: 0.25rem 0 0;
-  color: var(--muted);
-  font-size: 0.9rem;
+/* Card tabla */
+.mm-card {
+  background: var(--color-white);
+  border: 1px solid rgba(0,0,0,.06);
+  border-radius: 12px;
+  overflow: hidden;
 }
-
-.table-card {
-  border: 1px solid rgba(180, 204, 255, 0.08);
-  border-radius: 1rem;
-  overflow: auto;
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.table-head {
+.mm-card-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.1rem;
-  border-bottom: 1px solid rgba(180, 204, 255, 0.08);
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--color-linen);
+}
+.mm-card-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--uni-muted);
 }
 
-.table-head h4 {
-  margin: 0;
-  color: var(--primary);
-}
-
-.head-actions {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.filters-grid {
+/* Filtros */
+.mm-filters {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
-  padding: 1rem 1.1rem;
-  border-bottom: 1px solid rgba(180, 204, 255, 0.08);
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--color-linen);
+  background: #fafafa;
 }
+@media (max-width: 700px) { .mm-filters { grid-template-columns: 1fr; } }
 
-.filters-grid label span {
-  color: #475569;
-}
+.mm-filter-group { display: flex; flex-direction: column; gap: 0.3rem; }
 
-.filters-grid input,
-.filters-grid select {
-  background: #ffffff;
-  border: 1.5px solid #cbd5e1;
-  color: #0f172a;
-}
-
-.filters-grid input:focus,
-.filters-grid select:focus {
-  border-color: #3c4f4d;
-  box-shadow: 0 0 0 3px rgba(60, 79, 77, 0.12);
-}
-
-.table-wrap {
-  overflow-x: auto;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.data-table th,
-.data-table td {
-  padding: 0.9rem 1rem;
-  border-bottom: 1px solid rgba(180, 204, 255, 0.05);
-  text-align: left;
-}
-
-.data-table th {
-  color: var(--muted);
-  text-transform: uppercase;
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-}
-
-.data-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.inactive {
-  opacity: 0.55;
-}
-
-.empty-state {
-  text-align: center;
-  color: var(--muted);
-  padding: 2rem !important;
-}
-
-code {
-  background: rgba(255, 255, 255, 0.05);
-  padding: 0.2rem 0.45rem;
-  border-radius: 0.35rem;
-}
-
-.status-badge {
-  display: inline-flex;
-  border-radius: 999px;
-  padding: 0.25rem 0.65rem;
-  font-size: 0.75rem;
-  text-transform: uppercase;
+/* Inputs y selects */
+.mm-label {
+  font-size: 10px;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--uni-muted);
+}
+.mm-input,
+.mm-select {
+  width: 100%;
+  background: var(--color-white);
+  border: 1.5px solid var(--color-linen);
+  color: var(--uni-text);
+  padding: 0.52rem 0.85rem;
+  border-radius: 20px;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  appearance: none;
+  transition: border-color 0.2s;
+}
+.mm-input:focus, .mm-select:focus { border-color: var(--color-mint-dark); }
+.mm-input:disabled, .mm-select:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.mm-optional {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 10px;
+  color: var(--uni-muted);
 }
 
-.status-badge.active {
-  background: rgba(34, 197, 94, 0.12);
-  color: #bbf7d0;
+/* Tabla */
+.mm-table-wrap { overflow-x: auto; }
+.mm-table { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+.mm-table thead tr { background: #fafafa; border-bottom: 1px solid var(--color-linen); }
+.mm-table th {
+  padding: 0.7rem 1rem;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--uni-muted);
+}
+.mm-table td {
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid rgba(0,0,0,.04);
+  color: var(--uni-text);
+}
+.mm-table tbody tr:hover { background: #f7f7f5; }
+.mm-table tbody tr:last-child td { border-bottom: none; }
+.mm-row--inactive { opacity: 0.5; }
+.mm-empty { text-align: center; color: var(--uni-muted); padding: 2rem !important; font-size: 12px; }
+
+/* Code chip */
+.mm-code {
+  background: var(--color-linen);
+  color: var(--uni-text);
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
 }
 
-.status-badge.inactive {
-  background: rgba(239, 68, 68, 0.12);
-  color: #fca5a5;
-}
+/* Badges */
+.mm-badge { display: inline-flex; border-radius: 999px; padding: 3px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.mm-badge--active   { background: var(--uni-success-bg); color: var(--uni-success-text); }
+.mm-badge--inactive { background: var(--uni-error-bg);   color: var(--uni-error-text); }
 
-.actions {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.icon-btn {
-  border: 1px solid rgba(180, 204, 255, 0.14);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text);
-  border-radius: 0.7rem;
-  padding: 0.45rem 0.8rem;
+/* Acciones tabla */
+.mm-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.mm-btn-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: 1.5px solid var(--color-linen);
+  border-radius: 20px;
+  color: var(--uni-muted);
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
+  transition: background 0.15s, color 0.15s;
 }
+.mm-btn-action:hover { background: var(--color-linen); color: var(--color-black); }
+.mm-btn-sm { padding: 5px 12px; font-size: 11px; }
 
-.icon-btn.danger {
-  border-color: rgba(239, 68, 68, 0.2);
-  color: #fca5a5;
+/* Botón secundario */
+.mm-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: 1.5px solid var(--color-linen);
+  border-radius: 20px;
+  color: var(--uni-muted);
+  padding: 7px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
 }
+.mm-btn-secondary:hover:not(:disabled) { background: var(--color-linen); color: var(--color-black); }
+.mm-btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.backdrop {
+/* Backdrop */
+.mm-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.32);
   display: grid;
   place-items: center;
   padding: 1rem;
   z-index: 40;
 }
 
-.modal-card {
-  width: min(100%, 44rem);
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 1.4rem;
+/* Modal crear/editar */
+.mm-modal {
+  width: min(100%, 42rem);
+  background: var(--color-white);
+  border: 1px solid var(--color-linen);
+  border-radius: 16px;
   padding: 1.75rem;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 16px 40px rgba(0,0,0,.12);
 }
-
-.modal-header {
+.mm-modal-header {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
   align-items: flex-start;
-  margin-bottom: 1.25rem;
-  border-bottom: 1px solid #e2e8f0;
+  gap: 1rem;
+  border-bottom: 1px solid var(--color-linen);
   padding-bottom: 0.75rem;
+  margin-bottom: 1.25rem;
 }
-
-.modal-header h4 {
-  margin: 0;
-  font-size: 1.15rem;
-  color: #0f172a;
-}
-
-.modal-header p {
-  margin: 0.25rem 0 0;
-  color: #475569;
-  font-size: 0.9rem;
-}
-
-.close-btn {
+.mm-modal-title { margin: 0 0 2px; font-size: 1rem; font-weight: 700; font-family: 'Playfair Display', serif; color: var(--uni-text); }
+.mm-modal-sub   { margin: 0; font-size: 11px; color: var(--uni-muted); }
+.mm-close-btn {
   background: transparent;
   border: none;
-  color: #64748b;
-  font-size: 1.5rem;
+  color: var(--uni-muted);
   cursor: pointer;
-  line-height: 1;
-  padding: 0;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  flex-shrink: 0;
+  transition: color 0.15s;
 }
+.mm-close-btn:hover { color: var(--uni-text); }
 
-.close-btn:hover {
-  color: #0f172a;
-}
-
-.modal-card label span {
-  color: #475569;
-}
-
-.modal-card input,
-.modal-card select {
-  background: #ffffff;
-  border: 1.5px solid #cbd5e1;
-  color: #0f172a;
-}
-
-.modal-card input:focus,
-.modal-card select:focus {
-  border-color: #3c4f4d;
-  box-shadow: 0 0 0 3px rgba(60, 79, 77, 0.12);
-}
-
-.modal-form {
-  display: grid;
-  gap: 1rem;
-}
-
-.two-cols {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-label {
-  display: grid;
-  gap: 0.45rem;
-}
-
-label span {
-  color: var(--muted);
-  font-size: 0.82rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-input,
-select {
-  width: 100%;
-  border: 1px solid rgba(180, 204, 255, 0.14);
-  border-radius: 0.85rem;
-  background: rgba(6, 10, 23, 0.72);
-  color: var(--text);
-  padding: 0.9rem 1rem;
-  outline: none;
-}
-
-.field-error {
-  color: #fca5a5;
-}
-
-.modal-actions {
+/* Formulario */
+.mm-form { display: flex; flex-direction: column; gap: 0.85rem; }
+.mm-two-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.85rem; }
+@media (max-width: 560px) { .mm-two-cols { grid-template-columns: 1fr; } }
+.mm-field { display: flex; flex-direction: column; gap: 0.3rem; }
+.mm-field-error { font-size: 11px; color: var(--uni-error-text); }
+.mm-form-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.75rem;
+  gap: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-linen);
 }
 
-@media (max-width: 900px) {
-  .header-section,
-  .table-head,
-  .modal-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .filters-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .two-cols {
-    grid-template-columns: 1fr;
-  }
-}
-.confirm-modal {
-  max-width: 28rem;
-  text-align: center;
+/* Modal confirmar */
+.mm-confirm-modal {
+  width: min(100%, 26rem);
+  background: var(--color-white);
+  border: 1px solid var(--color-linen);
+  border-radius: 16px;
   padding: 2rem 1.75rem;
+  text-align: center;
+  box-shadow: 0 16px 40px rgba(0,0,0,.12);
 }
-
-.confirm-icon {
+.mm-confirm-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 3.5rem;
-  height: 3.5rem;
+  width: 3rem;
+  height: 3rem;
   border-radius: 50%;
-  background: rgba(239, 68, 68, 0.12);
-  color: #fca5a5;
+  background: var(--uni-error-bg);
+  color: var(--uni-error-text);
   margin-bottom: 1rem;
 }
-
-.confirm-modal h4 {
+.mm-confirm-title {
   margin: 0 0 0.5rem;
-  font-size: 1.15rem;
-}
-
-.confirm-name {
-  margin: 0 0 1rem;
   font-size: 1rem;
-  color: #0f172a;
+  font-weight: 700;
+  font-family: 'Playfair Display', serif;
+  color: var(--uni-text);
 }
-
-.confirm-name code {
-  font-size: 0.85rem;
-  margin-left: 0.25rem;
+.mm-confirm-subject {
+  margin: 0 0 1rem;
+  font-size: 13px;
+  color: var(--uni-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
 }
-
-.confirm-warning {
-  color: #475569;
-  font-size: 0.875rem;
-  line-height: 1.55;
+.mm-confirm-warning {
+  color: var(--uni-muted);
+  font-size: 12px;
+  line-height: 1.6;
   margin: 0 0 1.5rem;
   padding: 0.75rem 1rem;
-  background: rgba(239, 68, 68, 0.06);
-  border: 1px solid rgba(239, 68, 68, 0.15);
-  border-radius: 0.75rem;
+  background: var(--uni-error-bg);
+  border: 1px solid var(--uni-error-border);
+  border-radius: 10px;
   text-align: left;
 }
-
-.confirm-actions {
-  display: flex;
-  justify-content: center;
-  gap: 0.75rem;
-}
-
-.danger-btn {
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  color: #fca5a5;
-  border-radius: 0.7rem;
-  padding: 0.55rem 1.25rem;
-  cursor: pointer;
-  font-weight: 600;
-  transition: background 0.2s;
-}
-
-.danger-btn:hover:not(:disabled) {
-  background: rgba(239, 68, 68, 0.28);
-}
-
-.danger-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+.mm-confirm-actions { display: flex; justify-content: center; gap: 0.6rem; }
 </style>
