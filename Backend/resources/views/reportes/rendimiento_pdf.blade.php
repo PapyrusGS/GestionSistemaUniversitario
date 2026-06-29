@@ -65,11 +65,12 @@
     @forelse($data as $row)
     <tr>
       <td>{{ $row[0] }}</td>
-      <td class="nota-cell">{{ $row[1] }}</td>
+      <td style="text-align:center;">{{ $row[1] }}</td>
       <td>{{ $row[2] }}</td>
       <td>{{ $row[3] }}</td>
       <td class="nota-cell">{{ $row[4] }}</td>
       <td class="nota-cell {{ $row[5] === 'Sin notas' ? 'nota-sin' : '' }}">{{ $row[5] }}</td>
+      <td class="nota-cell">{{ $row[6] }}</td>
     </tr>
     @empty
     <tr><td colspan="{{ count($headings) }}" style="text-align:center;padding:20px;color:#666;">Sin resultados.</td></tr>

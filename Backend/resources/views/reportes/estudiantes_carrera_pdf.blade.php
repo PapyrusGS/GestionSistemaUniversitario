@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Auditoría General del Sistema</title>
+<title>Estudiantes por Carrera</title>
 <style>
   @page { margin: 2cm; }
   body { margin: 0; padding: 0; }
@@ -24,17 +24,13 @@
     border: 1px solid #bbb;
   }
   tbody td {
-    padding: 5px 8px;
+    padding: 6px 8px;
     border: 1px solid #ccc;
     color: #000;
     vertical-align: top;
-    word-break: break-word;
   }
   tbody tr:nth-child(even) { background: #f4f4f4; }
   .mono { font-family: 'Courier New', Courier, monospace; font-size: 8.5px; }
-  .accion-creacion { font-weight: 700; color: #1b4d3e; }
-  .accion-actualizacion { font-weight: 700; color: #1e3a8a; }
-  .accion-eliminacion { font-weight: 700; color: #7f1d1d; text-decoration: underline; }
 
   /* ── Pie ── */
   .footer {
@@ -50,7 +46,7 @@
 <body>
 <div class="header">
   <div class="header-inst">Sistema de Gestión Universitaria</div>
-  <div class="header-report">Reporte de Auditoría General del Sistema</div>
+  <div class="header-report">Reporte de Estudiantes por Carrera</div>
   <div class="header-meta">Generado el {{ now()->format('d/m/Y \a \l\a\s H:i') }}</div>
 </div>
 
@@ -65,20 +61,14 @@
   <tbody>
     @forelse($data as $row)
     <tr>
-      <td class="mono">{{ $row[0] }}</td>
+      <td>{{ $row[0] }}</td>
       <td>{{ $row[1] }}</td>
-      <td>{{ $row[2] }}</td>
-      <td>
-        <span class="accion-{{ $row[3] === 'Creación' ? 'creacion' : ($row[3] === 'Actualización' ? 'actualizacion' : 'eliminacion') }}">
-          {{ $row[3] }}
-        </span>
-      </td>
-      <td class="mono">{{ $row[4] }}</td>
-      <td class="mono">{{ $row[5] }}</td>
-      <td class="mono">{{ $row[6] }}</td>
+      <td class="mono">{{ $row[2] }}</td>
+      <td>{{ $row[3] }}</td>
+      <td>{{ $row[4] }}</td>
     </tr>
     @empty
-    <tr><td colspan="7" style="text-align:center;padding:20px;color:#666;">Sin registros de auditoria.</td></tr>
+    <tr><td colspan="5" style="text-align:center;padding:20px;color:#666;">Sin estudiantes registrados.</td></tr>
     @endforelse
   </tbody>
 </table>

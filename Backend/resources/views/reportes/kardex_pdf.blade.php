@@ -74,22 +74,46 @@
 <div class="ficha">
   <div class="ficha-title">Datos del Estudiante</div>
   <div class="ficha-body">
+    @php
+      $conNota = collect($historial)->filter(fn($r) => !is_null($r['nota']) && $r['nota'] !== '' && $r['nota'] !== '—');
+      $aprobadas = $conNota->filter(fn($r) => floatval($r['nota']) >= 51)->count();
+      $promedio = $conNota->count() ? round($conNota->avg('nota'), 1) : '—';
+      $total = count($historial);
+    @endphp
     <div class="ficha-row">
-      <div class="ficha-cell">
+      <div class="ficha-cell" style="width: 35%;">
         <div class="ficha-label">Nombre Completo</div>
         <div class="ficha-value">{{ $cabecera['nombre'] }}</div>
       </div>
-      <div class="ficha-cell">
+      <div class="ficha-cell" style="width: 15%;">
         <div class="ficha-label">C.I.</div>
         <div class="ficha-value">{{ $cabecera['ci'] }}</div>
       </div>
-      <div class="ficha-cell">
+      <div class="ficha-cell" style="width: 25%;">
         <div class="ficha-label">Correo Electrónico</div>
         <div class="ficha-value">{{ $cabecera['correo'] }}</div>
       </div>
-      <div class="ficha-cell">
+      <div class="ficha-cell" style="width: 25%;">
         <div class="ficha-label">Carrera</div>
         <div class="ficha-value">{{ $cabecera['carrera'] }}</div>
+      </div>
+    </div>
+    <div class="ficha-row" style="border-top: 1px solid #ddd;">
+      <div class="ficha-cell" style="width: 35%; background: #fafafa;">
+        <div class="ficha-label">Resumen Académico</div>
+        <div class="ficha-value" style="font-size: 10px; color: #555;">Estadísticas del historial</div>
+      </div>
+      <div class="ficha-cell" style="width: 15%; background: #fafafa;">
+        <div class="ficha-label">Materias Reg.</div>
+        <div class="ficha-value">{{ $total }}</div>
+      </div>
+      <div class="ficha-cell" style="width: 25%; background: #fafafa;">
+        <div class="ficha-label">Aprobadas / Reprobadas</div>
+        <div class="ficha-value">{{ $aprobadas }} / {{ $total - $aprobadas }}</div>
+      </div>
+      <div class="ficha-cell" style="width: 25%; background: #fafafa;">
+        <div class="ficha-label">Promedio de Notas</div>
+        <div class="ficha-value">{{ $promedio }}</div>
       </div>
     </div>
   </div>

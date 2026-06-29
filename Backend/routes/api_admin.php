@@ -61,4 +61,12 @@ Route::middleware(['auth:sanctum', 'role:Administrador'])->group(function () {
     // 5. Horario de Docente
     Route::get('/reportes/horario-docente',          [ReporteController::class, 'reporteHorarioDocente']);
     Route::get('/reportes/horario-docente/exportar', [ReporteController::class, 'exportarHorarioDocente']);
+
+    // 6. Estudiantes por Carrera
+    Route::get('/reportes/estudiantes-carrera',          [ReporteController::class, 'reporteEstudiantesCarrera']);
+    Route::get('/reportes/estudiantes-carrera/exportar', [ReporteController::class, 'exportarEstudiantesCarrera']);
+
+    // 7. Carga Docente
+    Route::get('/reportes/carga-docente',          [ReporteController::class, 'reporteCargaDocente']);
+    Route::get('/reportes/carga-docente/exportar', [ReporteController::class, 'exportarCargaDocente']);
 });
