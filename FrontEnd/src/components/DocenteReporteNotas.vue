@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 
 const props = defineProps({
   user: Object,
@@ -7,8 +7,8 @@ const props = defineProps({
   badgeTone: String
 })
 
-// ── Pestaña activa ───────────────────────────────────────────────────────────
-const tabActiva = ref('curso')
+// ── Tipo de reporte seleccionado ─────────────────────────────────────────────
+const tipoReporte = ref('')
 
 // ── Estado global ────────────────────────────────────────────────────────────
 const loading = ref(false)
@@ -33,34 +33,65 @@ const idPeriodoEstadistica = ref('')
 const idMateriaEstadistica = ref('')
 const reportEstadisticas = ref(null)
 
+// ── Computed: resultado activo ───────────────────────────────────────────────
+const hayResultados = computed(() => {
+  if (tipoReporte.value === 'curso') return reportData.value !== null
+  if (tipoReporte.value === 'semestre') return reportSemestre.value !== null
+  if (tipoReporte.value === 'estadisticas') return reportEstadisticas.value !== null
+  return false
+})
+
+const botonDeshabilitado = computed(() => {
+  if (loading.value || exportingPdf.value || exportingExcel.value) return true
+  if (!tipoReporte.value) return true
+  if (tipoReporte.value === 'curso' && !idCursoMateria.value) return true
+  if (tipoReporte.value === 'semestre' && !idPeriodoSemestre.value) return true
+  return false
+})
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function resetMessages() {
   errorMessage.value = ''
   successMessage.value = ''
 }
 
-function cambiarTab(tab) {
-  tabActiva.value = tab
-  resetMessages()
-  // Limpiar resultados al cambiar de tab
+function limpiarResultados() {
   reportData.value = null
   reportSemestre.value = null
   reportEstadisticas.value = null
+  resetMessages()
+}
+
+// Limpiar resultados y filtros dependientes al cambiar tipo de reporte
+watch(tipoReporte, (nuevo) => {
+  limpiarResultados()
+  idCursoMateria.value = ''
+  idPeriodoSemestre.value = ''
+  idPeriodoEstadistica.value = ''
+  idMateriaEstadistica.value = ''
+  if (nuevo === 'semestre' || nuevo === 'estadisticas') {
+    cargarFiltros()
+  }
+})
+
+// ════════════════════════════════════════════════════════════════════════════════
+// GENERAR REPORTE (dispatcher unificado)
+// ════════════════════════════════════════════════════════════════════════════════
+function generarReporteUnificado() {
+  if (tipoReporte.value === 'curso') generarReporte()
+  else if (tipoReporte.value === 'semestre') generarReporteSemestre()
+  else if (tipoReporte.value === 'estadisticas') generarEstadisticas()
 }
 
 // ════════════════════════════════════════════════════════════════════════════════
 // HU-DOC-07: REPORTE POR CURSO (lógica existente)
 // ════════════════════════════════════════════════════════════════════════════════
 async function cargarCursos() {
-  loading.value = true
-  resetMessages()
   try {
     const { data } = await props.api.get('/docente/cursos')
     cursos.value = data.data ?? data
   } catch {
-    errorMessage.value = 'No se pudieron cargar tus cursos asignados.'
-  } finally {
-    loading.value = false
+    // Silencioso — se carga en background
   }
 }
 
@@ -316,486 +347,430 @@ onMounted(cargarCursos)
     <div class="workspace-topbar">
       <div class="topbar-left">
         <span class="context-path">Docentes / Reportes</span>
-        <h2>Centro de Reportes Académicos</h2>
+        <h2>Reportes de Calificaciones</h2>
         <p class="subtitle-text">Generación y análisis de reportes académicos del docente</p>
       </div>
     </div>
 
-    <!-- ═══ BARRA DE PESTAÑAS ═══ -->
-    <div class="report-tabs mb-4">
-      <button class="report-tab" :class="{ active: tabActiva === 'curso' }"
-              @click="cambiarTab('curso')">
-        📊 Por Curso
-      </button>
-      <button class="report-tab" :class="{ active: tabActiva === 'semestre' }"
-              @click="cambiarTab('semestre'); cargarFiltros()">
-        📅 Por Semestre
-      </button>
-      <button class="report-tab" :class="{ active: tabActiva === 'estadisticas' }"
-              @click="cambiarTab('estadisticas'); cargarFiltros()">
-        📈 Estadísticas
-      </button>
-    </div>
+    <!-- ═══ PANEL UNIFICADO DE FILTROS ═══ -->
+    <section class="card-panel mb-4">
+      <div class="panel-header">
+        <h4>Panel de Control del Reporte</h4>
+      </div>
+      <div class="generation-bar generation-bar--multi">
+
+        <!-- Tipo de Reporte (siempre visible) -->
+        <div class="selector-field">
+          <label>
+            <span>Tipo de Reporte *</span>
+            <select v-model="tipoReporte" :disabled="loading || exportingPdf || exportingExcel">
+              <option value="" disabled>Seleccione tipo de reporte</option>
+              <option value="curso">📊 Por Curso</option>
+              <option value="semestre">📅 Por Semestre</option>
+              <option value="estadisticas">📈 Estadísticas</option>
+            </select>
+          </label>
+        </div>
+
+        <!-- Curso (solo si tipo = curso) -->
+        <div class="selector-field" v-if="tipoReporte === 'curso'">
+          <label>
+            <span>Curso *</span>
+            <select v-model="idCursoMateria" :disabled="loading || exportingPdf || exportingExcel">
+              <option value="" disabled>Seleccione un curso asignado</option>
+              <option v-for="curso in cursos" :key="curso.idCursoMateria" :value="curso.idCursoMateria">
+                {{ curso.materia_nombre }} — {{ curso.turno_nombre }}
+              </option>
+            </select>
+          </label>
+        </div>
+
+        <!-- Semestre (si tipo = semestre [obligatorio] o estadísticas [opcional]) -->
+        <div class="selector-field" v-if="tipoReporte === 'semestre'">
+          <label>
+            <span>Semestre *</span>
+            <select v-model="idPeriodoSemestre" :disabled="loading">
+              <option value="" disabled>Seleccione un periodo académico</option>
+              <option v-for="p in periodos" :key="p.id" :value="p.id">
+                {{ p.nombre }}
+              </option>
+            </select>
+          </label>
+        </div>
+
+        <!-- Semestre opcional (si tipo = estadísticas) -->
+        <div class="selector-field" v-if="tipoReporte === 'estadisticas'">
+          <label>
+            <span>Semestre (opcional)</span>
+            <select v-model="idPeriodoEstadistica" :disabled="loading">
+              <option value="">Todos los semestres</option>
+              <option v-for="p in periodos" :key="p.id" :value="p.id">
+                {{ p.nombre }}
+              </option>
+            </select>
+          </label>
+        </div>
+
+        <!-- Materia (solo si tipo = estadísticas) -->
+        <div class="selector-field" v-if="tipoReporte === 'estadisticas'">
+          <label>
+            <span>Materia (opcional)</span>
+            <select v-model="idMateriaEstadistica" :disabled="loading">
+              <option value="">Todas las materias</option>
+              <option v-for="m in materias" :key="m.id" :value="m.id">
+                {{ m.nombre }}
+              </option>
+            </select>
+          </label>
+        </div>
+
+        <!-- Botón Generar -->
+        <button class="primary-btn shrink-btn" @click="generarReporteUnificado"
+                :disabled="botonDeshabilitado">
+          <span v-if="loading">Generando...</span>
+          <span v-else>📊 Generar Reporte</span>
+        </button>
+
+      </div>
+    </section>
 
     <!-- Alerts -->
     <div v-if="successMessage" class="alert-inline success mb-4">{{ successMessage }}</div>
     <div v-if="errorMessage"   class="alert-inline error mb-4">{{ errorMessage }}</div>
 
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <!-- TAB 1: POR CURSO (HU-DOC-07 — lógica existente) -->
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <template v-if="tabActiva === 'curso'">
+    <!-- Indicador de Carga -->
+    <div v-if="loading" class="spinner-container">
+      <div class="loading-spinner"></div>
+      <span class="loading-text">Cargando reporte...</span>
+    </div>
 
-      <!-- Filtros de Generación -->
-      <section class="card-panel mb-4">
-        <div class="panel-header">
-          <h4>Panel de Control del Reporte</h4>
-        </div>
-        <div class="generation-bar">
-          <div class="selector-field">
-            <label>
-              <span>Seleccione Curso *</span>
-              <select v-model="idCursoMateria" :disabled="loading || exportingPdf || exportingExcel">
-                <option value="" disabled>Seleccione un curso asignado</option>
-                <option v-for="curso in cursos" :key="curso.idCursoMateria" :value="curso.idCursoMateria">
-                  {{ curso.materia_nombre }} — {{ curso.turno_nombre }}
-                </option>
-              </select>
-            </label>
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- RESULTADOS: POR CURSO (HU-DOC-07) -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <div v-else-if="tipoReporte === 'curso' && reportData" class="fade-in-view">
+
+      <!-- Cards de Resumen Académico -->
+      <div class="dashboard-cards-grid mb-4">
+        
+        <!-- Total Estudiantes -->
+        <div class="metric-card card-blue">
+          <div class="metric-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+            </svg>
           </div>
-          <button class="primary-btn shrink-btn" @click="generarReporte"
-                  :disabled="!idCursoMateria || loading || exportingPdf || exportingExcel">
-            <span v-if="loading">Generando...</span>
-            <span v-else>📊 Generar Reporte</span>
-          </button>
+          <div class="metric-info">
+            <span class="lbl">Total Estudiantes</span>
+            <strong class="val">{{ reportData.summary.total_estudiantes }} alumnos</strong>
+          </div>
         </div>
-      </section>
 
-      <!-- Indicador de Carga -->
-      <div v-if="loading" class="spinner-container">
-        <div class="loading-spinner"></div>
-        <span class="loading-text">Cargando reporte de notas...</span>
+        <!-- Evaluados / Con Calificación -->
+        <div class="metric-card card-green">
+          <div class="metric-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+          </div>
+          <div class="metric-info">
+            <span class="lbl">Evaluados</span>
+            <strong class="val">{{ reportData.summary.total_con_nota }} calificados</strong>
+          </div>
+        </div>
+
+        <!-- Promedio General -->
+        <div class="metric-card card-purple">
+          <div class="metric-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+          </div>
+          <div class="metric-info">
+            <span class="lbl">Promedio General</span>
+            <strong class="val">{{ Number(reportData.summary.promedio_general).toFixed(2) }} pts</strong>
+          </div>
+        </div>
+
       </div>
 
-      <!-- Resultados del Reporte -->
-      <div v-else-if="reportData" class="fade-in-view">
-
-        <!-- Cards de Resumen Académico -->
-        <div class="dashboard-cards-grid mb-4">
+      <!-- Tabla de Estudiantes e Inscripciones -->
+      <section class="table-card-wrapper mb-4">
+        <div class="table-card-header flex-header">
+          <h4>Listado de Calificaciones</h4>
           
-          <!-- Total Estudiantes -->
-          <div class="metric-card card-blue">
-            <div class="metric-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                <circle cx="9" cy="7" r="4"></circle>
-              </svg>
-            </div>
-            <div class="metric-info">
-              <span class="lbl">Total Estudiantes</span>
-              <strong class="val">{{ reportData.summary.total_estudiantes }} alumnos</strong>
-            </div>
+          <!-- Botones de Exportación -->
+          <div class="export-actions" v-if="reportData.rows.length > 0">
+            <button class="export-btn btn-pdf" @click="exportarReporte('pdf')" :disabled="exportingPdf || exportingExcel">
+              <span v-if="exportingPdf">Generando PDF...</span>
+              <span v-else>📄 Exportar PDF</span>
+            </button>
+            <button class="export-btn btn-excel" @click="exportarReporte('excel')" :disabled="exportingPdf || exportingExcel">
+              <span v-if="exportingExcel">Generando Excel...</span>
+              <span v-else>🟢 Exportar Excel</span>
+            </button>
           </div>
-
-          <!-- Evaluados / Con Calificación -->
-          <div class="metric-card card-green">
-            <div class="metric-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                <polyline points="22 4 12 14.01 9 11.01"></polyline>
-              </svg>
-            </div>
-            <div class="metric-info">
-              <span class="lbl">Evaluados</span>
-              <strong class="val">{{ reportData.summary.total_con_nota }} calificados</strong>
-            </div>
-          </div>
-
-          <!-- Promedio General -->
-          <div class="metric-card card-purple">
-            <div class="metric-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-              </svg>
-            </div>
-            <div class="metric-info">
-              <span class="lbl">Promedio General</span>
-              <strong class="val">{{ Number(reportData.summary.promedio_general).toFixed(2) }} pts</strong>
-            </div>
-          </div>
-
         </div>
 
-        <!-- Tabla de Estudiantes e Inscripciones -->
-        <section class="table-card-wrapper mb-4">
-          <div class="table-card-header flex-header">
-            <h4>Listado de Calificaciones</h4>
-            
-            <!-- Botones de Exportación Real -->
-            <div class="export-actions" v-if="reportData.rows.length > 0">
-              <button class="export-btn btn-pdf" @click="exportarReporte('pdf')" :disabled="exportingPdf || exportingExcel">
-                <span v-if="exportingPdf">Generando PDF...</span>
-                <span v-else>📄 Exportar PDF</span>
-              </button>
-              <button class="export-btn btn-excel" @click="exportarReporte('excel')" :disabled="exportingPdf || exportingExcel">
-                <span v-if="exportingExcel">Generando Excel...</span>
-                <span v-else>🟢 Exportar Excel</span>
-              </button>
-            </div>
-          </div>
-
-          <div class="table-responsive">
-            <table class="workspace-table">
-              <thead>
-                <tr>
-                  <th style="width: 15%;">ID Inscripción</th>
-                  <th>Estudiante</th>
-                  <th class="txt-center" style="width: 15%;">Calificación</th>
-                  <th class="txt-center" style="width: 25%;">Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in reportData.rows" :key="row.idInscripcion">
-                  <td class="font-mono">{{ row.idInscripcion }}</td>
-                  <td class="primary-cell font-medium">{{ row.nombreCompleto }}</td>
-                  <td class="font-medium txt-center font-mono">
-                    {{ row.nota !== null ? Number(row.nota).toFixed(1) : '-' }}
-                  </td>
-                  <td class="txt-center">
-                    <span class="badge-state" :class="row.estadoAcademico.toLowerCase().replace(' ', '-')">
-                      {{ row.estadoAcademico }}
-                    </span>
-                  </td>
-                </tr>
-                <tr v-if="reportData.rows.length === 0">
-                  <td colspan="4" class="empty-table-msg">
-                    ⚠️ No existen estudiantes o calificaciones para visualizar en este curso.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-      </div>
-
-      <!-- Pantalla Inicial de Espera (Curso) -->
-      <div v-else class="card-panel text-center-msg">
-        <p class="text-muted">Por favor, seleccione un curso de la barra superior y pulse "Generar Reporte".</p>
-      </div>
-
-    </template>
-
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <!-- TAB 2: POR SEMESTRE (HU-DOC-08) -->
-    <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <template v-else-if="tabActiva === 'semestre'">
-
-      <!-- Filtro Semestre -->
-      <section class="card-panel mb-4">
-        <div class="panel-header">
-          <h4>Filtro por Semestre Académico</h4>
-        </div>
-        <div class="generation-bar">
-          <div class="selector-field">
-            <label>
-              <span>Seleccione Semestre *</span>
-              <select v-model="idPeriodoSemestre" :disabled="loading">
-                <option value="" disabled>Seleccione un periodo académico</option>
-                <option v-for="p in periodos" :key="p.id" :value="p.id">
-                  {{ p.nombre }}
-                </option>
-              </select>
-            </label>
-          </div>
-          <button class="primary-btn shrink-btn" @click="generarReporteSemestre"
-                  :disabled="!idPeriodoSemestre || loading">
-            <span v-if="loading">Generando...</span>
-            <span v-else>📅 Generar Reporte</span>
-          </button>
+        <div class="table-responsive">
+          <table class="workspace-table">
+            <thead>
+              <tr>
+                <th style="width: 15%;">ID Inscripción</th>
+                <th>Estudiante</th>
+                <th class="txt-center" style="width: 15%;">Calificación</th>
+                <th class="txt-center" style="width: 25%;">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in reportData.rows" :key="row.idInscripcion">
+                <td class="font-mono">{{ row.idInscripcion }}</td>
+                <td class="primary-cell font-medium">{{ row.nombreCompleto }}</td>
+                <td class="font-medium txt-center font-mono">
+                  {{ row.nota !== null ? Number(row.nota).toFixed(1) : '-' }}
+                </td>
+                <td class="txt-center">
+                  <span class="badge-state" :class="row.estadoAcademico.toLowerCase().replace(' ', '-')">
+                    {{ row.estadoAcademico }}
+                  </span>
+                </td>
+              </tr>
+              <tr v-if="reportData.rows.length === 0">
+                <td colspan="4" class="empty-table-msg">
+                  ⚠️ No existen estudiantes o calificaciones para visualizar en este curso.
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
 
-      <!-- Carga -->
-      <div v-if="loading" class="spinner-container">
-        <div class="loading-spinner"></div>
-        <span class="loading-text">Cargando reporte semestral...</span>
-      </div>
-
-      <!-- Resultados Semestre -->
-      <div v-else-if="reportSemestre" class="fade-in-view">
-
-        <!-- Cards Resumen Semestral -->
-        <div class="dashboard-cards-grid mb-4">
-          <div class="metric-card card-blue">
-            <div class="metric-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                <circle cx="9" cy="7" r="4"></circle>
-              </svg>
-            </div>
-            <div class="metric-info">
-              <span class="lbl">Total Estudiantes</span>
-              <strong class="val">{{ reportSemestre.summary.total_estudiantes }}</strong>
-            </div>
-          </div>
-          <div class="metric-card card-green">
-            <div class="metric-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                <polyline points="22 4 12 14.01 9 11.01"></polyline>
-              </svg>
-            </div>
-            <div class="metric-info">
-              <span class="lbl">Aprobados</span>
-              <strong class="val">{{ reportSemestre.summary.total_aprobados }}</strong>
-            </div>
-          </div>
-          <div class="metric-card card-red">
-            <div class="metric-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="15" y1="9" x2="9" y2="15"></line>
-                <line x1="9" y1="9" x2="15" y2="15"></line>
-              </svg>
-            </div>
-            <div class="metric-info">
-              <span class="lbl">Reprobados</span>
-              <strong class="val">{{ reportSemestre.summary.total_reprobados }}</strong>
-            </div>
-          </div>
-          <div class="metric-card card-purple">
-            <div class="metric-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-              </svg>
-            </div>
-            <div class="metric-info">
-              <span class="lbl">Promedio General</span>
-              <strong class="val">{{ Number(reportSemestre.summary.promedio_general).toFixed(2) }} pts</strong>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tabla Semestral -->
-        <section class="table-card-wrapper mb-4">
-          <div class="table-card-header flex-header">
-            <h4>Detalle de Estudiantes en el Semestre</h4>
-            <div class="export-actions" v-if="reportSemestre.rows.length > 0">
-              <button class="export-btn btn-pdf" @click="exportarReporteSemestre('pdf')" :disabled="exportingPdf || exportingExcel">
-                <span v-if="exportingPdf">Generando PDF...</span>
-                <span v-else>📄 Exportar PDF</span>
-              </button>
-              <button class="export-btn btn-excel" @click="exportarReporteSemestre('excel')" :disabled="exportingPdf || exportingExcel">
-                <span v-if="exportingExcel">Generando Excel...</span>
-                <span v-else>🟢 Exportar Excel</span>
-              </button>
-            </div>
-          </div>
-          <div class="table-responsive">
-            <table class="workspace-table">
-              <thead>
-                <tr>
-                  <th>Estudiante</th>
-                  <th>Materia</th>
-                  <th class="txt-center" style="width: 12%;">Nota</th>
-                  <th class="txt-center" style="width: 18%;">Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(row, idx) in reportSemestre.rows" :key="idx">
-                  <td class="primary-cell font-medium">{{ row.nombreCompleto }}</td>
-                  <td>{{ row.materia_nombre }}</td>
-                  <td class="font-medium txt-center font-mono">
-                    {{ row.nota !== null ? Number(row.nota).toFixed(1) : '-' }}
-                  </td>
-                  <td class="txt-center">
-                    <span class="badge-state" :class="row.estadoAcademico.toLowerCase().replace(/\s/g, '-')">
-                      {{ row.estadoAcademico }}
-                    </span>
-                  </td>
-                </tr>
-                <tr v-if="reportSemestre.rows.length === 0">
-                  <td colspan="4" class="empty-table-msg">
-                    ⚠️ No hay registros para el semestre seleccionado.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-
-      <!-- Espera Semestre -->
-      <div v-else class="card-panel text-center-msg">
-        <p class="text-muted">Seleccione un semestre académico y pulse "Generar Reporte" para visualizar los resultados.</p>
-      </div>
-
-    </template>
+    </div>
 
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <!-- TAB 3: ESTADÍSTICAS APROBADOS/REPROBADOS (HU-DOC-10) -->
+    <!-- RESULTADOS: POR SEMESTRE (HU-DOC-08) -->
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <template v-else-if="tabActiva === 'estadisticas'">
+    <div v-else-if="tipoReporte === 'semestre' && reportSemestre" class="fade-in-view">
 
-      <!-- Filtros combinados -->
-      <section class="card-panel mb-4">
-        <div class="panel-header">
-          <h4>Filtros de Estadísticas</h4>
+      <!-- Cards Resumen Semestral -->
+      <div class="dashboard-cards-grid mb-4">
+        <div class="metric-card card-blue">
+          <div class="metric-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+            </svg>
+          </div>
+          <div class="metric-info">
+            <span class="lbl">Total Estudiantes</span>
+            <strong class="val">{{ reportSemestre.summary.total_estudiantes }}</strong>
+          </div>
         </div>
-        <div class="generation-bar generation-bar--multi">
-          <div class="selector-field">
-            <label>
-              <span>Semestre (opcional)</span>
-              <select v-model="idPeriodoEstadistica" :disabled="loading">
-                <option value="">Todos los semestres</option>
-                <option v-for="p in periodos" :key="p.id" :value="p.id">
-                  {{ p.nombre }}
-                </option>
-              </select>
-            </label>
+        <div class="metric-card card-green">
+          <div class="metric-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
           </div>
-          <div class="selector-field">
-            <label>
-              <span>Materia (opcional)</span>
-              <select v-model="idMateriaEstadistica" :disabled="loading">
-                <option value="">Todas las materias</option>
-                <option v-for="m in materias" :key="m.id" :value="m.id">
-                  {{ m.nombre }}
-                </option>
-              </select>
-            </label>
+          <div class="metric-info">
+            <span class="lbl">Aprobados</span>
+            <strong class="val">{{ reportSemestre.summary.total_aprobados }}</strong>
           </div>
-          <button class="primary-btn shrink-btn" @click="generarEstadisticas" :disabled="loading">
-            <span v-if="loading">Generando...</span>
-            <span v-else>📈 Generar Estadísticas</span>
-          </button>
+        </div>
+        <div class="metric-card card-red">
+          <div class="metric-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="15" y1="9" x2="9" y2="15"></line>
+              <line x1="9" y1="9" x2="15" y2="15"></line>
+            </svg>
+          </div>
+          <div class="metric-info">
+            <span class="lbl">Reprobados</span>
+            <strong class="val">{{ reportSemestre.summary.total_reprobados }}</strong>
+          </div>
+        </div>
+        <div class="metric-card card-purple">
+          <div class="metric-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+          </div>
+          <div class="metric-info">
+            <span class="lbl">Promedio General</span>
+            <strong class="val">{{ Number(reportSemestre.summary.promedio_general).toFixed(2) }} pts</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla Semestral -->
+      <section class="table-card-wrapper mb-4">
+        <div class="table-card-header flex-header">
+          <h4>Detalle de Estudiantes en el Semestre</h4>
+          <div class="export-actions" v-if="reportSemestre.rows.length > 0">
+            <button class="export-btn btn-pdf" @click="exportarReporteSemestre('pdf')" :disabled="exportingPdf || exportingExcel">
+              <span v-if="exportingPdf">Generando PDF...</span>
+              <span v-else>📄 Exportar PDF</span>
+            </button>
+            <button class="export-btn btn-excel" @click="exportarReporteSemestre('excel')" :disabled="exportingPdf || exportingExcel">
+              <span v-if="exportingExcel">Generando Excel...</span>
+              <span v-else>🟢 Exportar Excel</span>
+            </button>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="workspace-table">
+            <thead>
+              <tr>
+                <th>Estudiante</th>
+                <th>Materia</th>
+                <th class="txt-center" style="width: 12%;">Nota</th>
+                <th class="txt-center" style="width: 18%;">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(row, idx) in reportSemestre.rows" :key="idx">
+                <td class="primary-cell font-medium">{{ row.nombreCompleto }}</td>
+                <td>{{ row.materia_nombre }}</td>
+                <td class="font-medium txt-center font-mono">
+                  {{ row.nota !== null ? Number(row.nota).toFixed(1) : '-' }}
+                </td>
+                <td class="txt-center">
+                  <span class="badge-state" :class="row.estadoAcademico.toLowerCase().replace(/\s/g, '-')">
+                    {{ row.estadoAcademico }}
+                  </span>
+                </td>
+              </tr>
+              <tr v-if="reportSemestre.rows.length === 0">
+                <td colspan="4" class="empty-table-msg">
+                  ⚠️ No hay registros para el semestre seleccionado.
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
+    </div>
 
-      <!-- Carga -->
-      <div v-if="loading" class="spinner-container">
-        <div class="loading-spinner"></div>
-        <span class="loading-text">Calculando estadísticas...</span>
-      </div>
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- RESULTADOS: ESTADÍSTICAS (HU-DOC-10) -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <div v-else-if="tipoReporte === 'estadisticas' && reportEstadisticas" class="fade-in-view">
 
-      <!-- Resultados Estadísticas -->
-      <div v-else-if="reportEstadisticas" class="fade-in-view">
-
-        <!-- Cards de Resumen Global -->
-        <div class="dashboard-cards-grid mb-4">
-          <div class="metric-card card-green">
-            <div class="metric-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                <polyline points="22 4 12 14.01 9 11.01"></polyline>
-              </svg>
-            </div>
-            <div class="metric-info">
-              <span class="lbl">Total Aprobados</span>
-              <strong class="val">{{ reportEstadisticas.summary.total_aprobados }}</strong>
-            </div>
+      <!-- Cards de Resumen Global -->
+      <div class="dashboard-cards-grid mb-4">
+        <div class="metric-card card-green">
+          <div class="metric-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
           </div>
-          <div class="metric-card card-red">
-            <div class="metric-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="15" y1="9" x2="9" y2="15"></line>
-                <line x1="9" y1="9" x2="15" y2="15"></line>
-              </svg>
-            </div>
-            <div class="metric-info">
-              <span class="lbl">Total Reprobados</span>
-              <strong class="val">{{ reportEstadisticas.summary.total_reprobados }}</strong>
-            </div>
-          </div>
-          <div class="metric-card card-amber">
-            <div class="metric-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 20V10M12 20V4M6 20v-6"></path>
-              </svg>
-            </div>
-            <div class="metric-info">
-              <span class="lbl">% Aprobación</span>
-              <strong class="val">{{ reportEstadisticas.summary.porcentaje_aprobacion }}%</strong>
-            </div>
-          </div>
-          <div class="metric-card card-purple">
-            <div class="metric-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-              </svg>
-            </div>
-            <div class="metric-info">
-              <span class="lbl">Promedio General</span>
-              <strong class="val">{{ reportEstadisticas.summary.promedio_general }} pts</strong>
-            </div>
+          <div class="metric-info">
+            <span class="lbl">Total Aprobados</span>
+            <strong class="val">{{ reportEstadisticas.summary.total_aprobados }}</strong>
           </div>
         </div>
-
-        <!-- Tabla de Detalle por Materia/Periodo -->
-        <section class="table-card-wrapper mb-4">
-          <div class="table-card-header flex-header">
-            <h4>Detalle por Materia y Semestre</h4>
-            <div class="export-actions" v-if="reportEstadisticas.rows.length > 0">
-              <button class="export-btn btn-pdf" @click="exportarEstadisticas('pdf')" :disabled="exportingPdf || exportingExcel">
-                <span v-if="exportingPdf">Generando PDF...</span>
-                <span v-else>📄 Exportar PDF</span>
-              </button>
-              <button class="export-btn btn-excel" @click="exportarEstadisticas('excel')" :disabled="exportingPdf || exportingExcel">
-                <span v-if="exportingExcel">Generando Excel...</span>
-                <span v-else>🟢 Exportar Excel</span>
-              </button>
-            </div>
+        <div class="metric-card card-red">
+          <div class="metric-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="15" y1="9" x2="9" y2="15"></line>
+              <line x1="9" y1="9" x2="15" y2="15"></line>
+            </svg>
           </div>
-          <div class="table-responsive">
-            <table class="workspace-table">
-              <thead>
-                <tr>
-                  <th>Materia</th>
-                  <th>Semestre</th>
-                  <th class="txt-center">Aprobados</th>
-                  <th class="txt-center">Reprobados</th>
-                  <th class="txt-center">Total</th>
-                  <th class="txt-center">% Aprobación</th>
-                  <th class="txt-center">Promedio</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(row, idx) in reportEstadisticas.rows" :key="idx">
-                  <td class="primary-cell font-medium">{{ row.materia_nombre }}</td>
-                  <td>{{ row.periodo_nombre }}</td>
-                  <td class="txt-center">
-                    <span class="badge-state aprobado">{{ row.aprobados }}</span>
-                  </td>
-                  <td class="txt-center">
-                    <span class="badge-state reprobado">{{ row.reprobados }}</span>
-                  </td>
-                  <td class="txt-center font-mono">{{ row.total_notas }}</td>
-                  <td class="txt-center">
-                    <span class="badge-pct" :class="row.porcentaje_aprobacion >= 60 ? 'pct-high' : 'pct-low'">
-                      {{ row.porcentaje_aprobacion }}%
-                    </span>
-                  </td>
-                  <td class="txt-center font-mono">{{ row.promedio_general }}</td>
-                </tr>
-                <tr v-if="reportEstadisticas.rows.length === 0">
-                  <td colspan="7" class="empty-table-msg">
-                    ⚠️ No hay registros para los filtros seleccionados.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <div class="metric-info">
+            <span class="lbl">Total Reprobados</span>
+            <strong class="val">{{ reportEstadisticas.summary.total_reprobados }}</strong>
           </div>
-        </section>
+        </div>
+        <div class="metric-card card-amber">
+          <div class="metric-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 20V10M12 20V4M6 20v-6"></path>
+            </svg>
+          </div>
+          <div class="metric-info">
+            <span class="lbl">% Aprobación</span>
+            <strong class="val">{{ reportEstadisticas.summary.porcentaje_aprobacion }}%</strong>
+          </div>
+        </div>
+        <div class="metric-card card-purple">
+          <div class="metric-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+          </div>
+          <div class="metric-info">
+            <span class="lbl">Promedio General</span>
+            <strong class="val">{{ reportEstadisticas.summary.promedio_general }} pts</strong>
+          </div>
+        </div>
       </div>
 
-      <!-- Espera Estadísticas -->
-      <div v-else class="card-panel text-center-msg">
-        <p class="text-muted">Configure los filtros opcionales y pulse "Generar Estadísticas" para analizar aprobación y reprobación.</p>
-      </div>
+      <!-- Tabla de Detalle por Materia/Periodo -->
+      <section class="table-card-wrapper mb-4">
+        <div class="table-card-header flex-header">
+          <h4>Detalle por Materia y Semestre</h4>
+          <div class="export-actions" v-if="reportEstadisticas.rows.length > 0">
+            <button class="export-btn btn-pdf" @click="exportarEstadisticas('pdf')" :disabled="exportingPdf || exportingExcel">
+              <span v-if="exportingPdf">Generando PDF...</span>
+              <span v-else>📄 Exportar PDF</span>
+            </button>
+            <button class="export-btn btn-excel" @click="exportarEstadisticas('excel')" :disabled="exportingPdf || exportingExcel">
+              <span v-if="exportingExcel">Generando Excel...</span>
+              <span v-else>🟢 Exportar Excel</span>
+            </button>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="workspace-table">
+            <thead>
+              <tr>
+                <th>Materia</th>
+                <th>Semestre</th>
+                <th class="txt-center">Aprobados</th>
+                <th class="txt-center">Reprobados</th>
+                <th class="txt-center">Total</th>
+                <th class="txt-center">% Aprobación</th>
+                <th class="txt-center">Promedio</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(row, idx) in reportEstadisticas.rows" :key="idx">
+                <td class="primary-cell font-medium">{{ row.materia_nombre }}</td>
+                <td>{{ row.periodo_nombre }}</td>
+                <td class="txt-center">
+                  <span class="badge-state aprobado">{{ row.aprobados }}</span>
+                </td>
+                <td class="txt-center">
+                  <span class="badge-state reprobado">{{ row.reprobados }}</span>
+                </td>
+                <td class="txt-center font-mono">{{ row.total_notas }}</td>
+                <td class="txt-center">
+                  <span class="badge-pct" :class="row.porcentaje_aprobacion >= 60 ? 'pct-high' : 'pct-low'">
+                    {{ row.porcentaje_aprobacion }}%
+                  </span>
+                </td>
+                <td class="txt-center font-mono">{{ row.promedio_general }}</td>
+              </tr>
+              <tr v-if="reportEstadisticas.rows.length === 0">
+                <td colspan="7" class="empty-table-msg">
+                  ⚠️ No hay registros para los filtros seleccionados.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
 
-    </template>
+    <!-- Pantalla Inicial -->
+    <div v-else-if="!loading" class="card-panel text-center-msg">
+      <p class="text-muted">Seleccione un tipo de reporte, configure los filtros y pulse "Generar Reporte" para visualizar los resultados.</p>
+    </div>
 
   </div>
 </template>
@@ -803,35 +778,6 @@ onMounted(cargarCursos)
 <style scoped>
 .subtitle-text { font-size: 0.9rem; color: #6b7280; margin-top: 0.2rem; }
 .mb-4 { margin-bottom: 1.5rem; }
-
-/* ═══ TABS ═══ */
-.report-tabs {
-  display: flex;
-  gap: 0.5rem;
-  border-bottom: 2px solid rgba(0, 0, 0, 0.06);
-  padding-bottom: 0;
-}
-.report-tab {
-  background: transparent;
-  border: none;
-  border-bottom: 3px solid transparent;
-  padding: 0.75rem 1.5rem;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: #6b7280;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border-radius: 8px 8px 0 0;
-}
-.report-tab:hover {
-  color: #38bdf8;
-  background: rgba(56, 189, 248, 0.04);
-}
-.report-tab.active {
-  color: #38bdf8;
-  border-bottom-color: #38bdf8;
-  background: rgba(56, 189, 248, 0.06);
-}
 
 /* ═══ CARDS / PANEL ═══ */
 .card-panel {
