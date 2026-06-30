@@ -19,6 +19,8 @@ const errorMessage = ref('')
 const errors = ref({})
 const filterRol = ref('')
 const showCreateModal = ref(false)
+const showPassword = ref(false)
+const showPasswordConfirmation = ref(false)
 
 const filteredUsers = computed(() => {
   if (!filterRol.value) return users.value
@@ -34,6 +36,7 @@ const form = reactive({
   correo: '',
   telefono: '',
   password: '',
+  password_confirmation: '',
   idRol: '',
   idCarrera: '',
 })
@@ -47,6 +50,7 @@ const formErrors = reactive({
   correo: '',
   telefono: '',
   password: '',
+  password_confirmation: '',
   idRol: '',
   idCarrera: '',
 })
@@ -61,10 +65,26 @@ const isDocente = computed(() => roleName.value === 'Docente')
 const isAdmin = computed(() => roleName.value === 'Administrador')
 
 const validators = {
-  nombre1: v => !v.trim() && 'El primer nombre es obligatorio.',
-  nombre2: v => v && v.length > 255 && 'Máximo 255 caracteres.',
-  apellido1: v => !v.trim() && 'El primer apellido es obligatorio.',
-  apellido2: v => v && v.length > 255 && 'Máximo 255 caracteres.',
+  nombre1: v => {
+    if (!v.trim()) return 'El primer nombre es obligatorio.'
+    if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(v)) return 'El primer nombre solo debe contener letras.'
+  },
+  nombre2: v => {
+    if (v) {
+      if (v.length > 255) return 'Máximo 255 caracteres.'
+      if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(v)) return 'El segundo nombre solo debe contener letras.'
+    }
+  },
+  apellido1: v => {
+    if (!v.trim()) return 'El primer apellido es obligatorio.'
+    if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(v)) return 'El primer apellido solo debe contener letras.'
+  },
+  apellido2: v => {
+    if (v) {
+      if (v.length > 255) return 'Máximo 255 caracteres.'
+      if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(v)) return 'El segundo apellido solo debe contener letras.'
+    }
+  },
   ci: v => {
     if (!v.trim()) return 'El CI es obligatorio.'
     if (!/^\d+$/.test(v.trim())) return 'Solo se permiten números.'
@@ -73,16 +93,52 @@ const validators = {
     if (!v.trim()) return 'El correo es obligatorio.'
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) return 'Formato de correo inválido.'
   },
-  telefono: v => v && !/^\d{7,15}$/.test(v.trim()) && 'Ingrese un teléfono válido (7-15 dígitos).',
+  telefono: v => v && !/^[67]\d{7}$/.test(v.trim()) && 'El teléfono debe empezar con 6 o 7 y tener exactamente 8 dígitos.',
   password: v => {
     if (!v) return 'La contraseña es obligatoria.'
     if (v.length < 8) return 'Mínimo 8 caracteres.'
     if (!/[a-zA-Z]/.test(v)) return 'Debe contener al menos una letra.'
     if (!/[0-9]/.test(v)) return 'Debe contener al menos un número.'
   },
+  password_confirmation: v => {
+    if (!v) return 'Debe confirmar la contraseña.'
+    if (v !== form.password) return 'La confirmación de la contraseña no coincide.'
+  },
   idRol: v => !v && 'Seleccione un rol.',
   idCarrera: v => isStudent.value && !v && 'Seleccione una carrera.',
 }
+
+const activeErrors = computed(() => {
+  const list = []
+  const fieldsOrder = [
+    'idRol',
+    'nombre1',
+    'nombre2',
+    'apellido1',
+    'apellido2',
+    'ci',
+    'telefono',
+    'correo',
+    'password',
+    'password_confirmation',
+    'idCarrera'
+  ]
+  fieldsOrder.forEach(field => {
+    if (formErrors[field]) {
+      list.push(formErrors[field])
+    } else if (errors.value && errors.value[field] && errors.value[field].length > 0) {
+      list.push(errors.value[field][0])
+    }
+  })
+  if (errors.value) {
+    Object.keys(errors.value).forEach(field => {
+      if (!fieldsOrder.includes(field) && errors.value[field] && errors.value[field].length > 0) {
+        list.push(errors.value[field][0])
+      }
+    })
+  }
+  return list
+})
 
 function validateField(field) {
   const fn = validators[field]
@@ -142,10 +198,13 @@ function resetForm() {
   form.correo = ''
   form.telefono = ''
   form.password = ''
+  form.password_confirmation = ''
   form.idRol = ''
   form.idCarrera = ''
   errors.value = {}
   Object.keys(formErrors).forEach(k => formErrors[k] = '')
+  showPassword.value = false
+  showPasswordConfirmation.value = false
 }
 
 function resetMessages() {
@@ -290,7 +349,15 @@ onMounted(() => {
         </div>
 
         <div v-if="successMessage" class="uni-alert uni-alert--success">{{ successMessage }}</div>
-        <div v-if="errorMessage"   class="uni-alert uni-alert--error">{{ errorMessage }}</div>
+        <div v-if="activeErrors.length > 0 || errorMessage" class="uni-alert uni-alert--error">
+          <div v-if="errorMessage && activeErrors.length === 0">{{ errorMessage }}</div>
+          <div v-else>
+            <div style="font-weight: 700; margin-bottom: 5px;">Por favor, corrige los siguientes errores:</div>
+            <ul style="margin: 0; padding-left: 20px; list-style-type: disc;">
+              <li v-for="(err, idx) in activeErrors" :key="idx">{{ err }}</li>
+            </ul>
+          </div>
+        </div>
 
         <form @submit.prevent="submitForm" class="um-form">
 
@@ -394,9 +461,52 @@ onMounted(() => {
               <div class="um-grid-2">
                 <label class="um-field">
                   <span>Contraseña *</span>
-                  <input v-model="form.password" type="password" required :disabled="submittings" autocomplete="new-password" placeholder="Mínimo 8 caracteres" @input="validateField('password')" />
+                  <div class="um-password-wrapper">
+                    <input
+                      v-model="form.password"
+                      :type="showPassword ? 'text' : 'password'"
+                      required
+                      :disabled="submittings"
+                      autocomplete="new-password"
+                      placeholder="Mínimo 8 caracteres"
+                      @input="validateField('password'); validateField('password_confirmation')"
+                    />
+                    <button
+                      type="button"
+                      class="um-password-toggle"
+                      @click="showPassword = !showPassword"
+                      tabindex="-1"
+                    >
+                      <i class="ti" :class="showPassword ? 'ti-eye-off' : 'ti-eye'"></i>
+                    </button>
+                  </div>
                   <span v-if="formErrors.password" class="um-field-error">{{ formErrors.password }}</span>
                   <span v-else-if="errors.password" class="um-field-error">{{ errors.password[0] }}</span>
+                </label>
+
+                <label class="um-field">
+                  <span>Confirmar contraseña *</span>
+                  <div class="um-password-wrapper">
+                    <input
+                      v-model="form.password_confirmation"
+                      :type="showPasswordConfirmation ? 'text' : 'password'"
+                      required
+                      :disabled="submittings"
+                      autocomplete="new-password"
+                      placeholder="Repite la contraseña"
+                      @input="validateField('password_confirmation')"
+                    />
+                    <button
+                      type="button"
+                      class="um-password-toggle"
+                      @click="showPasswordConfirmation = !showPasswordConfirmation"
+                      tabindex="-1"
+                    >
+                      <i class="ti" :class="showPasswordConfirmation ? 'ti-eye-off' : 'ti-eye'"></i>
+                    </button>
+                  </div>
+                  <span v-if="formErrors.password_confirmation" class="um-field-error">{{ formErrors.password_confirmation }}</span>
+                  <span v-else-if="errors.password_confirmation" class="um-field-error">{{ errors.password_confirmation[0] }}</span>
                 </label>
               </div>
             </div>
@@ -830,6 +940,38 @@ onMounted(() => {
   font-size: 11px;
   color: #b85c5c;
   margin-top: 2px;
+}
+
+/* ── Password Toggle ── */
+.um-password-wrapper {
+  position: relative;
+  width: 100%;
+}
+.um-password-wrapper input {
+  padding-right: 2.75rem !important;
+}
+.um-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.75rem;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: #5b5c5e;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 50%;
+  transition: color 0.15s, background-color 0.15s;
+}
+.um-password-toggle:hover {
+  color: #1a1a1a;
+  background-color: #f0f0ee;
+}
+.um-password-toggle i {
+  font-size: 1.1rem;
 }
 
 /* ── Nota contextual ── */
