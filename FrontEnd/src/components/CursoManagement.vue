@@ -168,7 +168,7 @@ onMounted(fetchCursoData)
     <div class="cm-header">
       <div>
         <h3 class="cm-title">Creación de Cursos</h3>
-        <p class="cm-subtitle">HU-ADM-06 · Materia, docente, horario y régimen académico</p>
+        <p class="cm-subtitle">Materia, docente, horario y régimen académico</p>
       </div>
       <div class="cm-header-actions">
         <button class="uni-btn-action-success" type="button" @click="showCreateModal = true">

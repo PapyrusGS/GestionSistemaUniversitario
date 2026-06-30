@@ -209,7 +209,7 @@ onMounted(fetchMateriaData)
     <div class="mm-header">
       <div>
         <h3 class="mm-title">Administración de Materias</h3>
-        <p class="mm-subtitle">HU-ADM-05 · Registro, edición, deshabilitación y prerrequisitos</p>
+        <p class="mm-subtitle">Registro, edición, deshabilitación y prerrequisitos</p>
       </div>
       <button class="uni-btn-action-success" type="button" @click="openCreate">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
