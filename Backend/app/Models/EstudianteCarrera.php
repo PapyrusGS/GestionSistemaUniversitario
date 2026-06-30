@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class EstudianteCarrera extends Model
 {
+    use Auditable;
+
     protected $table = 'estudiante_carrera';
 
     protected $primaryKey = 'idEstudianteCarrera';

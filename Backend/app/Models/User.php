@@ -2,16 +2,20 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
+    use Auditable;
+
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
@@ -71,6 +75,11 @@ class User extends Authenticatable
     public function rol(): BelongsTo
     {
         return $this->belongsTo(Rol::class, 'idRol', 'idRol');
+    }
+
+    public function cursosMaterias(): HasMany
+    {
+        return $this->hasMany(CursoMateria::class, 'idDocente', 'idUsuario');
     }
 
     public function getNombreCompletoAttribute(): string

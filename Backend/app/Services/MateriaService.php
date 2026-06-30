@@ -52,6 +52,17 @@ class MateriaService
         return $this->payload($this->materias->disable($id));
     }
 
+    public function enable(string $id): array
+    {
+        $materia = $this->materias->findOrFail($id);
+        $carrera = \App\Models\Carrera::findOrFail($materia['idCarrera']);
+        if (!$carrera->estado) {
+            throw new \Exception('No se puede habilitar la materia porque su carrera correspondiente está deshabilitada.');
+        }
+        $this->materias->enable($id);
+        return $this->payload($this->materias->findOrFail($id));
+    }
+
     private function payload(array $materia): array
     {
         return [

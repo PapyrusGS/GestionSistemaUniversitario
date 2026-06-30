@@ -77,9 +77,12 @@
                 <input
                   v-model="profileForm.current_password"
                   type="password"
-                  placeholder="Introduce tu contraseña actual"
-                  required
-                >
+                  placeholder="Ingresa tu contraseña actual"
+                  autocomplete="current-password"
+                  @input="profileTouched.current_password && validateProfile('current_password')"
+                  @blur="validateProfile('current_password')"
+                  />
+                  <span v-if="profileErrors.current_password" class="uni-field-error">{{ profileErrors.current_password }}</span>
               </div>
             </div>
 
@@ -89,11 +92,20 @@
                 <div class="uni-input-wrap">
                   <i class="ti ti-key"></i>
                   <input
-                    v-model="profileForm.new_password"
-                    type="password"
-                    placeholder="Mínimo 6 caracteres"
-                    required
-                  >
+                  v-model="profileForm.new_password"
+                  type="password"
+                  placeholder="Mínimo 8 caracteres, 1 letra y 1 número"
+                  autocomplete="new-password"
+                  @input="
+                  profileTouched.new_password &&
+                  validateProfile('new_password');
+                  profileTouched.new_password_confirmation &&
+                  validateProfile('new_password_confirmation')
+                  "
+                  @blur="validateProfile('new_password')"
+                  />
+                  <span v-if="profileErrors.new_password" class="uni-field-error">{{ profileErrors.new_password }}</span>
+                  <span class="uni-field-hint">Mínimo 8 caracteres, al menos una letra y un número.</span>
                 </div>
               </div>
 
@@ -102,11 +114,17 @@
                 <div class="uni-input-wrap">
                   <i class="ti ti-shield-check"></i>
                   <input
-                    v-model="profileForm.new_password_confirmation"
-                    type="password"
-                    placeholder="Repite la contraseña exactamente"
-                    required
-                  >
+                  v-model="profileForm.new_password_confirmation"
+                  type="password"
+                  placeholder="Repite la contraseña exactamente"
+                  autocomplete="new-password"
+                  @input="
+                  profileTouched.new_password_confirmation &&
+                  validateProfile('new_password_confirmation')
+                  "
+                  @blur="validateProfile('new_password_confirmation')"
+                  />
+                  <span v-if="profileErrors.new_password_confirmation" class="uni-field-error">{{ profileErrors.new_password_confirmation }}</span>
                 </div>
               </div>
             </div>
@@ -145,12 +163,16 @@
               <label>Número de Teléfono / Celular</label>
               <div class="uni-input-wrap">
                 <i class="ti ti-phone"></i>
-                <input 
-                  v-model="contactForm.telefono" 
-                  type="text" 
-                  placeholder="Ej: +591 XXXXXXXX" 
-                  maxlength="20" 
+                <input
+                v-model="contactForm.telefono"
+                type="tel"
+                inputmode="numeric"
+                placeholder="Ej: 71234567"
+                maxlength="15"
+                @input="contactForm.telefono = filterDigits(contactForm.telefono); contactTouched.telefono && validateContact('telefono')"
+                @blur="contactForm.telefono = filterDigits(contactForm.telefono); validateContact('telefono')"
                 />
+                <span v-if="contactErrors.telefono" class="uni-field-error">{{ contactErrors.telefono }}</span>
               </div>
             </div>
 
@@ -195,24 +217,136 @@ const contactSuccessMessage = ref('')
 const contactErrorMessage = ref('')
 const contactLoading = ref(false)
 
+const profileErrors = reactive({
+    current_password:'',
+    new_password:'',
+    new_password_confirmation:''
+})
+
+const contactErrors = reactive({
+    telefono:''
+})
+
+const profileTouched = reactive({
+    current_password:false,
+    new_password:false,
+    new_password_confirmation:false
+})
+
+const contactTouched = reactive({
+    telefono:false
+})
+
+const profileValidators = {
+
+current_password:v=>{
+    if(!v) return 'La contraseña actual es obligatoria.'
+},
+
+new_password:v=>{
+
+    if(!v)
+        return 'La nueva contraseña es obligatoria.'
+
+    if(v.length<8)
+        return 'Debe tener al menos 8 caracteres.'
+
+    if(!/[A-Za-z]/.test(v))
+        return 'Debe contener al menos una letra.'
+
+    if(!/[0-9]/.test(v))
+        return 'Debe contener al menos un número.'
+},
+
+new_password_confirmation:v=>{
+
+    if(!v)
+        return 'Debe confirmar la contraseña.'
+
+    if(v!==profileForm.new_password)
+        return 'Las contraseñas no coinciden.'
+}
+
+}
+
+const contactValidators={
+
+telefono:v=>{
+    if(v && !/^\d{7,15}$/.test(v.trim()))
+        return 'Debe contener entre 7 y 15 dígitos.'
+}
+}
+
+function filterDigits(value) {
+  return value.replace(/\D/g, '')
+}
+
 function resetProfileForm() {
   profileForm.current_password = ''
   profileForm.new_password = ''
   profileForm.new_password_confirmation = ''
 }
 
+function validateProfile(field){
+
+    profileTouched[field]=true
+
+    profileErrors[field]=
+        profileValidators[field](profileForm[field]) || ''
+}
+
+function validateContact(field){
+
+    contactTouched[field]=true
+
+    contactErrors[field]=
+        contactValidators[field](contactForm[field]) || ''
+}
+
+function validateAllProfile(){
+
+    let valid=true
+
+    Object.keys(profileTouched)
+        .forEach(k=>profileTouched[k]=true)
+
+    Object.keys(profileValidators).forEach(field=>{
+
+        const error=
+            profileValidators[field](profileForm[field])
+
+        profileErrors[field]=error||''
+
+        if(error)
+            valid=false
+
+    })
+
+    return valid
+}
+
+function validateAllContact(){
+
+    let valid=true
+
+    contactTouched.telefono=true
+
+    const error=
+        contactValidators.telefono(contactForm.telefono)
+
+    contactErrors.telefono=error||''
+
+    if(error)
+        valid=false
+
+    return valid
+}
+
 async function handleUpdatePassword() {
+  if(!validateAllProfile())
+    return
   profileErrorMessage.value = ''
   profileSuccessMessage.value = ''
-
-  if (profileForm.new_password !== profileForm.new_password_confirmation) {
-    profileErrorMessage.value = 'La nueva contraseña y su confirmación no coinciden.'
-    return
-  }
-  if (profileForm.new_password.length < 6) {
-    profileErrorMessage.value = 'La nueva contraseña debe tener al menos 6 caracteres.'
-    return
-  }
 
   profileLoading.value = true
   try {
@@ -238,6 +372,8 @@ async function handleUpdatePassword() {
 async function handleUpdateContact() {
   contactErrorMessage.value = ''
   contactSuccessMessage.value = ''
+
+  if (!validateAllContact()) return
 
   contactLoading.value = true
   try {
@@ -498,6 +634,22 @@ const profileInitials = computed(() => {
   display: flex;
   justify-content: flex-end;
   margin-top: 0.5rem;
+}
+
+.uni-field-error {
+  display: block;
+  font-size: 11px;
+  color: #b85c5c;
+  margin-top: 5px;
+  font-weight: 500;
+}
+
+.uni-field-hint {
+  display: block;
+  font-size: 10px;
+  color: #8c9f96;
+  margin-top: 4px;
+  font-weight: 500;
 }
 
 /* Alertas estilizadas */

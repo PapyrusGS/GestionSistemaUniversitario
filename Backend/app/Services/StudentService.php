@@ -191,7 +191,7 @@ class StudentService
         $data = match ($tipo) {
             'inscripciones' => $this->inscripciones($student),
             'notas' => $this->notas($student),
-            'historial' => $this->malla($student),
+            'historial' => $this->reporteHistorialPlano($student),
             default => collect(),
         };
 
@@ -208,6 +208,17 @@ class StudentService
         ]);
 
         return $data;
+    }
+
+    private function reporteHistorialPlano(object $student): Collection
+    {
+        $career = $this->students->career((int) $student->idEstudiante);
+        if (! $career) {
+            return collect();
+        }
+
+        return $this->students->curriculum((int) $student->idEstudiante, (int) $career->idCarrera)
+            ->map(fn ($subject) => $this->mapCurriculumItem($subject));
     }
 
     private function mapSubjectPayload(object $subject, Collection $approvedMateriaIds, Collection $enrolledCursoMateriaIds, int $studentId): array

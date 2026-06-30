@@ -65,6 +65,11 @@ class EloquentMateriaRepository implements MateriaRepositoryInterface
         return $this->findOrFail($id);
     }
 
+    public function enable(string $id): void
+    {
+        DB::statement('UPDATE materias SET estado = 1, updated_at = NOW() WHERE idMateria COLLATE utf8mb4_unicode_ci = ? COLLATE utf8mb4_unicode_ci', [$id]);
+    }
+
     public function findOrFail(string $id): array
     {
         $rows = DB::select('CALL sp_materias_find(?)', [$id]);

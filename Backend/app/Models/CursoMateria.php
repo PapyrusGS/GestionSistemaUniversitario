@@ -2,14 +2,18 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class CursoMateria extends Model
 {
+    use Auditable;
+
     use HasFactory;
 
     protected $table = 'cursos_materias';
@@ -80,5 +84,12 @@ class CursoMateria extends Model
             'idCursoMateria', // PK local
             'idInscripcion'   // PK en estudiantemateria
         );
+    }
+
+    public function horarios(): BelongsToMany
+    {
+        return $this->belongsToMany(Horario::class, 'horariocurso', 'idCursoMateria', 'idHorario')
+                    ->withPivot('idHorarioCurso', 'estadoA', 'fechaA', 'UsuarioA')
+                    ->withTimestamps();
     }
 }

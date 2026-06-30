@@ -133,4 +133,18 @@ class CursoController extends Controller
             'Curso deshabilitado correctamente.'
         );
     }
+
+    public function enable($idCursoMateria): JsonResponse
+    {
+        try {
+            $updated = $this->cursoService->enable($idCursoMateria);
+
+            return ApiResponse::success(
+                ['curso' => $updated],
+                'Curso habilitado correctamente.'
+            );
+        } catch (\Throwable $e) {
+            return ApiResponse::error($e->getMessage(), null, 422);
+        }
+    }
 }

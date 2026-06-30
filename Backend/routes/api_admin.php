@@ -18,6 +18,7 @@ Route::middleware(['auth:sanctum', 'role:Administrador'])->group(function () {
     Route::post('/carreras',             [CarreraController::class, 'store']);
     Route::put('/carreras/{carrera}',    [CarreraController::class, 'update']);
     Route::delete('/carreras/{carrera}', [CarreraController::class, 'destroy']);
+    Route::patch('/carreras/{carrera}/enable', [CarreraController::class, 'enable']);
 
     // ── Materias ──────────────────────────────────────────────────────────────
     Route::get('/materias',              [MateriaController::class, 'index']);
@@ -25,6 +26,7 @@ Route::middleware(['auth:sanctum', 'role:Administrador'])->group(function () {
     Route::post('/materias',             [MateriaController::class, 'store']);
     Route::put('/materias/{materia}',    [MateriaController::class, 'update']);
     Route::delete('/materias/{materia}', [MateriaController::class, 'destroy']);
+    Route::patch('/materias/{materia}/enable', [MateriaController::class, 'enable']);
 
     // ── Cursos ────────────────────────────────────────────────────────────────
     Route::get('/cursos',                                      [CursoController::class, 'index']);
@@ -33,6 +35,7 @@ Route::middleware(['auth:sanctum', 'role:Administrador'])->group(function () {
     Route::put('/cursos/{cursoMateria}/asignar-docente',       [CursoController::class, 'asignarDocente']);
     Route::get('/cursos/{cursoMateria}/inscripciones',         [CursoController::class, 'inscripciones']);
     Route::delete('/cursos/{idCursoMateria}',                  [CursoController::class, 'destroy']);
+    Route::patch('/cursos/{idCursoMateria}/enable',            [CursoController::class, 'enable']);
 
     // ── Reportes — filtros y reporte genérico original (conservados) ──────────
     Route::get('/reportes/filtros',  [ReporteController::class, 'filtros']);
@@ -57,4 +60,16 @@ Route::middleware(['auth:sanctum', 'role:Administrador'])->group(function () {
     // 4. Ocupación de Cursos (capacidad vs inscritos, por período)
     Route::get('/reportes/ocupacion',          [ReporteController::class, 'reporteOcupacion']);
     Route::get('/reportes/ocupacion/exportar', [ReporteController::class, 'exportarOcupacion']);
+
+    // 5. Horario de Docente
+    Route::get('/reportes/horario-docente',          [ReporteController::class, 'reporteHorarioDocente']);
+    Route::get('/reportes/horario-docente/exportar', [ReporteController::class, 'exportarHorarioDocente']);
+
+    // 6. Estudiantes por Carrera
+    Route::get('/reportes/estudiantes-carrera',          [ReporteController::class, 'reporteEstudiantesCarrera']);
+    Route::get('/reportes/estudiantes-carrera/exportar', [ReporteController::class, 'exportarEstudiantesCarrera']);
+
+    // 7. Carga Docente
+    Route::get('/reportes/carga-docente',          [ReporteController::class, 'reporteCargaDocente']);
+    Route::get('/reportes/carga-docente/exportar', [ReporteController::class, 'exportarCargaDocente']);
 });

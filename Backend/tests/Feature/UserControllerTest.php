@@ -95,6 +95,7 @@ class UserControllerTest extends TestCase
             'ci' => '9876543',
             'correo' => 'pedro.perez@example.com',
             'password' => 'SecurePass123!',
+            'password_confirmation' => 'SecurePass123!',
         ];
 
         $response = $this->postJson('/api/users', $data);
@@ -143,6 +144,27 @@ class UserControllerTest extends TestCase
             'ci' => '9876543',
             'correo' => 'pedro.perez@example.com',
             'password' => '123', // clearly too weak
+            'password_confirmation' => '123',
+        ];
+
+        $response = $this->postJson('/api/users', $data);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['password']);
+    }
+
+    public function test_create_user_validation_fails_when_passwords_do_not_match(): void
+    {
+        Sanctum::actingAs($this->adminUser);
+
+        $data = [
+            'idRol' => $this->adminRol->idRol,
+            'nombre1' => 'Pedro',
+            'apellido1' => 'Perez',
+            'ci' => '9876543',
+            'correo' => 'pedro.perez@example.com',
+            'password' => 'SecurePass123!',
+            'password_confirmation' => 'DifferentPass123!',
         ];
 
         $response = $this->postJson('/api/users', $data);
@@ -162,6 +184,7 @@ class UserControllerTest extends TestCase
             'ci' => '9876543',
             'correo' => 'admin@example.com', // Duplicate of adminUser's email
             'password' => 'SecurePass123!',
+            'password_confirmation' => 'SecurePass123!',
         ];
 
         $response = $this->postJson('/api/users', $data);
@@ -181,6 +204,7 @@ class UserControllerTest extends TestCase
             'ci' => '0000001', // Duplicate of adminUser's CI
             'correo' => 'pedro.perez@example.com',
             'password' => 'SecurePass123!',
+            'password_confirmation' => 'SecurePass123!',
         ];
 
         $response = $this->postJson('/api/users', $data);
@@ -200,12 +224,54 @@ class UserControllerTest extends TestCase
             'ci' => '9876543',
             'correo' => 'pedro.perez@example.com',
             'password' => 'SecurePass123!',
+            'password_confirmation' => 'SecurePass123!',
         ];
 
         $response = $this->postJson('/api/users', $data);
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['idRol']);
+    }
+
+    public function test_create_user_validation_fails_with_numbers_in_name(): void
+    {
+        Sanctum::actingAs($this->adminUser);
+
+        $data = [
+            'idRol' => $this->adminRol->idRol,
+            'nombre1' => 'Pedro123',
+            'apellido1' => 'Perez',
+            'ci' => '9876543',
+            'correo' => 'pedro.perez@example.com',
+            'password' => 'SecurePass123!',
+            'password_confirmation' => 'SecurePass123!',
+        ];
+
+        $response = $this->postJson('/api/users', $data);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['nombre1']);
+    }
+
+    public function test_create_user_validation_fails_with_invalid_telefono(): void
+    {
+        Sanctum::actingAs($this->adminUser);
+
+        $data = [
+            'idRol' => $this->adminRol->idRol,
+            'nombre1' => 'Pedro',
+            'apellido1' => 'Perez',
+            'ci' => '9876543',
+            'correo' => 'pedro.perez@example.com',
+            'telefono' => '55512345',
+            'password' => 'SecurePass123!',
+            'password_confirmation' => 'SecurePass123!',
+        ];
+
+        $response = $this->postJson('/api/users', $data);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['telefono']);
     }
 
     public function test_unauthenticated_user_cannot_access_roles(): void

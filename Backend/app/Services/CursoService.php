@@ -50,6 +50,16 @@ class CursoService
         return $this->payload($this->cursos->disable($id));
     }
 
+    public function enable($id): array
+    {
+        $cursoMateria = \App\Models\CursoMateria::findOrFail($id);
+        $materia = \App\Models\Materia::findOrFail($cursoMateria->idMateria);
+        if (!$materia->estado) {
+            throw new \Exception('No se puede habilitar el curso porque la materia correspondiente está deshabilitada.');
+        }
+        return $this->payload($this->cursos->enable($id));
+    }
+
     private function payload(array $curso): array
     {
         return [

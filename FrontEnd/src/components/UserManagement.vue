@@ -19,6 +19,8 @@ const errorMessage = ref('')
 const errors = ref({})
 const filterRol = ref('')
 const showCreateModal = ref(false)
+const showPassword = ref(false)
+const showPasswordConfirmation = ref(false)
 
 const filteredUsers = computed(() => {
   if (!filterRol.value) return users.value
@@ -34,6 +36,7 @@ const form = reactive({
   correo: '',
   telefono: '',
   password: '',
+  password_confirmation: '',
   idRol: '',
   idCarrera: '',
 })
@@ -47,8 +50,23 @@ const formErrors = reactive({
   correo: '',
   telefono: '',
   password: '',
+  password_confirmation: '',
   idRol: '',
   idCarrera: '',
+})
+
+const touched = reactive({
+  nombre1: false,
+  nombre2: false,
+  apellido1: false,
+  apellido2: false,
+  ci: false,
+  correo: false,
+  telefono: false,
+  password: false,
+  password_confirmation: false,
+  idRol: false,
+  idCarrera: false,
 })
 
 const selectedRolObj = computed(() =>
@@ -61,37 +79,86 @@ const isDocente = computed(() => roleName.value === 'Docente')
 const isAdmin = computed(() => roleName.value === 'Administrador')
 
 const validators = {
-  nombre1: v => !v.trim() && 'El primer nombre es obligatorio.',
-  nombre2: v => v && v.length > 255 && 'Máximo 255 caracteres.',
-  apellido1: v => !v.trim() && 'El primer apellido es obligatorio.',
-  apellido2: v => v && v.length > 255 && 'Máximo 255 caracteres.',
+  nombre1: v => {
+    if (!v.trim()) return 'El primer nombre es obligatorio.'
+  },
+  nombre2: () => {},
+  apellido1: v => {
+    if (!v.trim()) return 'El primer apellido es obligatorio.'
+  },
+  apellido2: () => {},
   ci: v => {
     if (!v.trim()) return 'El CI es obligatorio.'
-    if (!/^\d+$/.test(v.trim())) return 'Solo se permiten números.'
   },
   correo: v => {
     if (!v.trim()) return 'El correo es obligatorio.'
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) return 'Formato de correo inválido.'
   },
-  telefono: v => v && !/^\d{7,15}$/.test(v.trim()) && 'Ingrese un teléfono válido (7-15 dígitos).',
+  telefono: v => v && !/^\d{7,15}$/.test(v.trim()) && 'Debe contener entre 7 y 15 dígitos.',
   password: v => {
     if (!v) return 'La contraseña es obligatoria.'
     if (v.length < 8) return 'Mínimo 8 caracteres.'
     if (!/[a-zA-Z]/.test(v)) return 'Debe contener al menos una letra.'
     if (!/[0-9]/.test(v)) return 'Debe contener al menos un número.'
   },
+  password_confirmation: v => {
+    if (!v) return 'Debe confirmar la contraseña.'
+    if (v !== form.password) return 'Las contraseñas no coinciden.'
+  },
   idRol: v => !v && 'Seleccione un rol.',
   idCarrera: v => isStudent.value && !v && 'Seleccione una carrera.',
 }
 
+const activeErrors = computed(() => {
+  const list = []
+  const fieldsOrder = [
+    'idRol',
+    'nombre1',
+    'nombre2',
+    'apellido1',
+    'apellido2',
+    'ci',
+    'telefono',
+    'correo',
+    'password',
+    'password_confirmation',
+    'idCarrera'
+  ]
+  fieldsOrder.forEach(field => {
+    if (formErrors[field]) {
+      list.push(formErrors[field])
+    } else if (errors.value && errors.value[field] && errors.value[field].length > 0) {
+      list.push(errors.value[field][0])
+    }
+  })
+  if (errors.value) {
+    Object.keys(errors.value).forEach(field => {
+      if (!fieldsOrder.includes(field) && errors.value[field] && errors.value[field].length > 0) {
+        list.push(errors.value[field][0])
+      }
+    })
+  }
+  return list
+})
+
+function filterName(value) {
+  return value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]/g, '')
+}
+
+function filterDigits(value) {
+  return value.replace(/\D/g, '')
+}
+
 function validateField(field) {
-  const fn = validators[field]
-  if (!fn) return
-  formErrors[field] = fn(form[field]) || ''
+    touched[field] = true
+    const fn = validators[field]
+    if (!fn) return
+    formErrors[field] = fn(form[field]) || ''
 }
 
 function validateAll() {
   let valid = true
+  Object.keys(touched).forEach(k => touched[k] = true)
   Object.keys(validators).forEach(field => {
     const fn = validators[field]
     if (!fn) return
@@ -142,10 +209,13 @@ function resetForm() {
   form.correo = ''
   form.telefono = ''
   form.password = ''
+  form.password_confirmation = ''
   form.idRol = ''
   form.idCarrera = ''
   errors.value = {}
   Object.keys(formErrors).forEach(k => formErrors[k] = '')
+  showPassword.value = false
+  showPasswordConfirmation.value = false
 }
 
 function resetMessages() {
@@ -290,7 +360,15 @@ onMounted(() => {
         </div>
 
         <div v-if="successMessage" class="uni-alert uni-alert--success">{{ successMessage }}</div>
-        <div v-if="errorMessage"   class="uni-alert uni-alert--error">{{ errorMessage }}</div>
+        <div v-if="activeErrors.length > 0 || errorMessage" class="uni-alert uni-alert--error">
+          <div v-if="errorMessage && activeErrors.length === 0">{{ errorMessage }}</div>
+          <div v-else>
+            <div style="font-weight: 700; margin-bottom: 5px;">Por favor, corrige los siguientes errores:</div>
+            <ul style="margin: 0; padding-left: 20px; list-style-type: disc;">
+              <li v-for="(err, idx) in activeErrors" :key="idx">{{ err }}</li>
+            </ul>
+          </div>
+        </div>
 
         <form @submit.prevent="submitForm" class="um-form">
 
@@ -342,44 +420,44 @@ onMounted(() => {
               <div class="um-grid-2">
                 <label class="um-field">
                   <span>Primer nombre *</span>
-                  <input v-model.trim="form.nombre1" type="text" required :disabled="submittings" placeholder="Ej: María" @input="validateField('nombre1')" />
+                  <input v-model.trim="form.nombre1" type="text" inputmode="text" required :disabled="submittings" placeholder="Ej: María" @input="form.nombre1 = filterName(form.nombre1); touched.nombre1 && validateField('nombre1')" @blur="validateField('nombre1')" />
                   <span v-if="formErrors.nombre1" class="um-field-error">{{ formErrors.nombre1 }}</span>
                   <span v-else-if="errors.nombre1" class="um-field-error">{{ errors.nombre1[0] }}</span>
                 </label>
                 <label class="um-field">
                   <span>Segundo nombre</span>
-                  <input v-model.trim="form.nombre2" type="text" :disabled="submittings" placeholder="Opcional" @input="validateField('nombre2')" />
+                  <input v-model.trim="form.nombre2" type="text" inputmode="text" :disabled="submittings" placeholder="Opcional" @input="form.nombre2 = filterName(form.nombre2); touched.nombre2 && validateField('nombre2')" @blur="validateField('nombre2')" />
                   <span v-if="formErrors.nombre2" class="um-field-error">{{ formErrors.nombre2 }}</span>
                   <span v-else-if="errors.nombre2" class="um-field-error">{{ errors.nombre2[0] }}</span>
                 </label>
                 <label class="um-field">
                   <span>Primer apellido *</span>
-                  <input v-model.trim="form.apellido1" type="text" required :disabled="submittings" placeholder="Ej: García" @input="validateField('apellido1')" />
+                  <input v-model.trim="form.apellido1" type="text" inputmode="text" required :disabled="submittings" placeholder="Ej: García" @input="form.apellido1 = filterName(form.apellido1); touched.apellido1 && validateField('apellido1')" @blur="validateField('apellido1')" />
                   <span v-if="formErrors.apellido1" class="um-field-error">{{ formErrors.apellido1 }}</span>
                   <span v-else-if="errors.apellido1" class="um-field-error">{{ errors.apellido1[0] }}</span>
                 </label>
                 <label class="um-field">
                   <span>Segundo apellido</span>
-                  <input v-model.trim="form.apellido2" type="text" :disabled="submittings" placeholder="Opcional" @input="validateField('apellido2')" />
+                  <input v-model.trim="form.apellido2" type="text" inputmode="text" :disabled="submittings" placeholder="Opcional" @input="form.apellido2 = filterName(form.apellido2); touched.apellido2 && validateField('apellido2')" @blur="validateField('apellido2')" />
                   <span v-if="formErrors.apellido2" class="um-field-error">{{ formErrors.apellido2 }}</span>
                   <span v-else-if="errors.apellido2" class="um-field-error">{{ errors.apellido2[0] }}</span>
                 </label>
                 <label class="um-field">
                   <span>Carnet (CI) *</span>
-                  <input v-model.trim="form.ci" type="text" required :disabled="submittings" placeholder="Ej: 12345678" @input="validateField('ci')" />
+                  <input v-model.trim="form.ci" type="text" inputmode="numeric" required :disabled="submittings" placeholder="Ej: 12345678" @input="form.ci = filterDigits(form.ci); touched.ci && validateField('ci')" @blur="validateField('ci')" />
                   <span v-if="formErrors.ci" class="um-field-error">{{ formErrors.ci }}</span>
                   <span v-else-if="errors.ci" class="um-field-error">{{ errors.ci[0] }}</span>
                 </label>
                 <label class="um-field">
                   <span>Teléfono</span>
-                  <input v-model.trim="form.telefono" type="text" :disabled="submittings" placeholder="Ej: 76543210" @input="validateField('telefono')" />
+                  <input v-model.trim="form.telefono" type="tel" inputmode="numeric" :disabled="submittings" placeholder="Ej: 76543210" maxlength="15" @input="form.telefono = filterDigits(form.telefono); touched.telefono && validateField('telefono')" @blur="validateField('telefono')" />
                   <span v-if="formErrors.telefono" class="um-field-error">{{ formErrors.telefono }}</span>
                   <span v-else-if="errors.telefono" class="um-field-error">{{ errors.telefono[0] }}</span>
                 </label>
               </div>
               <label class="um-field um-field--full">
                 <span>Correo institucional *</span>
-                <input v-model.trim="form.correo" type="email" required :disabled="submittings" placeholder="usuario@uni.edu.bo" @input="validateField('correo')" />
+                <input v-model.trim="form.correo" type="email" inputmode="email" required :disabled="submittings" placeholder="usuario@uni.edu.bo" @input="touched.correo && validateField('correo')" @blur="validateField('correo')" />
                 <span v-if="formErrors.correo" class="um-field-error">{{ formErrors.correo }}</span>
                 <span v-else-if="errors.correo" class="um-field-error">{{ errors.correo[0] }}</span>
               </label>
@@ -394,9 +472,55 @@ onMounted(() => {
               <div class="um-grid-2">
                 <label class="um-field">
                   <span>Contraseña *</span>
-                  <input v-model="form.password" type="password" required :disabled="submittings" autocomplete="new-password" placeholder="Mínimo 8 caracteres" @input="validateField('password')" />
+                  <div class="um-password-wrapper">
+                    <input
+                      v-model="form.password"
+                      :type="showPassword ? 'text' : 'password'"
+                      inputmode="text"
+                      required
+                      :disabled="submittings"
+                      autocomplete="new-password"
+                      placeholder="Mínimo 8 caracteres"
+                      @input="touched.password && validateField('password'); touched.password_confirmation && validateField('password_confirmation')"
+                      @blur="validateField('password')"
+                    />
+                    <button
+                      type="button"
+                      class="um-password-toggle"
+                      @click="showPassword = !showPassword"
+                      tabindex="-1"
+                    >
+                      <i class="ti" :class="showPassword ? 'ti-eye-off' : 'ti-eye'"></i>
+                    </button>
+                  </div>
                   <span v-if="formErrors.password" class="um-field-error">{{ formErrors.password }}</span>
                   <span v-else-if="errors.password" class="um-field-error">{{ errors.password[0] }}</span>
+                </label>
+
+                <label class="um-field">
+                  <span>Confirmar contraseña *</span>
+                  <div class="um-password-wrapper">
+                    <input
+                      v-model="form.password_confirmation"
+                      :type="showPasswordConfirmation ? 'text' : 'password'"
+                      required
+                      :disabled="submittings"
+                      autocomplete="new-password"
+                      placeholder="Repite la contraseña"
+                      @input="touched.password_confirmation && validateField('password_confirmation')"
+                      @blur="validateField('password_confirmation')"
+                    />
+                    <button
+                      type="button"
+                      class="um-password-toggle"
+                      @click="showPasswordConfirmation = !showPasswordConfirmation"
+                      tabindex="-1"
+                    >
+                      <i class="ti" :class="showPasswordConfirmation ? 'ti-eye-off' : 'ti-eye'"></i>
+                    </button>
+                  </div>
+                  <span v-if="formErrors.password_confirmation" class="um-field-error">{{ formErrors.password_confirmation }}</span>
+                  <span v-else-if="errors.password_confirmation" class="um-field-error">{{ errors.password_confirmation[0] }}</span>
                 </label>
               </div>
             </div>
@@ -830,6 +954,38 @@ onMounted(() => {
   font-size: 11px;
   color: #b85c5c;
   margin-top: 2px;
+}
+
+/* ── Password Toggle ── */
+.um-password-wrapper {
+  position: relative;
+  width: 100%;
+}
+.um-password-wrapper input {
+  padding-right: 2.75rem !important;
+}
+.um-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.75rem;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: #5b5c5e;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 50%;
+  transition: color 0.15s, background-color 0.15s;
+}
+.um-password-toggle:hover {
+  color: #1a1a1a;
+  background-color: #f0f0ee;
+}
+.um-password-toggle i {
+  font-size: 1.1rem;
 }
 
 /* ── Nota contextual ── */

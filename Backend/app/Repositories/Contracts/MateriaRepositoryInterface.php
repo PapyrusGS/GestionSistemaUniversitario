@@ -17,5 +17,7 @@ interface MateriaRepositoryInterface
 
     public function disable(string $id): array;
 
+    public function enable(string $id): void;
+
     public function findOrFail(string $id): array;
 }

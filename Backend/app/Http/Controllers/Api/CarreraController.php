@@ -14,7 +14,7 @@ class CarreraController extends Controller
      */
     public function index(): JsonResponse
     {
-        $carreras = Carrera::where('estado', true)->get();
+        $carreras = Carrera::orderBy('idCarrera', 'desc')->get();
 
         return response()->json([
             'carreras' => $carreras->map(function ($carrera) {
@@ -89,6 +89,26 @@ class CarreraController extends Controller
 
         return response()->json([
             'message' => 'Carrera deshabilitada correctamente.',
+            'carrera' => [
+                'idCarrera' => $carrera->idCarrera,
+                'nombre' => $carrera->nombre,
+                'descripcion' => $carrera->descripcion,
+                'estado' => (bool)$carrera->estado,
+                'fechaRegistro' => $carrera->fechaRegistro ? $carrera->fechaRegistro->format('Y-m-d H:i') : null,
+            ]
+        ]);
+    }
+
+    /**
+     * Habilita una carrera deshabilitada.
+     */
+    public function enable(int $id): JsonResponse
+    {
+        $carrera = Carrera::findOrFail($id);
+        $carrera->update(['estado' => true]);
+
+        return response()->json([
+            'message' => 'Carrera habilitada correctamente.',
             'carrera' => [
                 'idCarrera' => $carrera->idCarrera,
                 'nombre' => $carrera->nombre,

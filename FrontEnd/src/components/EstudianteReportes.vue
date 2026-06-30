@@ -1,5 +1,8 @@
 <script setup>
 import { ref } from 'vue'
+const exportingPdf = ref(false)
+const exportingCsv = ref(false)
+
 function getReportTitle() {
   const titles = {
     inscripciones: 'Reporte de Materias Inscritas',
@@ -61,20 +64,115 @@ function displayValue(value) {
   return value
 }
 
+// Campos donde puede venir el periodo/gestión académica dentro de una fila.
+const PERIODO_KEYS = ['periodo', 'gestion', 'periodoacademico', 'gestionacademica', 'periodogestion']
+
+// Revisa si una fila (o materia anidada) corresponde al periodo seleccionado,
+// comparando por IGUALDAD EXACTA contra campos explícitos de periodo/gestión
+// (en vez de "incluye", que generaba falsos positivos con ids, notas o fechas
+// que casualmente contenían los mismos dígitos que el periodo).
+function rowMatchesPeriodo(row, periodo) {
+  if (!row || typeof row !== 'object') return false
+
+  const directMatch = Object.entries(row).some(([key, val]) => {
+    if (val === null || val === undefined) return false
+    const k = key.toLowerCase()
+    if (!PERIODO_KEYS.some(pk => k.includes(pk))) return false
+    return String(val).toLowerCase().trim() === periodo.toLowerCase().trim()
+  })
+  if (directMatch) return true
+
+  // El historial académico viene agrupado por semestre, con las materias
+  // anidadas en un arreglo (`materias`). Si el periodo no está en el nivel
+  // superior, lo buscamos dentro de cada materia anidada.
+  return Object.values(row).some(val => {
+    if (Array.isArray(val)) {
+      return val.some(item => rowMatchesPeriodo(item, periodo))
+    }
+    return false
+  })
+}
+
+function filtrarPorPeriodo(data) {
+  if (reportePeriodo.value === 'todos' || !data?.length) return data
+  const periodo = reportePeriodo.value
+
+  return data
+    .map(row => {
+      // Si la fila trae materias anidadas (caso del historial agrupado por
+      // semestre), filtramos también ese arreglo interno para no arrastrar
+      // materias de otros periodos dentro del mismo grupo.
+      if (Array.isArray(row.materias)) {
+        const materiasDelPeriodo = row.materias.filter(m => rowMatchesPeriodo(m, periodo))
+        const grupoCoincide = rowMatchesPeriodo({ ...row, materias: undefined }, periodo)
+
+        if (materiasDelPeriodo.length) {
+          return { ...row, materias: materiasDelPeriodo }
+        }
+        return grupoCoincide ? row : null
+      }
+
+      return rowMatchesPeriodo(row, periodo) ? row : null
+    })
+    .filter(Boolean)
+}
+
 async function generarReporte() {
   loading.value = true
+  reporte.value = null
   try {
-    const body = { tipo: reporteTipo.value }
-    if (reportePeriodo.value !== 'todos') {
-      body.periodo = reportePeriodo.value
-    }
-    const { data: res } = await props.api.post('/estudiante/reporte', body)
-    const payload = res.data ?? res
-    reporte.value = payload
+    const params = { tipo: reporteTipo.value }
+    if (reportePeriodo.value !== 'todos') params.periodo = reportePeriodo.value
+    const { data: res } = await props.api.post('/estudiante/reporte', params)
+    const raw = res.data ?? res
+    if (raw?.data) raw.data = filtrarPorPeriodo(raw.data)
+    reporte.value = raw
   } catch (e) {
     emit('message', { type: 'error', text: e.response?.data?.message || 'No pudimos generar el reporte.' })
   } finally {
     loading.value = false
+  }
+}
+
+async function exportarReporte(tipo) {
+  const isPdf = tipo === 'pdf'
+  if (isPdf) exportingPdf.value = true
+  else exportingCsv.value = true
+
+  try {
+    const params = { tipo: reporteTipo.value }
+    if (reportePeriodo.value !== 'todos') params.periodo = reportePeriodo.value
+
+    // El backend recibe el tipo de export como query param o en el body
+    const response = await props.api.post(
+      `/estudiante/reporte/${tipo}`,
+      params,
+      { responseType: 'blob' }
+    )
+
+    // Leer nombre del header o usar fallback
+    const disposition = response.headers['content-disposition']
+    let filename = `reporte-${reporteTipo.value}.${isPdf ? 'pdf' : 'csv'}`
+    if (disposition?.indexOf('attachment') !== -1) {
+      const match = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition)
+      if (match?.[1]) filename = match[1].replace(/['"]/g, '')
+    }
+
+    // Disparar descarga
+    const blob = new Blob([response.data], { type: response.headers['content-type'] })
+    const link = document.createElement('a')
+    link.href = window.URL.createObjectURL(blob)
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(link.href)
+
+  } catch {
+    emit('message', { type: 'error', text: `Error al exportar el reporte a ${isPdf ? 'PDF' : 'CSV'}.` })
+  } finally {
+    if (isPdf) exportingPdf.value = false
+    else exportingCsv.value = false
   }
 }
 
@@ -246,15 +344,13 @@ function downloadPdf() {
           <p>{{ reporte.estudiante }} · {{ reporte.generadoEn }}</p>
         </div>
         <div class="reporte-actions">
-          <button class="secondary" @click="exportCsv">
-            Exportar CSV
+          <button class="secondary" @click="exportarReporte('csv')"
+                  :disabled="exportingCsv || exportingPdf">
+            {{ exportingCsv ? 'Generando...' : 'Exportar CSV' }}
           </button>
-
-          <button
-            class="secondary"
-            @click="downloadPdf"
-          >
-            Descargar PDF
+          <button class="secondary" @click="exportarReporte('pdf')"
+                  :disabled="exportingPdf || exportingCsv">
+            {{ exportingPdf ? 'Generando PDF...' : 'Descargar PDF' }}
           </button>
         </div>
       </div>

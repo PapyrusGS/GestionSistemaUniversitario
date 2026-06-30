@@ -20,7 +20,7 @@ class AuthService
 
         if (! $user || ! Hash::check($password, $user->password)) {
             throw ValidationException::withMessages([
-                'login' => ['Las credenciales no son validas.'],
+                'login' => ['Correo o contraseña incorrectos.'],
             ]);
         }
 

@@ -117,4 +117,63 @@ class EstudianteController extends Controller
             'message' => $data->isEmpty() ? 'No existe informacion para el reporte seleccionado.' : null,
         ], 'Reporte generado.');
     }
+
+    private function obtenerDatosReporte(Request $request): array
+    {
+        $validated = $request->validate([
+            'tipo' => ['required', 'in:inscripciones,notas,historial'],
+        ]);
+
+        $student = $this->studentService->getStudentOrFail($request);
+        $data = $this->studentService->reporte($request, $student, $validated['tipo']);
+
+        return $data->toArray();
+    }
+
+    public function exportCsv(Request $request)
+    {
+        $datos = $this->obtenerDatosReporte($request);
+
+        $tipo    = $request->input('tipo', 'reporte');
+        $periodo = $request->input('periodo', 'todos');
+
+        if (empty($datos)) {
+            return response()->json(['message' => 'No hay datos para exportar.'], 404);
+        }
+
+        $headers = array_keys((array) $datos[0]);
+        $csv = implode(',', $headers) . "\n";
+        foreach ($datos as $fila) {
+            $csv .= implode(',', array_map(
+                fn($v) => '"' . str_replace('"', '""', $v ?? '') . '"',
+                (array) $fila
+            )) . "\n";
+        }
+
+        return response($csv, 200, [
+            'Content-Type'        => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"reporte-{$tipo}-{$periodo}.csv\"",
+        ]);
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $datos   = $this->obtenerDatosReporte($request);
+        $tipo    = $request->input('tipo', 'reporte');
+        $periodo = $request->input('periodo', 'todos');
+        $usuario = $request->user()->nombreCompleto ?? 'Estudiante';
+
+        if (empty($datos)) {
+            return response()->json(['message' => 'No hay datos para generar el PDF.'], 404);
+        }
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reportes.estudiante', [
+            'datos'   => $datos,
+            'tipo'    => $tipo,
+            'periodo' => $periodo,
+            'usuario' => $usuario,
+        ]);
+
+        return $pdf->download("reporte-{$tipo}-{$periodo}.pdf");
+    }
 }

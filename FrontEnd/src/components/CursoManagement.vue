@@ -11,6 +11,7 @@ const props = defineProps({
 const cursos = ref([])
 const cursosFisicos = ref([])
 const materias = ref([])
+const allMaterias = ref([])
 const carreras = ref([])
 const docentes = ref([])
 const horarios = ref([])
@@ -39,6 +40,11 @@ const form = reactive({
   idHorario3: '',
   idPeriodo: '',
 })
+
+const isMateriaActive = (idMateria) => {
+  const m = allMaterias.value.find(x => x.idMateria === idMateria)
+  return m ? m.estado : false
+}
 
 function payloadFromResponse(data) {
   return data.data ?? data
@@ -74,9 +80,10 @@ async function fetchCursoData() {
   loading.value = true
   resetMessages()
   try {
-    const [cursosResponse, formDataResponse] = await Promise.all([
+    const [cursosResponse, formDataResponse, materiasResponse] = await Promise.all([
       props.api.get('/cursos'),
       props.api.get('/cursos/form-data'),
+      props.api.get('/materias'),
     ])
     cursos.value = payloadFromResponse(cursosResponse.data).cursos || []
     const formData = payloadFromResponse(formDataResponse.data)
@@ -89,6 +96,7 @@ async function fetchCursoData() {
     if (periodos.value.length > 0) {
       form.idPeriodo = String(periodos.value[0].idPeriodo)
     }
+    allMaterias.value = payloadFromResponse(materiasResponse.data).materias || []
   } catch (error) {
     errorMessage.value = error.response?.data?.message || 'No se pudieron cargar los cursos.'
   } finally {
@@ -158,6 +166,22 @@ async function confirmDisableCurso() {
   }
 }
 
+async function enableCurso(curso) {
+  submitting.value = true
+  resetMessages()
+  try {
+    const response = await props.api.patch(`/cursos/${curso.idCursoMateria}/enable`)
+    const payload = payloadFromResponse(response.data)
+    const index = cursos.value.findIndex((item) => item.idCursoMateria === curso.idCursoMateria)
+    if (index !== -1) cursos.value[index] = payload.curso
+    successMessage.value = response.data.message || 'Curso habilitado correctamente.'
+  } catch (error) {
+    errorMessage.value = error.response?.data?.message || 'No se pudo habilitar el curso.'
+  } finally {
+    submitting.value = false
+  }
+}
+
 onMounted(fetchCursoData)
 </script>
 
@@ -168,7 +192,7 @@ onMounted(fetchCursoData)
     <div class="cm-header">
       <div>
         <h3 class="cm-title">Creación de Cursos</h3>
-        <p class="cm-subtitle">HU-ADM-06 · Materia, docente, horario y régimen académico</p>
+        <p class="cm-subtitle">Materia, docente, horario y régimen académico</p>
       </div>
       <div class="cm-header-actions">
         <button class="uni-btn-action-success" type="button" @click="showCreateModal = true">
@@ -230,6 +254,17 @@ onMounted(fetchCursoData)
                 @click="askDisableCurso(curso)"
               >
                 Deshabilitar
+              </button>
+              <button
+                v-else
+                class="cm-btn-sm"
+                :class="isMateriaActive(curso.idMateria) ? 'uni-btn-action-success' : 'uni-btn-action-disabled'"
+                type="button"
+                :disabled="submitting || !isMateriaActive(curso.idMateria)"
+                @click="enableCurso(curso)"
+                :title="isMateriaActive(curso.idMateria) ? 'Habilitar curso' : 'No se puede habilitar porque la materia está deshabilitada'"
+              >
+                Habilitar
               </button>
             </td>
           </tr>
@@ -737,5 +772,15 @@ onMounted(fetchCursoData)
   display: flex;
   justify-content: center;
   gap: 0.6rem;
+}
+.cm-row--inactive {
+  opacity: 0.5;
+}
+.uni-btn-action-disabled {
+  background: #e8e8e5 !important;
+  color: #a0a0a0 !important;
+  border: 1px solid #d0cfca !important;
+  cursor: not-allowed !important;
+  opacity: 0.6;
 }
 </style>

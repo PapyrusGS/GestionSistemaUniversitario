@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Reporte de Rendimiento Académico</title>
+<title>Horario de Docente</title>
 <style>
   @page { margin: 2cm; }
   body { margin: 0; padding: 0; }
@@ -13,6 +13,30 @@
   .header-inst { font-size: 14px; font-weight: 700; color: #000; letter-spacing: 0.01em; }
   .header-report { font-size: 11px; font-weight: 600; color: #000; margin-top: 3px; }
   .header-meta { font-size: 9px; color: #444; margin-top: 5px; }
+
+  /* ── Ficha del Docente ── */
+  .ficha {
+    border: 1px solid #000;
+    margin-bottom: 18px;
+  }
+  .ficha-title {
+    background: #ebebeb; color: #000;
+    padding: 5px 10px;
+    font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    border-bottom: 1px solid #bbb;
+  }
+  .ficha-body { display: table; width: 100%; }
+  .ficha-row  { display: table-row; }
+  .ficha-cell {
+    display: table-cell;
+    padding: 6px 10px;
+    border-right: 1px solid #ddd;
+    width: 100%;
+    vertical-align: top;
+  }
+  .ficha-cell:last-child { border-right: none; }
+  .ficha-label { font-size: 8px; text-transform: uppercase; font-weight: 700; color: #555; letter-spacing: 0.05em; }
+  .ficha-value { font-size: 11px; font-weight: 600; color: #000; margin-top: 2px; }
 
   /* ── Tabla ── */
   table { width: 100%; border-collapse: collapse; margin-top: 12px; }
@@ -28,14 +52,11 @@
     border: 1px solid #ccc;
     color: #000;
     vertical-align: top;
+    white-space: pre-wrap;
   }
   tbody tr:nth-child(even) { background: #f4f4f4; }
 
-  /* ── Nota ── */
-  .nota-cell { text-align: right; font-weight: 600; }
-  .nota-sin { color: #666; font-style: italic; }
-
-  /* ── Pie de página ── */
+  /* ── Pie ── */
   .footer {
     position: fixed; bottom: 0; left: 0; right: 0;
     border-top: 1px solid #000;
@@ -49,8 +70,20 @@
 <body>
 <div class="header">
   <div class="header-inst">Sistema de Gestión Universitaria</div>
-  <div class="header-report">Reporte de Rendimiento Académico</div>
-  <div class="header-meta">Generado el {{ now()->format('d/m/Y \a \l\a\s H:i') }}</div>
+  <div class="header-report">Horario de Clases por Docente</div>
+  <div class="header-meta">Generado el {{ $fecha }}</div>
+</div>
+
+<div class="ficha">
+  <div class="ficha-title">Datos del Docente</div>
+  <div class="ficha-body">
+    <div class="ficha-row">
+      <div class="ficha-cell">
+        <div class="ficha-label">Nombre Completo</div>
+        <div class="ficha-value">{{ $docente }}</div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <table>
@@ -65,15 +98,12 @@
     @forelse($data as $row)
     <tr>
       <td>{{ $row[0] }}</td>
-      <td style="text-align:center;">{{ $row[1] }}</td>
+      <td>{{ $row[1] }}</td>
       <td>{{ $row[2] }}</td>
       <td>{{ $row[3] }}</td>
-      <td class="nota-cell">{{ $row[4] }}</td>
-      <td class="nota-cell {{ $row[5] === 'Sin notas' ? 'nota-sin' : '' }}">{{ $row[5] }}</td>
-      <td class="nota-cell">{{ $row[6] }}</td>
     </tr>
     @empty
-    <tr><td colspan="{{ count($headings) }}" style="text-align:center;padding:20px;color:#666;">Sin resultados.</td></tr>
+    <tr><td colspan="{{ count($headings) }}" style="text-align:center;padding:20px;color:#666;">No hay clases asignadas para este docente.</td></tr>
     @endforelse
   </tbody>
 </table>
