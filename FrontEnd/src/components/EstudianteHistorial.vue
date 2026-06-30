@@ -39,14 +39,23 @@ async function loadHistorial() {
 }
 
 // Semestres disponibles para el selector de filtro
-const semestresDisponibles = computed(() =>
-  historial.value.map(p => p.semestre).sort((a, b) => a - b)
-)
+// Orden ascendente, sin duplicados, con "Electiva" (semestre 0) al final.
+const semestresDisponibles = computed(() => {
+  const unicos = [...new Set(historial.value.map(p => p.semestre))]
+  return unicos.sort((a, b) => {
+    if (a === 0) return 1
+    if (b === 0) return -1
+    return a - b
+  })
+})
 
 // Historial filtrado
 const historialFiltrado = computed(() => {
   return historial.value
-    .filter(p => !filterSemestre.value || String(p.semestre) === String(filterSemestre.value))
+    // Bug corregido: antes era `!filterSemestre.value`, lo que hacía que
+    // seleccionar el semestre 0 ("Electiva") se interpretara como "sin filtro"
+    // (porque !0 === true en JS). Ahora se compara explícitamente contra ''.
+    .filter(p => filterSemestre.value === '' || String(p.semestre) === String(filterSemestre.value))
     .map(p => ({
       ...p,
       materias: p.materias.filter(m => {
@@ -56,6 +65,11 @@ const historialFiltrado = computed(() => {
       }),
     }))
     .filter(p => p.materias.length > 0)
+    .sort((a, b) => {
+      const semA = Number(a.semestre) === 0 ? Infinity : Number(a.semestre)
+      const semB = Number(b.semestre) === 0 ? Infinity : Number(b.semestre)
+      return semA - semB
+    })
 })
 
 // Estadísticas globales
@@ -83,8 +97,9 @@ function clearFilters() {
   searchQuery.value    = ''
 }
 
+// Bug corregido: antes `filterSemestre.value` truthy-check no detectaba el 0.
 const hayFiltros = computed(() =>
-  filterEstado.value || filterSemestre.value || searchQuery.value
+  filterEstado.value || filterSemestre.value !== '' || searchQuery.value
 )
 
 onMounted(loadHistorial)
@@ -146,7 +161,7 @@ onMounted(loadHistorial)
         <i class="ti ti-calendar eh-select-icon"></i>
         <select v-model="filterSemestre" class="eh-select">
           <option value="">Todos los semestres</option>
-          <option v-for="s in semestresDisponibles" :key="s" :value="s">Semestre {{ s }}</option>
+          <option v-for="s in semestresDisponibles" :key="s" :value="s">{{ s === 0 ? 'Electiva' : 'Semestre ' + s }}</option>
         </select>
       </div>
 
@@ -207,19 +222,19 @@ onMounted(loadHistorial)
         :key="periodo.semestre"
         class="eh-periodo"
       >
-        <!-- Marcador de línea de tiempo -->
-        <div class="eh-marker">
-          <div class="eh-marker-dot"></div>
-          <div class="eh-marker-line"></div>
-        </div>
+          <!-- Marcador de línea de tiempo -->
+          <div class="eh-marker">
+            <div class="eh-marker-dot"></div>
+            <div class="eh-marker-line"></div>
+          </div>
 
-        <!-- Bloque del período -->
-        <div class="eh-block">
+          <!-- Bloque del período -->
+          <div class="eh-block">
 
-          <!-- Cabecera del período -->
-          <div class="eh-block-head">
-            <div class="eh-block-head-left">
-              <span class="eh-periodo-label">Semestre {{ periodo.semestre }}</span>
+            <!-- Cabecera del período -->
+            <div class="eh-block-head">
+              <div class="eh-block-head-left">
+                <span class="eh-periodo-label">{{ periodo.semestre === 0 ? 'Electiva' : 'Semestre ' + periodo.semestre }}</span>
               <div class="eh-periodo-pills">
                 <span class="eh-pill eh-pill--aprobada">
                   {{ periodo.materias.filter(m => statusTone(m.estadoAcademico) === 'aprobada').length }} aprobadas
@@ -253,8 +268,10 @@ onMounted(loadHistorial)
               <thead>
                 <tr>
                   <th>Materia</th>
+                  <th>Docente</th>
                   <th class="eh-th-center">Nota</th>
                   <th class="eh-th-center">Estado</th>
+                  <th>Fecha</th>
                 </tr>
               </thead>
               <tbody>
@@ -268,6 +285,9 @@ onMounted(loadHistorial)
                     <span class="eh-tone-bar"></span>
                     {{ materia.materia }}
                   </td>
+                  <td class="eh-td-docente">
+                    {{ materia.docente || '—' }}
+                  </td>
                   <td class="eh-td-nota">
                     {{ materia.nota !== null && materia.nota !== undefined ? materia.nota : '—' }}
                   </td>
@@ -275,6 +295,9 @@ onMounted(loadHistorial)
                     <span class="eh-badge" :data-tone="statusTone(materia.estadoAcademico)">
                       {{ statusTone(materia.estadoAcademico) }}
                     </span>
+                  </td>
+                  <td class="eh-td-fecha">
+                    {{ materia.fecha || materia.created_at || '—' }}
                   </td>
                 </tr>
               </tbody>
@@ -580,6 +603,19 @@ onMounted(loadHistorial)
 .eh-tr[data-tone="inscrita"]  .eh-tone-bar { background: #4a7aad; }
 .eh-tr[data-tone="pendiente"] .eh-tone-bar { background: #c0c0c0; }
 
+.eh-td-docente {
+  padding: 0.7rem 1.25rem;
+  font-size: 0.82rem;
+  color: #1a1a1a;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 200px;
+}
+.eh-td-fecha {
+  padding: 0.7rem 1.25rem;
+  font-size: 0.8rem;
+  color: #5b5c5e;
+  white-space: nowrap;
+}
 .eh-td-nota {
   padding: 0.7rem 1.25rem;
   text-align: center;

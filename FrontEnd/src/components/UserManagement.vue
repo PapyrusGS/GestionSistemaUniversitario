@@ -55,6 +55,20 @@ const formErrors = reactive({
   idCarrera: '',
 })
 
+const touched = reactive({
+  nombre1: false,
+  nombre2: false,
+  apellido1: false,
+  apellido2: false,
+  ci: false,
+  correo: false,
+  telefono: false,
+  password: false,
+  password_confirmation: false,
+  idRol: false,
+  idCarrera: false,
+})
+
 const selectedRolObj = computed(() =>
   roles.value.find(r => r.idRol === Number(form.idRol)) || null
 )
@@ -67,33 +81,20 @@ const isAdmin = computed(() => roleName.value === 'Administrador')
 const validators = {
   nombre1: v => {
     if (!v.trim()) return 'El primer nombre es obligatorio.'
-    if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(v)) return 'El primer nombre solo debe contener letras.'
   },
-  nombre2: v => {
-    if (v) {
-      if (v.length > 255) return 'Máximo 255 caracteres.'
-      if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(v)) return 'El segundo nombre solo debe contener letras.'
-    }
-  },
+  nombre2: () => {},
   apellido1: v => {
     if (!v.trim()) return 'El primer apellido es obligatorio.'
-    if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(v)) return 'El primer apellido solo debe contener letras.'
   },
-  apellido2: v => {
-    if (v) {
-      if (v.length > 255) return 'Máximo 255 caracteres.'
-      if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(v)) return 'El segundo apellido solo debe contener letras.'
-    }
-  },
+  apellido2: () => {},
   ci: v => {
     if (!v.trim()) return 'El CI es obligatorio.'
-    if (!/^\d+$/.test(v.trim())) return 'Solo se permiten números.'
   },
   correo: v => {
     if (!v.trim()) return 'El correo es obligatorio.'
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) return 'Formato de correo inválido.'
   },
-  telefono: v => v && !/^[67]\d{7}$/.test(v.trim()) && 'El teléfono debe empezar con 6 o 7 y tener exactamente 8 dígitos.',
+  telefono: v => v && !/^\d{7,15}$/.test(v.trim()) && 'Debe contener entre 7 y 15 dígitos.',
   password: v => {
     if (!v) return 'La contraseña es obligatoria.'
     if (v.length < 8) return 'Mínimo 8 caracteres.'
@@ -102,7 +103,7 @@ const validators = {
   },
   password_confirmation: v => {
     if (!v) return 'Debe confirmar la contraseña.'
-    if (v !== form.password) return 'La confirmación de la contraseña no coincide.'
+    if (v !== form.password) return 'Las contraseñas no coinciden.'
   },
   idRol: v => !v && 'Seleccione un rol.',
   idCarrera: v => isStudent.value && !v && 'Seleccione una carrera.',
@@ -140,14 +141,24 @@ const activeErrors = computed(() => {
   return list
 })
 
+function filterName(value) {
+  return value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]/g, '')
+}
+
+function filterDigits(value) {
+  return value.replace(/\D/g, '')
+}
+
 function validateField(field) {
-  const fn = validators[field]
-  if (!fn) return
-  formErrors[field] = fn(form[field]) || ''
+    touched[field] = true
+    const fn = validators[field]
+    if (!fn) return
+    formErrors[field] = fn(form[field]) || ''
 }
 
 function validateAll() {
   let valid = true
+  Object.keys(touched).forEach(k => touched[k] = true)
   Object.keys(validators).forEach(field => {
     const fn = validators[field]
     if (!fn) return
@@ -409,44 +420,44 @@ onMounted(() => {
               <div class="um-grid-2">
                 <label class="um-field">
                   <span>Primer nombre *</span>
-                  <input v-model.trim="form.nombre1" type="text" required :disabled="submittings" placeholder="Ej: María" @input="validateField('nombre1')" />
+                  <input v-model.trim="form.nombre1" type="text" inputmode="text" required :disabled="submittings" placeholder="Ej: María" @input="form.nombre1 = filterName(form.nombre1); touched.nombre1 && validateField('nombre1')" @blur="validateField('nombre1')" />
                   <span v-if="formErrors.nombre1" class="um-field-error">{{ formErrors.nombre1 }}</span>
                   <span v-else-if="errors.nombre1" class="um-field-error">{{ errors.nombre1[0] }}</span>
                 </label>
                 <label class="um-field">
                   <span>Segundo nombre</span>
-                  <input v-model.trim="form.nombre2" type="text" :disabled="submittings" placeholder="Opcional" @input="validateField('nombre2')" />
+                  <input v-model.trim="form.nombre2" type="text" inputmode="text" :disabled="submittings" placeholder="Opcional" @input="form.nombre2 = filterName(form.nombre2); touched.nombre2 && validateField('nombre2')" @blur="validateField('nombre2')" />
                   <span v-if="formErrors.nombre2" class="um-field-error">{{ formErrors.nombre2 }}</span>
                   <span v-else-if="errors.nombre2" class="um-field-error">{{ errors.nombre2[0] }}</span>
                 </label>
                 <label class="um-field">
                   <span>Primer apellido *</span>
-                  <input v-model.trim="form.apellido1" type="text" required :disabled="submittings" placeholder="Ej: García" @input="validateField('apellido1')" />
+                  <input v-model.trim="form.apellido1" type="text" inputmode="text" required :disabled="submittings" placeholder="Ej: García" @input="form.apellido1 = filterName(form.apellido1); touched.apellido1 && validateField('apellido1')" @blur="validateField('apellido1')" />
                   <span v-if="formErrors.apellido1" class="um-field-error">{{ formErrors.apellido1 }}</span>
                   <span v-else-if="errors.apellido1" class="um-field-error">{{ errors.apellido1[0] }}</span>
                 </label>
                 <label class="um-field">
                   <span>Segundo apellido</span>
-                  <input v-model.trim="form.apellido2" type="text" :disabled="submittings" placeholder="Opcional" @input="validateField('apellido2')" />
+                  <input v-model.trim="form.apellido2" type="text" inputmode="text" :disabled="submittings" placeholder="Opcional" @input="form.apellido2 = filterName(form.apellido2); touched.apellido2 && validateField('apellido2')" @blur="validateField('apellido2')" />
                   <span v-if="formErrors.apellido2" class="um-field-error">{{ formErrors.apellido2 }}</span>
                   <span v-else-if="errors.apellido2" class="um-field-error">{{ errors.apellido2[0] }}</span>
                 </label>
                 <label class="um-field">
                   <span>Carnet (CI) *</span>
-                  <input v-model.trim="form.ci" type="text" required :disabled="submittings" placeholder="Ej: 12345678" @input="validateField('ci')" />
+                  <input v-model.trim="form.ci" type="text" inputmode="numeric" required :disabled="submittings" placeholder="Ej: 12345678" @input="form.ci = filterDigits(form.ci); touched.ci && validateField('ci')" @blur="validateField('ci')" />
                   <span v-if="formErrors.ci" class="um-field-error">{{ formErrors.ci }}</span>
                   <span v-else-if="errors.ci" class="um-field-error">{{ errors.ci[0] }}</span>
                 </label>
                 <label class="um-field">
                   <span>Teléfono</span>
-                  <input v-model.trim="form.telefono" type="text" :disabled="submittings" placeholder="Ej: 76543210" @input="validateField('telefono')" />
+                  <input v-model.trim="form.telefono" type="tel" inputmode="numeric" :disabled="submittings" placeholder="Ej: 76543210" maxlength="15" @input="form.telefono = filterDigits(form.telefono); touched.telefono && validateField('telefono')" @blur="validateField('telefono')" />
                   <span v-if="formErrors.telefono" class="um-field-error">{{ formErrors.telefono }}</span>
                   <span v-else-if="errors.telefono" class="um-field-error">{{ errors.telefono[0] }}</span>
                 </label>
               </div>
               <label class="um-field um-field--full">
                 <span>Correo institucional *</span>
-                <input v-model.trim="form.correo" type="email" required :disabled="submittings" placeholder="usuario@uni.edu.bo" @input="validateField('correo')" />
+                <input v-model.trim="form.correo" type="email" inputmode="email" required :disabled="submittings" placeholder="usuario@uni.edu.bo" @input="touched.correo && validateField('correo')" @blur="validateField('correo')" />
                 <span v-if="formErrors.correo" class="um-field-error">{{ formErrors.correo }}</span>
                 <span v-else-if="errors.correo" class="um-field-error">{{ errors.correo[0] }}</span>
               </label>
@@ -465,11 +476,13 @@ onMounted(() => {
                     <input
                       v-model="form.password"
                       :type="showPassword ? 'text' : 'password'"
+                      inputmode="text"
                       required
                       :disabled="submittings"
                       autocomplete="new-password"
                       placeholder="Mínimo 8 caracteres"
-                      @input="validateField('password'); validateField('password_confirmation')"
+                      @input="touched.password && validateField('password'); touched.password_confirmation && validateField('password_confirmation')"
+                      @blur="validateField('password')"
                     />
                     <button
                       type="button"
@@ -494,7 +507,8 @@ onMounted(() => {
                       :disabled="submittings"
                       autocomplete="new-password"
                       placeholder="Repite la contraseña"
-                      @input="validateField('password_confirmation')"
+                      @input="touched.password_confirmation && validateField('password_confirmation')"
+                      @blur="validateField('password_confirmation')"
                     />
                     <button
                       type="button"
