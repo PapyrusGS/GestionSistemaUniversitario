@@ -48,4 +48,17 @@ class EloquentCursoRepository implements CursoRepositoryInterface
 
         return (array) $rows[0];
     }
+
+    public function enable($id): array
+    {
+        DB::statement('UPDATE cursos_materias SET estado = 1, updated_at = NOW() WHERE idCursoMateria = ?', [$id]);
+
+        $rows = DB::select('CALL sp_cursos_find(?)', [$id]);
+
+        if ($rows === []) {
+            throw (new ModelNotFoundException())->setModel('CursoMateria', [$id]);
+        }
+
+        return (array) $rows[0];
+    }
 }

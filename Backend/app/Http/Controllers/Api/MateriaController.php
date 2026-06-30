@@ -65,4 +65,18 @@ class MateriaController extends Controller
             'Materia deshabilitada correctamente.'
         );
     }
+
+    public function enable(string $materia): JsonResponse
+    {
+        try {
+            $updated = $this->materiaService->enable($materia);
+
+            return ApiResponse::success(
+                ['materia' => $updated],
+                'Materia habilitada correctamente.'
+            );
+        } catch (\Throwable $e) {
+            return ApiResponse::error($e->getMessage(), null, 422);
+        }
+    }
 }

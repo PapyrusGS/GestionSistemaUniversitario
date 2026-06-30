@@ -13,4 +13,6 @@ interface CursoRepositoryInterface
     public function create(array $data): array;
 
     public function disable($id): array;
+
+    public function enable($id): array;
 }

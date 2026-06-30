@@ -82,14 +82,32 @@ async function confirmDisable() {
 
   try {
     const { data } = await props.api.delete(`/carreras/${confirmTarget.value.idCarrera}`)
+    const payload = data.data ?? data
     const idx = carreras.value.findIndex(c => c.idCarrera === confirmTarget.value.idCarrera)
-    if (idx !== -1) carreras.value.splice(idx, 1)
+    if (idx !== -1) carreras.value[idx] = payload.carrera
     successMessage.value = data.message
   } catch (error) {
     errorMessage.value = error.response?.data?.message || 'No se pudo deshabilitar la carrera.'
   } finally {
     submitting.value = false
     confirmTarget.value = null
+  }
+}
+
+async function enableCarrera(carrera) {
+  submitting.value = true
+  clearMessages()
+
+  try {
+    const { data } = await props.api.patch(`/carreras/${carrera.idCarrera}/enable`)
+    const payload = data.data ?? data
+    const idx = carreras.value.findIndex(c => c.idCarrera === carrera.idCarrera)
+    if (idx !== -1) carreras.value[idx] = payload.carrera
+    successMessage.value = data.message
+  } catch (error) {
+    errorMessage.value = error.response?.data?.message || 'No se pudo habilitar la carrera.'
+  } finally {
+    submitting.value = false
   }
 }
 
@@ -192,6 +210,15 @@ onMounted(fetchCarreras)
                   title="Deshabilitar carrera"
                 >
                   <i class="ti ti-ban"></i>
+                </button>
+                <button
+                  v-else
+                  class="cm-btn-icon cm-btn-icon--success"
+                  :disabled="submitting"
+                  @click="enableCarrera(c)"
+                  title="Habilitar carrera"
+                >
+                  <i class="ti ti-circle-check"></i>
                 </button>
               </div>
             </td>
@@ -429,6 +456,8 @@ onMounted(fetchCarreras)
 .cm-btn-icon:hover { background: #f4f4f2; border-color: #8c9f96; color: #1a1a1a; }
 .cm-btn-icon--danger { color: #b85c5c; }
 .cm-btn-icon--danger:hover { background: #faf0f0; border-color: #dca6a6; color: #7a2424; }
+.cm-btn-icon--success { color: #2a7a4b; }
+.cm-btn-icon--success:hover { background: #edf7f1; border-color: #8ec9a2; color: #1a5235; }
 .cm-btn-icon:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ── Botones compartidos ── */

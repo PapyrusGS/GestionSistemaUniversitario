@@ -10,6 +10,7 @@ const props = defineProps({
 
 const materias = ref([])
 const carreras = ref([])
+const allCarreras = ref([])
 const materiasActivas = ref([])
 const filtros = reactive({
   carrera: '',
@@ -34,6 +35,11 @@ const form = reactive({
   nombre: '',
   semestre: '',
 })
+
+const isCareerActive = (idCarrera) => {
+  const c = allCarreras.value.find(x => Number(x.idCarrera) === Number(idCarrera))
+  return c ? c.estado : false
+}
 
 const prerequisitosFiltrados = () => {
   if (!form.idCarrera) {
@@ -95,14 +101,16 @@ async function fetchMateriaData() {
     if (filtros.codigo)   params.q        = filtros.codigo
     if (filtros.semestre) params.semestre = filtros.semestre
 
-    const [materiasResponse, formDataResponse] = await Promise.all([
+    const [materiasResponse, formDataResponse, carrerasResponse] = await Promise.all([
       props.api.get('/materias', { params }),
       props.api.get('/materias/form-data'),
+      props.api.get('/carreras'),
     ])
     materias.value = payloadFromResponse(materiasResponse.data).materias || []
     const formData = payloadFromResponse(formDataResponse.data)
     carreras.value = formData.carreras || []
     materiasActivas.value = formData.materias || []
+    allCarreras.value = payloadFromResponse(carrerasResponse.data).carreras || []
   } catch (error) {
     errorMessage.value = error.response?.data?.message || 'No se pudieron cargar las materias.'
   } finally {
@@ -178,6 +186,22 @@ async function confirmDisableMateria() {
   } finally {
     submitting.value = false
     materiaToDisable.value = null
+  }
+}
+
+async function enableMateria(materia) {
+  submitting.value = true
+  resetMessages()
+  try {
+    const response = await props.api.patch(`/materias/${materia.idMateria}/enable`)
+    const payload = payloadFromResponse(response.data)
+    const index = materias.value.findIndex((item) => item.idMateria === materia.idMateria)
+    if (index !== -1) materias.value[index] = payload.materia
+    successMessage.value = response.data.message || 'Materia habilitada correctamente.'
+  } catch (error) {
+    errorMessage.value = error.response?.data?.message || 'No se pudo habilitar la materia.'
+  } finally {
+    submitting.value = false
   }
 }
 
@@ -302,6 +326,17 @@ onMounted(fetchMateriaData)
                     @click="askDisableMateria(materia)"
                   >
                     Deshabilitar
+                  </button>
+                  <button
+                    v-else
+                    class="mm-btn-sm"
+                    :class="isCareerActive(materia.idCarrera) ? 'uni-btn-action-success' : 'uni-btn-action-disabled'"
+                    type="button"
+                    :disabled="submitting || !isCareerActive(materia.idCarrera)"
+                    @click="enableMateria(materia)"
+                    :title="isCareerActive(materia.idCarrera) ? 'Habilitar materia' : 'No se puede habilitar porque la carrera está deshabilitada'"
+                  >
+                    Habilitar
                   </button>
                 </div>
               </td>
@@ -711,4 +746,14 @@ onMounted(fetchMateriaData)
   text-align: left;
 }
 .mm-confirm-actions { display: flex; justify-content: center; gap: 0.6rem; }
+.mm-row--inactive {
+  opacity: 0.5;
+}
+.uni-btn-action-disabled {
+  background: #e8e8e5 !important;
+  color: #a0a0a0 !important;
+  border: 1px solid #d0cfca !important;
+  cursor: not-allowed !important;
+  opacity: 0.6;
+}
 </style>
