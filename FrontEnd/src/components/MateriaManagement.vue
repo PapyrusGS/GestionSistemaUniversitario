@@ -1,5 +1,5 @@
 <script setup>
-import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, ref, watch, computed } from 'vue'
 
 const props = defineProps({
   api: {
@@ -16,6 +16,7 @@ const filtros = reactive({
   carrera: '',
   codigo: '',
   semestre: '',
+  estado: '',
 })
 const loading = ref(false)
 const submitting = ref(false)
@@ -26,6 +27,84 @@ const materiaToDisable = ref(null)
 const successMessage = ref('')
 const errorMessage = ref('')
 const errors = ref({})
+
+const filteredMaterias = computed(() => {
+  if (filtros.estado === '') {
+    return materias.value
+  }
+  const isTargetActive = filtros.estado === '1'
+  return materias.value.filter(m => !!m.estado === isTargetActive)
+})
+
+const localErrors = reactive({
+  nombre: '',
+})
+
+function validateFieldName() {
+  if (errors.value.nombre) {
+    errors.value.nombre = null
+  }
+  const val = form.nombre || ''
+  if (!val.trim()) {
+    localErrors.nombre = 'El nombre de la materia es obligatorio.'
+  } else if (val.trim().length < 5) {
+    localErrors.nombre = 'El nombre debe tener al menos 5 caracteres.'
+  } else if (val.trim().length > 30) {
+    localErrors.nombre = 'El nombre no puede exceder los 30 caracteres.'
+  } else {
+    localErrors.nombre = ''
+  }
+}
+
+function titleCase(str) {
+  if (!str) return ''
+  return str
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}
+
+function getCareerPrefix(careerName) {
+  if (!careerName) return 'MAT'
+  const normalized = careerName.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  const words = normalized.split(/\s+/).map(w => w.toUpperCase())
+  const ignoredWords = ["INGENIERIA", "DE", "LA", "EL", "Y", "LOS", "LAS"]
+  const filtered = words.filter(w => !ignoredWords.includes(w))
+  const targetWord = filtered[0] || words[0] || 'MAT'
+  return targetWord.substring(0, 3)
+}
+
+function generateNextMateriaId(idCarrera) {
+  if (!idCarrera) return ''
+  const careerObj = allCarreras.value.find(c => String(c.idCarrera) === String(idCarrera))
+  if (!careerObj) return ''
+  
+  const prefix = getCareerPrefix(careerObj.nombre)
+  
+  const careerMaterias = [
+    ...materias.value,
+    ...materiasActivas.value
+  ].filter(m => String(m.idCarrera) === String(idCarrera))
+  
+  let maxNum = 0
+  careerMaterias.forEach(m => {
+    if (m.idMateria && m.idMateria.startsWith(prefix + '-')) {
+      const numPart = m.idMateria.substring(prefix.length + 1)
+      const num = parseInt(numPart, 10)
+      if (!isNaN(num) && num > maxNum) {
+        maxNum = num
+      }
+    }
+  })
+  
+  const nextNum = maxNum + 1
+  const paddedNum = String(nextNum).padStart(3, '0')
+  return `${prefix}-${paddedNum}`
+}
+
 let searchTimeout = null
 
 const form = reactive({
@@ -35,6 +114,15 @@ const form = reactive({
   nombre: '',
   semestre: '',
 })
+
+watch(
+  () => form.idCarrera,
+  (newVal) => {
+    if (!isEditing.value) {
+      form.idMateria = generateNextMateriaId(newVal)
+    }
+  }
+)
 
 const isCareerActive = (idCarrera) => {
   const c = allCarreras.value.find(x => Number(x.idCarrera) === Number(idCarrera))
@@ -63,6 +151,7 @@ function resetForm() {
   form.nombre = ''
   form.semestre = ''
   errors.value = {}
+  localErrors.nombre = ''
 }
 
 function openCreate() {
@@ -81,6 +170,7 @@ function openEdit(materia) {
   form.nombre = materia.nombre
   form.semestre = String(materia.semestre)
   errors.value = {}
+  localErrors.nombre = ''
   showModal.value = true
 }
 
@@ -119,6 +209,14 @@ async function fetchMateriaData() {
 }
 
 async function submitForm() {
+  validateFieldName()
+  if (localErrors.nombre) {
+    errorMessage.value = 'Por favor, corrige los errores del formulario.'
+    return
+  }
+
+  form.nombre = titleCase(form.nombre)
+
   submitting.value = true
   resetMessages()
   errors.value = {}
@@ -128,7 +226,7 @@ async function submitForm() {
       idCarrera: Number(form.idCarrera),
       idMateriaPrevia: form.idMateriaPrevia || null,
       nombre: form.nombre,
-      semestre: Number(form.semestre),
+      semestre: form.semestre,
     }
     const response = isEditing.value
       ? await props.api.put(`/materias/${form.idMateria}`, body)
@@ -209,6 +307,7 @@ function resetFilters() {
   filtros.carrera = ''
   filtros.codigo = ''
   filtros.semestre = ''
+  filtros.estado = ''
 }
 
 watch(
@@ -279,7 +378,19 @@ onMounted(fetchMateriaData)
         </div>
         <div class="mm-filter-group">
           <label class="mm-label">Semestre</label>
-          <input v-model.trim="filtros.semestre" type="number" min="1" max="20" class="mm-input" placeholder="Ej: 3" />
+          <select v-model="filtros.semestre" class="mm-select">
+            <option value="">Todos los semestres</option>
+            <option v-for="i in 10" :key="i" :value="String(i)">{{ i }}º Semestre</option>
+            <option value="Electiva">Electiva</option>
+          </select>
+        </div>
+        <div class="mm-filter-group">
+          <label class="mm-label">Estado</label>
+          <select v-model="filtros.estado" class="mm-select">
+            <option value="">Todos los estados</option>
+            <option value="1">Activas</option>
+            <option value="0">Inactivas</option>
+          </select>
         </div>
       </div>
 
@@ -298,10 +409,10 @@ onMounted(fetchMateriaData)
             </tr>
           </thead>
           <tbody>
-            <tr v-if="materias.length === 0">
+            <tr v-if="filteredMaterias.length === 0">
               <td colspan="7" class="mm-empty">No hay materias registradas.</td>
             </tr>
-            <tr v-for="materia in materias" :key="materia.idMateria" :class="{ 'mm-row--inactive': !materia.estado }">
+            <tr v-for="materia in filteredMaterias" :key="materia.idMateria" :class="{ 'mm-row--inactive': !materia.estado }">
               <td><code class="mm-code">{{ materia.idMateria }}</code></td>
               <td><strong>{{ materia.nombre }}</strong></td>
               <td>{{ materia.carrera || 'Sin carrera' }}</td>
@@ -365,13 +476,8 @@ onMounted(fetchMateriaData)
 
             <div class="mm-two-cols">
               <div class="mm-field">
-                <label class="mm-label">Código *</label>
-                <input v-model.trim="form.idMateria" type="text" class="mm-input" :disabled="isEditing || submitting" placeholder="Ej: SIS-100" required />
-                <small v-if="errors.idMateria" class="mm-field-error">{{ errors.idMateria[0] }}</small>
-              </div>
-              <div class="mm-field">
                 <label class="mm-label">Carrera *</label>
-                <select v-model="form.idCarrera" class="mm-select" :disabled="submitting" required>
+                <select v-model="form.idCarrera" class="mm-select" :disabled="isEditing || submitting" required>
                   <option value="" disabled>Seleccione una carrera</option>
                   <option v-for="carrera in carreras" :key="carrera.idCarrera" :value="String(carrera.idCarrera)">
                     {{ carrera.nombre }}
@@ -379,17 +485,27 @@ onMounted(fetchMateriaData)
                 </select>
                 <small v-if="errors.idCarrera" class="mm-field-error">{{ errors.idCarrera[0] }}</small>
               </div>
+              <div class="mm-field">
+                <label class="mm-label">Código *</label>
+                <input v-model="form.idMateria" type="text" class="mm-input" disabled placeholder="Autogenerado" required />
+                <small v-if="errors.idMateria" class="mm-field-error">{{ errors.idMateria[0] }}</small>
+              </div>
             </div>
 
             <div class="mm-two-cols">
               <div class="mm-field">
                 <label class="mm-label">Nombre *</label>
-                <input v-model.trim="form.nombre" type="text" class="mm-input" :disabled="submitting" required />
-                <small v-if="errors.nombre" class="mm-field-error">{{ errors.nombre[0] }}</small>
+                <input v-model="form.nombre" type="text" class="mm-input" :disabled="submitting" maxlength="30" required @input="validateFieldName" />
+                <small v-if="localErrors.nombre" class="mm-field-error">{{ localErrors.nombre }}</small>
+                <small v-else-if="errors.nombre" class="mm-field-error">{{ errors.nombre[0] }}</small>
               </div>
               <div class="mm-field">
                 <label class="mm-label">Semestre *</label>
-                <input v-model="form.semestre" type="number" min="1" max="20" class="mm-input" :disabled="submitting" required />
+                <select v-model="form.semestre" class="mm-select" :disabled="submitting" required>
+                  <option value="" disabled>Seleccione un semestre</option>
+                  <option v-for="i in 10" :key="i" :value="String(i)">{{ i }}º Semestre</option>
+                  <option value="Electiva">Electiva</option>
+                </select>
                 <small v-if="errors.semestre" class="mm-field-error">{{ errors.semestre[0] }}</small>
               </div>
             </div>

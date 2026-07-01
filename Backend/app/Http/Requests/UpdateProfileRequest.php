@@ -14,14 +14,14 @@ class UpdateProfileRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'telefono' => ['nullable', 'string', 'max:20'],
+            'telefono' => ['nullable', 'string', 'regex:/^[67]\d{7}$/'],
         ];
     }
 
     public function messages(): array
     {
         return [
-            'telefono.max' => 'El teléfono no puede tener más de 20 caracteres.',
+            'telefono.regex' => 'El teléfono debe empezar con 6 o 7 y tener exactamente 8 dígitos.',
         ];
     }
 }

@@ -67,7 +67,7 @@ class EloquentMateriaRepository implements MateriaRepositoryInterface
 
     public function enable(string $id): void
     {
-        DB::statement('UPDATE materias SET estado = 1, updated_at = NOW() WHERE idMateria COLLATE utf8mb4_unicode_ci = ? COLLATE utf8mb4_unicode_ci', [$id]);
+        DB::statement('UPDATE materias SET estado = 1, updated_at = NOW() WHERE idMateria = ?', [$id]);
     }
 
     public function findOrFail(string $id): array

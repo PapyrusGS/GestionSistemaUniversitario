@@ -33,10 +33,11 @@ class CarreraRequest extends FormRequest
             'nombre' => [
                 'required',
                 'string',
-                'max:255',
+                'max:50',
+                'regex:/^[^\d]+$/',
                 Rule::unique('carreras', 'nombre')->ignore($carreraId, 'idCarrera'),
             ],
-            'descripcion' => ['nullable', 'string', 'max:255'],
+            'descripcion' => ['nullable', 'string', 'max:150'],
         ];
     }
 
@@ -50,10 +51,11 @@ class CarreraRequest extends FormRequest
         return [
             'nombre.required' => 'El nombre de la carrera es obligatorio.',
             'nombre.string'   => 'El nombre de la carrera debe ser una cadena de texto.',
-            'nombre.max'      => 'El nombre de la carrera no puede superar los 255 caracteres.',
+            'nombre.max'      => 'El nombre de la carrera no puede superar los 50 caracteres.',
+            'nombre.regex'    => 'No se aceptan números en el nombre de la carrera.',
             'nombre.unique'   => 'Ya existe una carrera con ese nombre.',
             'descripcion.string' => 'La descripción debe ser una cadena de texto.',
-            'descripcion.max'    => 'La descripción no puede superar los 255 caracteres.',
+            'descripcion.max'    => 'La descripción no puede superar los 150 caracteres.',
         ];
     }
 }

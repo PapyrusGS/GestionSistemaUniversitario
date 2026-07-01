@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, computed } from 'vue'
 
 const props = defineProps({
   api: {
@@ -24,6 +24,47 @@ const form = reactive({
   descripcion: '',
 })
 
+const filterEstado = ref('')
+
+const filteredCarreras = computed(() => {
+  if (filterEstado.value === '') {
+    return carreras.value
+  }
+  const isTargetActive = filterEstado.value === '1'
+  return carreras.value.filter(c => !!c.estado === isTargetActive)
+})
+
+const localErrors = reactive({
+  nombre: '',
+  descripcion: '',
+})
+
+function validateFieldName() {
+  if (errors.value.nombre) {
+    errors.value.nombre = null
+  }
+  const val = form.nombre || ''
+  if (!val.trim()) {
+    localErrors.nombre = 'El nombre de la carrera es obligatorio.'
+  } else if (/\d/.test(val)) {
+    localErrors.nombre = 'No se aceptan números.'
+  } else {
+    localErrors.nombre = ''
+  }
+}
+
+function validateFieldDescripcion() {
+  if (errors.value.descripcion) {
+    errors.value.descripcion = null
+  }
+  const val = form.descripcion || ''
+  if (val.length > 150) {
+    localErrors.descripcion = 'La descripción no puede exceder los 150 caracteres.'
+  } else {
+    localErrors.descripcion = ''
+  }
+}
+
 async function fetchCarreras() {
   loading.value = true
   clearMessages()
@@ -38,6 +79,13 @@ async function fetchCarreras() {
 }
 
 async function submitForm() {
+  validateFieldName()
+  validateFieldDescripcion()
+  if (localErrors.nombre || localErrors.descripcion) {
+    errorMessage.value = 'Por favor, corrige los errores del formulario.'
+    return
+  }
+
   submitting.value = true
   clearMessages()
   errors.value = {}
@@ -117,6 +165,8 @@ function openCreate() {
   form.nombre      = ''
   form.descripcion = ''
   errors.value     = {}
+  localErrors.nombre = ''
+  localErrors.descripcion = ''
   clearMessages()
   showModal.value  = true
 }
@@ -127,6 +177,8 @@ function openEdit(carrera) {
   form.nombre      = carrera.nombre
   form.descripcion = carrera.descripcion ?? ''
   errors.value     = {}
+  localErrors.nombre = ''
+  localErrors.descripcion = ''
   clearMessages()
   showModal.value  = true
 }
@@ -161,6 +213,27 @@ onMounted(fetchCarreras)
       <i class="ti ti-alert-circle"></i> {{ errorMessage }}
     </div>
 
+    <!-- Barra de filtros -->
+    <div class="cm-list-bar">
+      <span class="cm-list-count">
+        {{ filteredCarreras.length }} carrera{{ filteredCarreras.length !== 1 ? 's' : '' }}
+      </span>
+      <div class="cm-list-actions">
+        <div class="cm-filter-group">
+          <i class="ti ti-filter"></i>
+          <select v-model="filterEstado" class="cm-filter-select">
+            <option value="">Todos los estados</option>
+            <option value="1">Activas</option>
+            <option value="0">Deshabilitadas</option>
+          </select>
+        </div>
+        <button class="cm-btn-ghost" type="button" @click="fetchCarreras" :disabled="loading">
+          <i class="ti" :class="loading ? 'ti-loader-2 cm-spin' : 'ti-refresh'"></i>
+          {{ loading ? 'Cargando...' : 'Actualizar' }}
+        </button>
+      </div>
+    </div>
+
     <!-- Tabla -->
     <div class="cm-table-wrap">
       <!-- Loading overlay -->
@@ -181,13 +254,13 @@ onMounted(fetchCarreras)
           </tr>
         </thead>
         <tbody>
-          <tr v-if="!loading && carreras.length === 0">
+          <tr v-if="!loading && filteredCarreras.length === 0">
             <td colspan="6" class="cm-empty">
               <i class="ti ti-building-off"></i>
               <span>No hay carreras registradas.</span>
             </td>
           </tr>
-          <tr v-for="c in carreras" :key="c.idCarrera" :class="{ 'cm-row--inactive': !c.estado }">
+          <tr v-for="c in filteredCarreras" :key="c.idCarrera" :class="{ 'cm-row--inactive': !c.estado }">
             <td><code class="cm-code">{{ c.idCarrera }}</code></td>
             <td><strong class="cm-carrera-name">{{ c.nombre }}</strong></td>
             <td class="cm-muted">{{ c.descripcion || '—' }}</td>
@@ -245,26 +318,38 @@ onMounted(fetchCarreras)
 
           <form class="cm-form" @submit.prevent="submitForm">
             <label class="cm-field">
-              <span>Nombre de la Carrera <em>*</em></span>
+              <div class="cm-field-header">
+                <span>Nombre de la Carrera <em>*</em></span>
+                <span class="cm-counter">{{ (form.nombre || '').length }}/50</span>
+              </div>
               <input
-                v-model.trim="form.nombre"
+                v-model="form.nombre"
                 type="text"
                 required
                 :disabled="submitting"
+                maxlength="50"
                 placeholder="Ej: Ingeniería en Sistemas"
+                @input="validateFieldName"
               />
-              <span v-if="errors.nombre" class="cm-field-error">{{ errors.nombre[0] }}</span>
+              <span v-if="localErrors.nombre" class="cm-field-error">{{ localErrors.nombre }}</span>
+              <span v-else-if="errors.nombre" class="cm-field-error">{{ errors.nombre[0] }}</span>
             </label>
 
             <label class="cm-field">
-              <span>Descripción</span>
+              <div class="cm-field-header">
+                <span>Descripción</span>
+                <span class="cm-counter">{{ (form.descripcion || '').length }}/150</span>
+              </div>
               <textarea
-                v-model.trim="form.descripcion"
+                v-model="form.descripcion"
                 :disabled="submitting"
                 rows="3"
+                maxlength="150"
                 placeholder="Descripción opcional de la carrera..."
+                @input="validateFieldDescripcion"
               ></textarea>
-              <span v-if="errors.descripcion" class="cm-field-error">{{ errors.descripcion[0] }}</span>
+              <span v-if="localErrors.descripcion" class="cm-field-error">{{ localErrors.descripcion }}</span>
+              <span v-else-if="errors.descripcion" class="cm-field-error">{{ errors.descripcion[0] }}</span>
             </label>
 
             <div class="cm-form-actions">
@@ -643,4 +728,58 @@ onMounted(fetchCarreras)
 /* ── Spin ── */
 .cm-spin { animation: cm-rotate 0.8s linear infinite; }
 @keyframes cm-rotate { to { transform: rotate(360deg); } }
+
+/* ── Barra de lista y filtros ── */
+.cm-list-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+.cm-list-count {
+  font-size: 12px;
+  color: #5b5c5e;
+  font-weight: 600;
+}
+.cm-list-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.cm-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1.5px solid #d0cfca;
+  border-radius: 20px;
+  padding: 0 12px;
+  background: #fff;
+}
+.cm-filter-group i { font-size: 14px; color: #5b5c5e; }
+.cm-filter-select {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1a1a1a;
+  padding: 7px 4px;
+  cursor: pointer;
+  appearance: none;
+}
+
+/* ── Encabezado de campo y contador ── */
+.cm-field-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.cm-counter {
+  font-size: 10px;
+  font-weight: 600;
+  color: #8c8c8c;
+}
 </style>

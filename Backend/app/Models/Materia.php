@@ -42,7 +42,7 @@ class Materia extends Model
             'estadoA' => 'boolean',
             'fechaRegistro' => 'datetime',
             'fechaA' => 'datetime',
-            'semestre' => 'integer',
+            'semestre' => 'string',
         ];
     }
 

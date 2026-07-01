@@ -168,7 +168,7 @@
                 type="tel"
                 inputmode="numeric"
                 placeholder="Ej: 71234567"
-                maxlength="15"
+                maxlength="8"
                 @input="contactForm.telefono = filterDigits(contactForm.telefono); contactTouched.telefono && validateContact('telefono')"
                 @blur="contactForm.telefono = filterDigits(contactForm.telefono); validateContact('telefono')"
                 />
@@ -272,8 +272,8 @@ new_password_confirmation:v=>{
 const contactValidators={
 
 telefono:v=>{
-    if(v && !/^\d{7,15}$/.test(v.trim()))
-        return 'Debe contener entre 7 y 15 dígitos.'
+    if(v && !/^[67]\d{7}$/.test(v.trim()))
+        return 'El teléfono debe empezar con 6 o 7 y tener exactamente 8 dígitos.'
 }
 }
 

@@ -28,12 +28,13 @@ class MateriaRequest extends FormRequest
             'nombre' => [
                 'required',
                 'string',
-                'max:255',
+                'min:5',
+                'max:30',
                 Rule::unique('materias', 'nombre')
                     ->where(fn ($query) => $query->where('idCarrera', $this->input('idCarrera')))
                     ->ignore($materiaId, 'idMateria'),
             ],
-            'semestre' => ['required', 'integer', 'min:1', 'max:20'],
+            'semestre' => ['required', 'string', 'max:10', 'regex:/^(?:[1-9]|10|Electiva)$/'],
         ];
     }
 
@@ -47,10 +48,11 @@ class MateriaRequest extends FormRequest
             'idMateriaPrevia.different' => 'La materia no puede depender de si misma.',
             'idMateriaPrevia.exists' => 'La materia prerrequisito seleccionada no existe.',
             'nombre.required' => 'El nombre de la materia es obligatorio.',
+            'nombre.min' => 'El nombre de la materia debe tener al menos 5 caracteres.',
+            'nombre.max' => 'El nombre de la materia no puede superar los 30 caracteres.',
             'nombre.unique' => 'Ya existe una materia con ese nombre en la carrera seleccionada.',
             'semestre.required' => 'El semestre es obligatorio.',
-            'semestre.integer' => 'El semestre debe ser un numero entero.',
-            'semestre.min' => 'El semestre minimo permitido es 1.',
+            'semestre.regex' => 'El semestre debe ser un número del 1 al 10 o "Electiva".',
         ];
     }
 }

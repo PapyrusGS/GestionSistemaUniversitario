@@ -94,7 +94,7 @@ const validators = {
     if (!v.trim()) return 'El correo es obligatorio.'
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) return 'Formato de correo inválido.'
   },
-  telefono: v => v && !/^\d{7,15}$/.test(v.trim()) && 'Debe contener entre 7 y 15 dígitos.',
+  telefono: v => v && !/^[67]\d{7}$/.test(v.trim()) && 'El teléfono debe empezar con 6 o 7 y tener exactamente 8 dígitos.',
   password: v => {
     if (!v) return 'La contraseña es obligatoria.'
     if (v.length < 8) return 'Mínimo 8 caracteres.'
@@ -450,7 +450,7 @@ onMounted(() => {
                 </label>
                 <label class="um-field">
                   <span>Teléfono</span>
-                  <input v-model.trim="form.telefono" type="tel" inputmode="numeric" :disabled="submittings" placeholder="Ej: 76543210" maxlength="15" @input="form.telefono = filterDigits(form.telefono); touched.telefono && validateField('telefono')" @blur="validateField('telefono')" />
+                  <input v-model.trim="form.telefono" type="tel" inputmode="numeric" :disabled="submittings" placeholder="Ej: 76543210" maxlength="8" @input="form.telefono = filterDigits(form.telefono); touched.telefono && validateField('telefono')" @blur="validateField('telefono')" />
                   <span v-if="formErrors.telefono" class="um-field-error">{{ formErrors.telefono }}</span>
                   <span v-else-if="errors.telefono" class="um-field-error">{{ errors.telefono[0] }}</span>
                 </label>

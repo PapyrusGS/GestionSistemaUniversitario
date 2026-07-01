@@ -32,6 +32,9 @@ use Illuminate\Support\ServiceProvider;
 use App\Repositories\Contracts\ProfileRepositoryInterface;
 use App\Repositories\Eloquent\EloquentProfileRepository;
 
+use App\Repositories\Contracts\CursoFisicoRepositoryInterface;
+use App\Repositories\Eloquent\EloquentCursoFisicoRepository;
+
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -44,6 +47,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(CarreraRepositoryInterface::class, EloquentCarreraRepository::class);
         $this->app->bind(MateriaRepositoryInterface::class, EloquentMateriaRepository::class);
         $this->app->bind(CursoRepositoryInterface::class, EloquentCursoRepository::class);
+        $this->app->bind(CursoFisicoRepositoryInterface::class, EloquentCursoFisicoRepository::class);
         $this->app->bind(DocenteRepositoryInterface::class, EloquentDocenteRepository::class);
         $this->app->bind(HorarioRepositoryInterface::class, EloquentHorarioRepository::class);
         $this->app->bind(PeriodoRepositoryInterface::class, EloquentPeriodoRepository::class);

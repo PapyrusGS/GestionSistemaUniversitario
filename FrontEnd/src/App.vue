@@ -7,6 +7,7 @@ import CursoManagement from './components/CursoManagement.vue'
 import MateriaManagement from './components/MateriaManagement.vue'
 import UserManagement from './components/UserManagement.vue'
 import ReportesAdmin from './components/ReportesAdmin.vue'
+import CursoFisicoManagement from './components/CursoFisicoManagement.vue'
 import EstudianteMaterias from './components/EstudianteMaterias.vue'
 import EstudianteCarga from './components/EstudianteCarga.vue'
 import EstudianteCalificaciones from './components/EstudianteCalificaciones.vue'
@@ -275,6 +276,7 @@ onMounted(loadProfile)
             <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': adminSection === 'usuarios' }"  @click="adminSection = 'usuarios'"><i class="ti ti-users"></i>Usuarios</button>
             <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': adminSection === 'carreras' }"  @click="adminSection = 'carreras'"><i class="ti ti-school"></i>Carreras</button>
             <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': adminSection === 'materias' }"  @click="adminSection = 'materias'"><i class="ti ti-book"></i>Materias</button>
+            <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': adminSection === 'cursos-fisicos' }"  @click="adminSection = 'cursos-fisicos'"><i class="ti ti-building"></i>Aulas</button>
             <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': adminSection === 'cursos' }"    @click="adminSection = 'cursos'"><i class="ti ti-calendar"></i>Cursos</button>
             <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': adminSection === 'reportes' }"  @click="adminSection = 'reportes'"><i class="ti ti-file-report"></i>Reportes</button>
           </div>
@@ -283,6 +285,7 @@ onMounted(loadProfile)
             <UserManagement    v-if="adminSection === 'usuarios'" :api="api" />
             <CarreraManagement v-else-if="adminSection === 'carreras'" :api="api" />
             <MateriaManagement v-else-if="adminSection === 'materias'" :api="api" />
+            <CursoFisicoManagement v-else-if="adminSection === 'cursos-fisicos'" :api="api" />
             <CursoManagement   v-else-if="adminSection === 'cursos'"   :api="api" />
             <ReportesAdmin     v-else-if="adminSection === 'reportes'" :api="api" />
           </div>

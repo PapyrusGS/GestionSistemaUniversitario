@@ -70,7 +70,7 @@ class MateriaService
             'idCarrera' => (int) $materia['idCarrera'],
             'idMateriaPrevia' => $materia['idMateriaPrevia'] ?? null,
             'nombre' => $materia['nombre'],
-            'semestre' => (int) $materia['semestre'],
+            'semestre' => is_numeric($materia['semestre']) ? (int) $materia['semestre'] : $materia['semestre'],
             'estado' => (bool) ($materia['estado'] ?? true),
             'fechaRegistro' => $materia['fechaRegistro'] ?? null,
             'carrera' => $materia['carrera'] ?? null,

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\CarreraController;
 use App\Http\Controllers\Api\CursoController;
+use App\Http\Controllers\Api\CursoFisicoController;
 use App\Http\Controllers\Api\MateriaController;
 use App\Http\Controllers\Api\ReporteController;
 use App\Http\Controllers\Api\UserController;
@@ -36,6 +37,13 @@ Route::middleware(['auth:sanctum', 'role:Administrador'])->group(function () {
     Route::get('/cursos/{cursoMateria}/inscripciones',         [CursoController::class, 'inscripciones']);
     Route::delete('/cursos/{idCursoMateria}',                  [CursoController::class, 'destroy']);
     Route::patch('/cursos/{idCursoMateria}/enable',            [CursoController::class, 'enable']);
+
+    // ── Cursos Físicos (Aulas) ────────────────────────────────────────────────
+    Route::get('/cursos-fisicos',                              [CursoFisicoController::class, 'index']);
+    Route::post('/cursos-fisicos',                             [CursoFisicoController::class, 'store']);
+    Route::put('/cursos-fisicos/{idCurso}',                    [CursoFisicoController::class, 'update']);
+    Route::delete('/cursos-fisicos/{idCurso}',                 [CursoFisicoController::class, 'destroy']);
+    Route::patch('/cursos-fisicos/{idCurso}/enable',           [CursoFisicoController::class, 'enable']);
 
     // ── Reportes — filtros y reporte genérico original (conservados) ──────────
     Route::get('/reportes/filtros',  [ReporteController::class, 'filtros']);
