@@ -195,9 +195,22 @@ class StudentService
             default => collect(),
         };
 
+        $periodo = $request->input('periodo');
+        if ($periodo && $periodo !== 'todos') {
+            $data = $data->filter(function ($item) use ($periodo) {
+                $itemArr = (array) $item;
+                foreach (['periodo', 'gestion', 'periodoacademico', 'gestionacademica', 'periodogestion'] as $key) {
+                    if (isset($itemArr[$key])) {
+                        return $this->normalizePeriodo((string) $itemArr[$key]) === $this->normalizePeriodo($periodo);
+                    }
+                }
+                return true;
+            })->values();
+        }
+
         DB::table('reportes')->insert([
             'tipo' => $tipo,
-            'filtros' => 'estudiante=' . $student->idEstudiante,
+            'filtros' => 'estudiante=' . $student->idEstudiante . ($periodo && $periodo !== 'todos' ? '&periodo=' . $periodo : ''),
             'idUsuario' => $student->idUsuario,
             'fechaGeneracion' => now(),
             'fechaA' => now(),
@@ -208,6 +221,23 @@ class StudentService
         ]);
 
         return $data;
+    }
+
+    private function normalizePeriodo(?string $str): string
+    {
+        if (! $str) {
+            return '';
+        }
+        $s = strtoupper(trim($str));
+        if (preg_match('/^(I|II|1|2)\s*[-\/]?\s*(20\d{2})$/', $s, $matches)) {
+            $sem = ($matches[1] === 'II' || $matches[1] === '2') ? '2' : '1';
+            return "{$matches[2]}-{$sem}";
+        }
+        if (preg_match('/^(20\d{2})\s*[-\/]?\s*(I|II|1|2)$/', $s, $matches)) {
+            $sem = ($matches[2] === 'II' || $matches[2] === '2') ? '2' : '1';
+            return "{$matches[1]}-{$sem}";
+        }
+        return strtolower($s);
     }
 
     private function reporteHistorialPlano(object $student): Collection

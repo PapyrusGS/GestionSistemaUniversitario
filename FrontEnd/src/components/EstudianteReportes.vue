@@ -1,7 +1,60 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 const exportingPdf = ref(false)
 const exportingCsv = ref(false)
+const periodosList = ref([])
+
+onMounted(async () => {
+  try {
+    const { data: res } = await props.api.get('/estudiante/periodos')
+    periodosList.value = res.data ?? res
+  } catch (e) {
+    console.error('Error cargando periodos:', e)
+  }
+})
+
+const availablePeriodos = computed(() => {
+  if (!reporte.value?.data) return []
+  const periods = new Set()
+  const extract = (obj) => {
+    if (!obj || typeof obj !== 'object') return
+    Object.entries(obj).forEach(([key, val]) => {
+      const k = key.toLowerCase()
+      if (PERIODO_KEYS.some(pk => k.includes(pk)) && val) {
+        periods.add(String(val).trim())
+      } else if (Array.isArray(val)) {
+        val.forEach(item => extract(item))
+      }
+    })
+  }
+  reporte.value.data.forEach(row => extract(row))
+  return Array.from(periods).sort((a, b) => normalizePeriodo(a).localeCompare(normalizePeriodo(b)))
+})
+
+const filteredReportData = computed(() => {
+  if (!reporte.value?.data) return []
+  if (reportePeriodo.value === 'todos') return reporte.value.data
+  return filtrarPorPeriodo(reporte.value.data)
+})
+
+function normalizePeriodo(str) {
+  if (!str) return ''
+  let s = String(str).toUpperCase().trim()
+  
+  let match1 = s.match(/^(I|II|1|2)\s*[-\/]?\s*(20\d{2})$/)
+  if (match1) {
+    let sem = (match1[1] === 'II' || match1[1] === '2') ? '2' : '1'
+    return `${match1[2]}-${sem}`
+  }
+  
+  let match2 = s.match(/^(20\d{2})\s*[-\/]?\s*(I|II|1|2)$/)
+  if (match2) {
+    let sem = (match2[2] === 'II' || match2[2] === '2') ? '2' : '1'
+    return `${match2[1]}-${sem}`
+  }
+  
+  return s.toLowerCase()
+}
 
 function getReportTitle() {
   const titles = {
@@ -74,11 +127,13 @@ const PERIODO_KEYS = ['periodo', 'gestion', 'periodoacademico', 'gestionacademic
 function rowMatchesPeriodo(row, periodo) {
   if (!row || typeof row !== 'object') return false
 
+  const targetPeriodoNorm = normalizePeriodo(periodo)
+
   const directMatch = Object.entries(row).some(([key, val]) => {
     if (val === null || val === undefined) return false
     const k = key.toLowerCase()
     if (!PERIODO_KEYS.some(pk => k.includes(pk))) return false
-    return String(val).toLowerCase().trim() === periodo.toLowerCase().trim()
+    return normalizePeriodo(val) === targetPeriodoNorm
   })
   if (directMatch) return true
 
@@ -122,10 +177,8 @@ async function generarReporte() {
   reporte.value = null
   try {
     const params = { tipo: reporteTipo.value }
-    if (reportePeriodo.value !== 'todos') params.periodo = reportePeriodo.value
     const { data: res } = await props.api.post('/estudiante/reporte', params)
     const raw = res.data ?? res
-    if (raw?.data) raw.data = filtrarPorPeriodo(raw.data)
     reporte.value = raw
   } catch (e) {
     emit('message', { type: 'error', text: e.response?.data?.message || 'No pudimos generar el reporte.' })
@@ -177,10 +230,11 @@ async function exportarReporte(tipo) {
 }
 
 function exportCsv() {
-  if (!reporte.value?.data?.length) return
-  const keys = dataKeys(reporte.value.data[0])
+  const dataToExport = filteredReportData.value
+  if (!dataToExport.length) return
+  const keys = dataKeys(dataToExport[0])
   let csv = keys.join(',') + '\n'
-  for (const row of reporte.value.data) {
+  for (const row of dataToExport) {
     csv += keys.map((key) => {
       let value = row[key]
 
@@ -201,7 +255,8 @@ function exportCsv() {
 }
 
 function downloadPdf() {
-  if (!reporte.value?.data?.length) return
+  const dataToPrint = filteredReportData.value
+  if (!dataToPrint.length) return
 
   const win = window.open('', '_blank')
 
@@ -209,7 +264,7 @@ function downloadPdf() {
 
   const titulo = getReportTitle()
 
-  const keys = dataKeys(reporte.value.data[0])
+  const keys = dataKeys(dataToPrint[0])
 
   win.document.write(`
     <html>
@@ -284,7 +339,7 @@ function downloadPdf() {
           </thead>
 
           <tbody>
-            ${reporte.value.data.map(row => `
+            ${dataToPrint.map(row => `
               <tr>
                 ${keys.map(key =>
                   `<td>${row[key] ?? 'Sin dato'}</td>`
@@ -315,7 +370,7 @@ function downloadPdf() {
     <div class="reportes-filters">
       <div class="filter-group">
         <label>Tipo de reporte</label>
-        <select v-model="reporteTipo">
+        <select v-model="reporteTipo" @change="reportePeriodo = 'todos'" :disabled="loading">
           <option value="inscripciones">Materias inscritas</option>
           <option value="notas">Calificaciones</option>
           <option value="historial">Historial academico</option>
@@ -323,12 +378,11 @@ function downloadPdf() {
       </div>
       <div class="filter-group">
         <label>Periodo</label>
-        <select v-model="reportePeriodo">
+        <select v-model="reportePeriodo" :disabled="loading">
           <option value="todos">Todos los periodos</option>
-          <option value="2026-1">2026-1</option>
-          <option value="2026-2">2026-2</option>
-          <option value="2025-1">2025-1</option>
-          <option value="2025-2">2025-2</option>
+          <option v-for="p in periodosList" :key="p.idPeriodo" :value="p.nombre">
+            {{ p.nombre }}
+          </option>
         </select>
       </div>
       <button class="primary" type="button" @click="generarReporte" :disabled="loading">
@@ -336,7 +390,7 @@ function downloadPdf() {
       </button>
     </div>
 
-    <div v-if="reporte?.data?.length" class="reporte-result">
+    <div v-if="reporte" class="reporte-result">
       <div class="reporte-head">
         <div>
           <span class="eyebrow">Reporte generado</span>
@@ -354,14 +408,15 @@ function downloadPdf() {
           </button>
         </div>
       </div>
-      <div class="reporte-table">
-        <div v-for="(row, index) in reporte.data" :key="index" class="reporte-row">
+      <div class="reporte-table" v-if="filteredReportData.length">
+        <div v-for="(row, index) in filteredReportData" :key="index" class="reporte-row">
           <div v-for="[key, value] in filteredEntries(row)" :key="key">
             <span>{{ key }}</span>
             <strong>{{ displayValue(value) }}</strong>
           </div>
         </div>
       </div>
+      <p v-else class="empty">No se encontraron registros para el periodo seleccionado.</p>
     </div>
     <p v-else-if="!loading" class="empty">Selecciona un reporte para visualizarlo y exportarlo.</p>
   </div>

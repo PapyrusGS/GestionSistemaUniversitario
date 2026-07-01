@@ -100,6 +100,13 @@ class EstudianteController extends Controller
         ], 'Malla curricular.');
     }
 
+    public function periodos(Request $request): JsonResponse
+    {
+        $periodos = \App\Models\Periodo::orderByDesc('idPeriodo')->get(['idPeriodo', 'nombre']);
+
+        return ApiResponse::success($periodos, 'Listado de periodos.');
+    }
+
     public function reporte(Request $request): JsonResponse
     {
         $student = $this->studentService->getStudentOrFail($request);
