@@ -12,6 +12,7 @@ Route::middleware(['auth:sanctum', 'role:Administrador'])->group(function () {
     // ── Usuarios ──────────────────────────────────────────────────────────────
     Route::get('/users',  [UserController::class, 'index']);
     Route::post('/users', [UserController::class, 'store']);
+    Route::put('/users/{idUsuario}', [UserController::class, 'update']);
     Route::get('/roles',  [UserController::class, 'roles']);
 
     // ── Carreras ──────────────────────────────────────────────────────────────

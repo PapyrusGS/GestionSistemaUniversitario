@@ -19,14 +19,33 @@ class UserController extends Controller
 
         return response()->json([
             'users' => $users->map(function ($user) {
+                $idCarrera = null;
+                if ($user->rol && $user->rol->nombre === 'Estudiante') {
+                    $estudiante = \Illuminate\Support\Facades\DB::table('estudiante')
+                        ->where('idUsuario', $user->idUsuario)
+                        ->first();
+                    if ($estudiante) {
+                        $ec = \Illuminate\Support\Facades\DB::table('estudiante_carrera')
+                            ->where('idEstudiante', $estudiante->idEstudiante)
+                            ->first();
+                        $idCarrera = $ec ? $ec->idCarrera : null;
+                    }
+                }
+
                 return [
                     'idUsuario' => $user->idUsuario,
+                    'nombre1' => $user->nombre1,
+                    'nombre2' => $user->nombre2,
+                    'apellido1' => $user->apellido1,
+                    'apellido2' => $user->apellido2,
                     'nombreCompleto' => $user->nombreCompleto,
                     'ci' => $user->ci,
                     'correo' => $user->correo,
                     'telefono' => $user->telefono,
+                    'idRol' => $user->idRol,
                     'rol' => $user->rol ? $user->rol->nombre : 'Sin rol',
-                    'estado' => $user->estado,
+                    'estado' => (bool) $user->estado,
+                    'idCarrera' => $idCarrera,
                 ];
             })
         ]);
@@ -81,18 +100,105 @@ class UserController extends Controller
             return $user;
         });
 
+        $idCarrera = null;
+        if ($user->rol && $user->rol->nombre === 'Estudiante') {
+            $estudiante = \Illuminate\Support\Facades\DB::table('estudiante')
+                ->where('idUsuario', $user->idUsuario)
+                ->first();
+            if ($estudiante) {
+                $ec = \Illuminate\Support\Facades\DB::table('estudiante_carrera')
+                    ->where('idEstudiante', $estudiante->idEstudiante)
+                    ->first();
+                $idCarrera = $ec ? $ec->idCarrera : null;
+            }
+        }
+
         return response()->json([
             'message' => 'Usuario registrado correctamente.',
             'user' => [
                 'idUsuario' => $user->idUsuario,
+                'nombre1' => $user->nombre1,
+                'nombre2' => $user->nombre2,
+                'apellido1' => $user->apellido1,
+                'apellido2' => $user->apellido2,
                 'nombreCompleto' => $user->nombreCompleto,
                 'ci' => $user->ci,
                 'correo' => $user->correo,
                 'telefono' => $user->telefono,
-                'rol' => $user->rol()->first()->nombre ?? 'Sin rol',
-                'estado' => $user->estado,
+                'idRol' => $user->idRol,
+                'rol' => $user->rol ? $user->rol->nombre : 'Sin rol',
+                'estado' => (bool) $user->estado,
+                'idCarrera' => $idCarrera,
             ]
         ], 201);
+    }
+
+    /**
+     * Actualiza un usuario existente (excepto el rol).
+     */
+    public function update(\App\Http\Requests\UpdateUserRequest $request, $idUsuario): JsonResponse
+    {
+        $user = User::findOrFail($idUsuario);
+        $data = $request->validated();
+
+        if (empty($data['password'])) {
+            unset($data['password']);
+        }
+
+        // El rol no se puede editar
+        unset($data['idRol']);
+
+        $user = \Illuminate\Support\Facades\DB::transaction(function () use ($user, $data) {
+            $user->update($data);
+
+            if ($user->rol && $user->rol->nombre === 'Estudiante' && isset($data['idCarrera'])) {
+                $estudiante = \Illuminate\Support\Facades\DB::table('estudiante')
+                    ->where('idUsuario', $user->idUsuario)
+                    ->first();
+                if ($estudiante) {
+                    \Illuminate\Support\Facades\DB::table('estudiante_carrera')
+                        ->where('idEstudiante', $estudiante->idEstudiante)
+                        ->update([
+                            'idCarrera' => $data['idCarrera'],
+                            'updated_at' => now(),
+                        ]);
+                }
+            }
+
+            return $user;
+        });
+
+        $idCarrera = null;
+        if ($user->rol && $user->rol->nombre === 'Estudiante') {
+            $estudiante = \Illuminate\Support\Facades\DB::table('estudiante')
+                ->where('idUsuario', $user->idUsuario)
+                ->first();
+            if ($estudiante) {
+                $ec = \Illuminate\Support\Facades\DB::table('estudiante_carrera')
+                    ->where('idEstudiante', $estudiante->idEstudiante)
+                    ->first();
+                $idCarrera = $ec ? $ec->idCarrera : null;
+            }
+        }
+
+        return response()->json([
+            'message' => 'Usuario actualizado correctamente.',
+            'user' => [
+                'idUsuario' => $user->idUsuario,
+                'nombre1' => $user->nombre1,
+                'nombre2' => $user->nombre2,
+                'apellido1' => $user->apellido1,
+                'apellido2' => $user->apellido2,
+                'nombreCompleto' => $user->nombreCompleto,
+                'ci' => $user->ci,
+                'correo' => $user->correo,
+                'telefono' => $user->telefono,
+                'idRol' => $user->idRol,
+                'rol' => $user->rol ? $user->rol->nombre : 'Sin rol',
+                'estado' => (bool) $user->estado,
+                'idCarrera' => $idCarrera,
+            ]
+        ]);
     }
 
     /**

@@ -18,13 +18,23 @@ const successMessage = ref('')
 const errorMessage = ref('')
 const errors = ref({})
 const filterRol = ref('')
+const filterEstado = ref('')
 const showCreateModal = ref(false)
 const showPassword = ref(false)
 const showPasswordConfirmation = ref(false)
+const isEditing = ref(false)
+const editingUserId = ref(null)
 
 const filteredUsers = computed(() => {
-  if (!filterRol.value) return users.value
-  return users.value.filter(usr => usr.rol === filterRol.value)
+  let list = users.value
+  if (filterRol.value) {
+    list = list.filter(usr => usr.rol === filterRol.value)
+  }
+  if (filterEstado.value !== '') {
+    const activeOnly = filterEstado.value === '1'
+    list = list.filter(usr => usr.estado === activeOnly)
+  }
+  return list
 })
 
 const form = reactive({
@@ -39,6 +49,7 @@ const form = reactive({
   password_confirmation: '',
   idRol: '',
   idCarrera: '',
+  estado: true,
 })
 
 const formErrors = reactive({
@@ -53,6 +64,7 @@ const formErrors = reactive({
   password_confirmation: '',
   idRol: '',
   idCarrera: '',
+  estado: '',
 })
 
 const touched = reactive({
@@ -67,6 +79,7 @@ const touched = reactive({
   password_confirmation: false,
   idRol: false,
   idCarrera: false,
+  estado: false,
 })
 
 const selectedRolObj = computed(() =>
@@ -80,33 +93,43 @@ const isAdmin = computed(() => roleName.value === 'Administrador')
 
 const validators = {
   nombre1: v => {
-    if (!v.trim()) return 'El primer nombre es obligatorio.'
+    if (!v || !v.trim()) return 'El primer nombre es obligatorio.'
+    if (v.trim().length < 2) return 'Mínimo 2 caracteres.'
   },
-  nombre2: () => {},
+  nombre2: v => {
+    if (v && v.trim() && v.trim().length < 2) return 'Mínimo 2 caracteres.'
+  },
   apellido1: v => {
-    if (!v.trim()) return 'El primer apellido es obligatorio.'
+    if (!v || !v.trim()) return 'El primer apellido es obligatorio.'
+    if (v.trim().length < 2) return 'Mínimo 2 caracteres.'
   },
-  apellido2: () => {},
+  apellido2: v => {
+    if (v && v.trim() && v.trim().length < 2) return 'Mínimo 2 caracteres.'
+  },
   ci: v => {
-    if (!v.trim()) return 'El CI es obligatorio.'
+    if (!v || !v.trim()) return 'El CI es obligatorio.'
   },
   correo: v => {
-    if (!v.trim()) return 'El correo es obligatorio.'
+    if (!v || !v.trim()) return 'El correo es obligatorio.'
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) return 'Formato de correo inválido.'
   },
   telefono: v => v && !/^[67]\d{7}$/.test(v.trim()) && 'El teléfono debe empezar con 6 o 7 y tener exactamente 8 dígitos.',
   password: v => {
+    if (isEditing.value && !v) return
     if (!v) return 'La contraseña es obligatoria.'
     if (v.length < 8) return 'Mínimo 8 caracteres.'
     if (!/[a-zA-Z]/.test(v)) return 'Debe contener al menos una letra.'
     if (!/[0-9]/.test(v)) return 'Debe contener al menos un número.'
   },
   password_confirmation: v => {
-    if (!v) return 'Debe confirmar la contraseña.'
+    if (isEditing.value && !form.password && !v) return
+    if (isEditing.value && form.password && !v) return 'Debe confirmar la contraseña.'
+    if (!isEditing.value && !v) return 'Debe confirmar la contraseña.'
     if (v !== form.password) return 'Las contraseñas no coinciden.'
   },
   idRol: v => !v && 'Seleccione un rol.',
   idCarrera: v => isStudent.value && !v && 'Seleccione una carrera.',
+  estado: () => {},
 }
 
 const activeErrors = computed(() => {
@@ -212,10 +235,13 @@ function resetForm() {
   form.password_confirmation = ''
   form.idRol = ''
   form.idCarrera = ''
+  form.estado = true
   errors.value = {}
   Object.keys(formErrors).forEach(k => formErrors[k] = '')
   showPassword.value = false
   showPasswordConfirmation.value = false
+  isEditing.value = false
+  editingUserId.value = null
 }
 
 function resetMessages() {
@@ -226,6 +252,26 @@ function resetMessages() {
 function openModal() {
   resetForm()
   resetMessages()
+  showCreateModal.value = true
+}
+
+function openEditModal(usr) {
+  resetForm()
+  resetMessages()
+  isEditing.value = true
+  editingUserId.value = usr.idUsuario
+
+  form.nombre1 = usr.nombre1 || ''
+  form.nombre2 = usr.nombre2 || ''
+  form.apellido1 = usr.apellido1 || ''
+  form.apellido2 = usr.apellido2 || ''
+  form.ci = usr.ci || ''
+  form.correo = usr.correo || ''
+  form.telefono = usr.telefono || ''
+  form.idRol = usr.idRol || ''
+  form.idCarrera = usr.idCarrera || ''
+  form.estado = usr.estado !== undefined ? usr.estado : true
+
   showCreateModal.value = true
 }
 
@@ -245,12 +291,32 @@ async function submitForm() {
     if (!isStudent.value) {
       delete payload.idCarrera
     }
-    const { data } = await props.api.post('/users', payload)
-    const resPayload = data.data ?? data
-    successMessage.value = data.message || 'Usuario registrado correctamente.'
-    users.value.push(resPayload.user)
-    resetForm()
-    showCreateModal.value = false
+
+    if (isEditing.value) {
+      if (!payload.password) {
+        delete payload.password
+        delete payload.password_confirmation
+      }
+      delete payload.idRol
+
+      const { data } = await props.api.put(`/users/${editingUserId.value}`, payload)
+      const resPayload = data.data ?? data
+      successMessage.value = data.message || 'Usuario actualizado correctamente.'
+      
+      const index = users.value.findIndex(u => u.idUsuario === editingUserId.value)
+      if (index !== -1) {
+        users.value[index] = resPayload.user
+      }
+      resetForm()
+      showCreateModal.value = false
+    } else {
+      const { data } = await props.api.post('/users', payload)
+      const resPayload = data.data ?? data
+      successMessage.value = data.message || 'Usuario registrado correctamente.'
+      users.value.push(resPayload.user)
+      resetForm()
+      showCreateModal.value = false
+    }
   } catch (error) {
     const response = error.response?.data
     if (response?.errors) {
@@ -300,6 +366,14 @@ onMounted(() => {
             <option value="Estudiante">Estudiantes</option>
           </select>
         </div>
+        <div class="um-filter-group">
+          <i class="ti ti-filter"></i>
+          <select v-model="filterEstado" class="um-filter-select">
+            <option value="">Todos los estados</option>
+            <option value="1">Activos</option>
+            <option value="0">Inactivos</option>
+          </select>
+        </div>
         <button class="um-btn-ghost" type="button" @click="fetchUsers" :disabled="loading">
           <i class="ti" :class="loading ? 'ti-loader-2 um-spin' : 'ti-refresh'"></i>
           {{ loading ? 'Cargando...' : 'Actualizar' }}
@@ -317,11 +391,12 @@ onMounted(() => {
             <th>Correo</th>
             <th>Rol</th>
             <th>Estado</th>
+            <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="filteredUsers.length === 0">
-            <td colspan="5" class="um-empty">
+            <td colspan="6" class="um-empty">
               <i class="ti ti-users-minus"></i>
               <span>No hay usuarios registrados.</span>
             </td>
@@ -340,6 +415,11 @@ onMounted(() => {
                 {{ usr.estado ? 'Activo' : 'Inactivo' }}
               </span>
             </td>
+            <td>
+              <button class="um-btn-ghost um-btn-sm" type="button" @click="openEditModal(usr)">
+                <i class="ti ti-edit"></i> Editar
+              </button>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -353,7 +433,7 @@ onMounted(() => {
       <div class="um-modal">
 
         <div class="um-modal-header">
-          <h4>Registrar nuevo usuario</h4>
+          <h4>{{ isEditing ? 'Editar Usuario' : 'Registrar nuevo usuario' }}</h4>
           <button class="um-close" type="button" @click="showCreateModal = false">
             <i class="ti ti-x"></i>
           </button>
@@ -383,14 +463,18 @@ onMounted(() => {
                 v-for="rol in roles"
                 :key="rol.idRol"
                 class="um-rol-card"
-                :class="{ 'um-rol-card--selected': Number(form.idRol) === rol.idRol }"
+                :class="{ 
+                  'um-rol-card--selected': Number(form.idRol) === rol.idRol,
+                  'um-rol-card--disabled': isEditing 
+                }"
                 :data-role="rol.nombre"
+                :style="isEditing ? { cursor: 'not-allowed', opacity: Number(form.idRol) === rol.idRol ? 1 : 0.4 } : {}"
               >
                 <input
                   type="radio"
                   :value="rol.idRol"
                   v-model.number="form.idRol"
-                  :disabled="submittings"
+                  :disabled="submittings || isEditing"
                   hidden
                   @change="validateField('idRol')"
                 />
@@ -471,16 +555,16 @@ onMounted(() => {
               </div>
               <div class="um-grid-2">
                 <label class="um-field">
-                  <span>Contraseña *</span>
+                  <span>Contraseña {{ isEditing ? '(opcional)' : '*' }}</span>
                   <div class="um-password-wrapper">
                     <input
                       v-model="form.password"
                       :type="showPassword ? 'text' : 'password'"
                       inputmode="text"
-                      required
+                      :required="!isEditing"
                       :disabled="submittings"
                       autocomplete="new-password"
-                      placeholder="Mínimo 8 caracteres"
+                      :placeholder="isEditing ? 'Llenar solo para cambiar' : 'Mínimo 8 caracteres'"
                       @input="touched.password && validateField('password'); touched.password_confirmation && validateField('password_confirmation')"
                       @blur="validateField('password')"
                     />
@@ -498,15 +582,15 @@ onMounted(() => {
                 </label>
 
                 <label class="um-field">
-                  <span>Confirmar contraseña *</span>
+                  <span>Confirmar contraseña {{ isEditing ? '(opcional)' : '*' }}</span>
                   <div class="um-password-wrapper">
                     <input
                       v-model="form.password_confirmation"
                       :type="showPasswordConfirmation ? 'text' : 'password'"
-                      required
+                      :required="!isEditing && !!form.password"
                       :disabled="submittings"
                       autocomplete="new-password"
-                      placeholder="Repite la contraseña"
+                      :placeholder="isEditing ? 'Repite la nueva contraseña' : 'Repite la contraseña'"
                       @input="touched.password_confirmation && validateField('password_confirmation')"
                       @blur="validateField('password_confirmation')"
                     />
@@ -525,10 +609,27 @@ onMounted(() => {
               </div>
             </div>
 
+            <!-- Estado de cuenta (Solo en modo edición) -->
+            <div v-if="isEditing" class="um-step">
+              <div class="um-step-label">
+                <span class="um-step-num">4</span>
+                Estado de cuenta
+              </div>
+              <div class="um-grid-2">
+                <label class="um-field">
+                  <span>Estado de cuenta *</span>
+                  <select v-model="form.estado" required :disabled="submittings">
+                    <option :value="true">Activo</option>
+                    <option :value="false">Inactivo</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
             <!-- (solo Estudiante): Carrera -->
             <div v-if="isStudent" class="um-step">
               <div class="um-step-label">
-                <span class="um-step-num">4</span>
+                <span class="um-step-num">{{ isEditing ? 5 : 4 }}</span>
                 Carrera académica
               </div>
               <div class="um-grid-2">
@@ -565,8 +666,8 @@ onMounted(() => {
                 Cancelar
               </button>
               <button class="um-btn-primary" type="submit" :disabled="submittings">
-                <i class="ti" :class="submittings ? 'ti-loader-2 um-spin' : 'ti-user-check'"></i>
-                {{ submittings ? 'Registrando...' : 'Registrar usuario' }}
+                <i class="ti" :class="submittings ? 'ti-loader-2 um-spin' : (isEditing ? 'ti-device-floppy' : 'ti-user-check')"></i>
+                {{ submittings ? 'Guardando...' : (isEditing ? 'Guardar Cambios' : 'Registrar usuario') }}
               </button>
             </div>
           </template>
@@ -648,6 +749,12 @@ onMounted(() => {
 }
 .um-btn-ghost:hover:not(:disabled) { background: #f4f4f2; color: #1a1a1a; }
 .um-btn-ghost:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.um-btn-sm {
+  padding: 4px 10px !important;
+  font-size: 11px !important;
+  border-radius: 12px !important;
+}
 
 /* ── Barra de lista ── */
 .um-list-bar {
