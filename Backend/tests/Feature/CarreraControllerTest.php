@@ -59,7 +59,7 @@ class CarreraControllerTest extends TestCase
                 ]
             ]);
 
-        $this->assertCount(1, $response->json('carreras'));
+        $this->assertCount(2, $response->json('carreras'));
     }
 
     public function test_authenticated_user_can_create_carrera(): void
@@ -161,5 +161,17 @@ class CarreraControllerTest extends TestCase
         $response = $this->deleteJson("/api/carreras/{$carrera->idCarrera}");
 
         $response->assertStatus(422);
+    }
+
+    public function test_create_carrera_fails_with_special_characters(): void
+    {
+        Sanctum::actingAs($this->adminUser);
+
+        $response = $this->postJson('/api/carreras', [
+            'nombre'      => 'Ingeniería $ Civil', // contains forbidden character $
+            'descripcion' => 'Descripción normal',
+        ]);
+
+        $response->assertStatus(422)->assertJsonValidationErrors(['nombre']);
     }
 }

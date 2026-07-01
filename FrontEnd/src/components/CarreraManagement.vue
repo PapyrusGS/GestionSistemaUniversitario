@@ -24,6 +24,43 @@ const form = reactive({
   descripcion: '',
 })
 
+const formErrors = reactive({
+  nombre: '',
+  descripcion: '',
+})
+
+const validators = {
+  nombre: v => {
+    if (!v.trim()) return 'El nombre de la carrera es obligatorio.'
+    if (!/^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s\-\.\,\(\)\'\"“”‘’]+$/.test(v)) {
+      return 'El nombre no debe contener caracteres especiales como $, %, @, etc.'
+    }
+  },
+  descripcion: v => {
+    if (v && !/^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s\-\.\,\(\)\'\"“”‘’\?\!\¿\¡\:\;]+$/.test(v)) {
+      return 'La descripción no debe contener caracteres especiales como $, %, @, etc.'
+    }
+  }
+}
+
+function validateField(field) {
+  const fn = validators[field]
+  if (!fn) return
+  formErrors[field] = fn(form[field]) || ''
+}
+
+function validateAll() {
+  let valid = true
+  Object.keys(validators).forEach(field => {
+    const fn = validators[field]
+    if (!fn) return
+    const msg = fn(form[field])
+    formErrors[field] = msg || ''
+    if (msg) valid = false
+  })
+  return valid
+}
+
 async function fetchCarreras() {
   loading.value = true
   clearMessages()
@@ -41,6 +78,12 @@ async function submitForm() {
   submitting.value = true
   clearMessages()
   errors.value = {}
+
+  if (!validateAll()) {
+    submitting.value = false
+    errorMessage.value = 'Por favor, corrige los errores del formulario.'
+    return
+  }
 
   try {
     let data
@@ -117,6 +160,7 @@ function openCreate() {
   form.nombre      = ''
   form.descripcion = ''
   errors.value     = {}
+  Object.keys(formErrors).forEach(k => formErrors[k] = '')
   clearMessages()
   showModal.value  = true
 }
@@ -127,6 +171,7 @@ function openEdit(carrera) {
   form.nombre      = carrera.nombre
   form.descripcion = carrera.descripcion ?? ''
   errors.value     = {}
+  Object.keys(formErrors).forEach(k => formErrors[k] = '')
   clearMessages()
   showModal.value  = true
 }
@@ -246,25 +291,41 @@ onMounted(fetchCarreras)
           <form class="cm-form" @submit.prevent="submitForm">
             <label class="cm-field">
               <span>Nombre de la Carrera <em>*</em></span>
-              <input
-                v-model.trim="form.nombre"
-                type="text"
-                required
-                :disabled="submitting"
-                placeholder="Ej: Ingeniería en Sistemas"
-              />
-              <span v-if="errors.nombre" class="cm-field-error">{{ errors.nombre[0] }}</span>
+              <div class="cm-input-wrapper">
+                <input
+                  v-model="form.nombre"
+                  type="text"
+                  required
+                  maxlength="255"
+                  :disabled="submitting"
+                  placeholder="Ej: Ingeniería en Sistemas"
+                  @input="validateField('nombre')"
+                />
+                <span v-if="form.nombre.length >= 205" class="cm-char-counter">
+                  {{ form.nombre.length }} / 255
+                </span>
+              </div>
+              <span v-if="formErrors.nombre" class="cm-field-error">{{ formErrors.nombre }}</span>
+              <span v-else-if="errors.nombre" class="cm-field-error">{{ errors.nombre[0] }}</span>
             </label>
 
             <label class="cm-field">
               <span>Descripción</span>
-              <textarea
-                v-model.trim="form.descripcion"
-                :disabled="submitting"
-                rows="3"
-                placeholder="Descripción opcional de la carrera..."
-              ></textarea>
-              <span v-if="errors.descripcion" class="cm-field-error">{{ errors.descripcion[0] }}</span>
+              <div class="cm-input-wrapper">
+                <textarea
+                  v-model="form.descripcion"
+                  :disabled="submitting"
+                  maxlength="255"
+                  rows="3"
+                  placeholder="Descripción opcional de la carrera..."
+                  @input="validateField('descripcion')"
+                ></textarea>
+                <span v-if="form.descripcion.length >= 205" class="cm-char-counter">
+                  {{ form.descripcion.length }} / 255
+                </span>
+              </div>
+              <span v-if="formErrors.descripcion" class="cm-field-error">{{ formErrors.descripcion }}</span>
+              <span v-else-if="errors.descripcion" class="cm-field-error">{{ errors.descripcion[0] }}</span>
             </label>
 
             <div class="cm-form-actions">
@@ -643,4 +704,22 @@ onMounted(fetchCarreras)
 /* ── Spin ── */
 .cm-spin { animation: cm-rotate 0.8s linear infinite; }
 @keyframes cm-rotate { to { transform: rotate(360deg); } }
+
+/* ── Character Counter ── */
+.cm-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+.cm-char-counter {
+  position: absolute;
+  bottom: 8px;
+  right: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #8c9f96;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.85);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
 </style>
