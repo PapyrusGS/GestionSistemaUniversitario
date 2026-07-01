@@ -18,7 +18,49 @@ const cursos               = ref([])
 const cursoSeleccionado   = ref(null)
 const estudiantesInscritos = ref([])
 
-// Función robusta para transformar cadenas como "1, (07:30-09:20), 4, (13:30-15:10)" en "Lun 07:30-09:20, Jue 13:30-15:10"
+// Estado para controlar la barra de búsqueda interactiva
+const textoBusqueda = ref('')
+
+// Función auxiliar para normalizar texto (ignorar mayúsculas y tildes)
+function normalizarTexto(texto) {
+  if (!texto) return ''
+  return texto
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+}
+
+// PROPIEDAD COMPUTADA: Filtra materias inactivas (estado = 0) y aplica el buscador
+const cursosFiltrados = computed(() => {
+  // 1. Filtrar de forma estricta para dejar SOLO las materias con estado activo (1)
+  const activos = cursos.value.filter(curso => {
+    // Evaluamos el campo 'estado' proveniente de tus procedimientos almacenados
+    const estadoMateria = curso.estado ?? curso.materia_estado ?? null
+    if (estadoMateria !== null) {
+      return parseInt(estadoMateria) === 1
+    }
+    return true // Backup por si algún registro carece de la propiedad
+  })
+
+  // 2. Aplicar el término de búsqueda por texto si existe
+  const termino = normalizarTexto(textoBusqueda.value)
+  if (!termino) {
+    return activos
+  }
+
+  return activos.filter(curso => {
+    const nombreMateria = curso.materia_nombre || curso.nombre || curso.materia || ''
+    return normalizarTexto(nombreMateria).includes(termino)
+  })
+})
+
+// Función para seleccionar rápidamente una sugerencia del buscador
+function seleccionarMateriaSugerida(nombre) {
+  textoBusqueda.value = nombre
+}
+
+// Función robusta para transformar cadenas como "1, (07:30-09:20)" en "Lun 07:30-09:20"
 function formatearHorario(horarioRaw) {
   if (!horarioRaw) return 'Horario no definido'
   
@@ -32,27 +74,19 @@ function formatearHorario(horarioRaw) {
     '7': 'Dom'
   }
 
-  // Si ya contiene letras de días formateados previamente, evitar reprocesar
   if (/[a-zA-Z]/.test(horarioRaw) && !/\b\d\b/.test(horarioRaw)) {
     return horarioRaw
   }
 
-  // 1. Limpiamos espacios y unificamos todo el string. 
-  // Ej: "1,(07:30-09:20),4,(13:30-15:10)"
   let limpio = horarioRaw.replace(/\s+/g, '');
-
-  // 2. Buscamos todas las parejas de número seguido de horas entre paréntesis.
-  // Captura el dígito en el grupo 1 y lo que está dentro de los paréntesis en el grupo 2.
   const regexGlobal = /(\d),?\(?([^)]+)\)?/g;
   const resultados = [];
   let match;
 
-  // Ejecutamos la expresión sobre la cadena limpia
   while ((match = regexGlobal.exec(limpio)) !== null) {
     const diaNum = match[1];
     let horas = match[2];
     
-    // Si quedó una coma colgada al inicio de las horas por la separación, la removemos
     if (horas.startsWith(',')) {
       horas = horas.substring(1);
     }
@@ -61,7 +95,6 @@ function formatearHorario(horarioRaw) {
     resultados.push(`${diaNombre} ${horas}`);
   }
 
-  // Si la expresión regular logró capturar los bloques, los une con una coma y espacio
   return resultados.length > 0 ? resultados.join(', ') : horarioRaw;
 }
 
@@ -113,114 +146,149 @@ onMounted(obtenerCursos)
 </script>
 
 <template>
-  <div class="uni-tab-bar">
-    <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': modoDocente === 'cursos' || modoDocente === 'detalle' }" @click="cambiarVista('cursos')">
-      <i class="ti ti-book"></i>Cursos
-    </button>
-    <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': modoDocente === 'registrar_notes' || modoDocente === 'registrar_notas' }" @click="cambiarVista('registrar_notas')">
-      <i class="ti ti-edit"></i>Calificaciones
-    </button>
-    <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': modoDocente === 'rendimiento' }"     @click="cambiarVista('rendimiento')">
-      <i class="ti ti-chart-bar"></i>Rendimiento
-    </button>
-    <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': modoDocente === 'reporte_notas' }"   @click="cambiarVista('reporte_notas')">
-      <i class="ti ti-file-report"></i>Reportes
-    </button>
-  </div>
+  <div class="dashboard-docente-main-wrapper">
+    
+    <div class="uni-top-nav-row">
+      <div class="uni-tab-bar">
+        <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': modoDocente === 'cursos' || modoDocente === 'detalle' }" @click="cambiarVista('cursos')">
+          <i class="ti ti-book"></i>Cursos
+        </button>
+        <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': modoDocente === 'registrar_notas' }" @click="cambiarVista('registrar_notas')">
+          <i class="ti ti-edit"></i>Calificaciones
+        </button>
+        <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': modoDocente === 'rendimiento' }" @click="cambiarVista('rendimiento')">
+          <i class="ti ti-chart-bar"></i>Rendimiento
+        </button>
+        <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': modoDocente === 'reporte_notas' }" @click="cambiarVista('reporte_notas')">
+          <i class="ti ti-file-report"></i>Reportes
+        </button>
+      </div>
 
-  <div v-if="errorMessage" class="uni-alert uni-alert--error" style="margin: 0 1.5rem;">{{ errorMessage }}</div>
+      <div v-if="modoDocente === 'cursos'" class="search-inline-container">
+        <div class="search-input-wrapper">
+          <i class="ti ti-search search-icon-embed"></i>
+          <input 
+            v-model="textoBusqueda" 
+            type="text" 
+            class="doc-search-input" 
+            placeholder="Buscar materia por nombre..."
+          />
+          <button v-if="textoBusqueda" @click="textoBusqueda = ''" class="clear-search-btn">
+            <i class="ti ti-x"></i>
+          </button>
+        </div>
+      </div>
+    </div>
 
-  <div class="uni-section-body">
+    <div v-if="modoDocente === 'cursos' && textoBusqueda && {cursosFiltrados}.length > 0" class="search-predictions-row-box">
+      <div class="search-predictions-box">
+        <span class="prediction-label">Sugerencias:</span>
+        <div class="prediction-tags">
+          <span 
+            v-for="curso in cursosFiltrados.slice(0, 3)" 
+            :key="'sug-' + (curso.idCursoMateria || curso.id)"
+            @click="seleccionarMateriaSugerida(curso.materia_nombre || curso.nombre || curso.materia)"
+            class="prediction-tag-item"
+          >
+            {{ curso.materia_nombre || curso.nombre || curso.materia }}
+          </span>
+        </div>
+      </div>
+    </div>
 
-    <template v-if="modoDocente === 'cursos'">
-      <div class="doc-cards-container">
-        <div v-for="curso in cursos" :key="curso.idCursoMateria || curso.id_curso_materia || curso.id" class="doc-materia-card-box">
+    <div v-if="errorMessage" class="uni-alert uni-alert--error" style="margin: 1rem 1.5rem 0 1.5rem;">{{ errorMessage }}</div>
+
+    <div class="uni-section-body">
+
+      <template v-if="modoDocente === 'cursos'">
+        <div class="doc-cards-container">
           
-          <div class="doc-materia-card-header">
-            <h4>{{ curso.materia_nombre || curso.nombre || curso.materia }}</h4>
-          </div>
-
-          <div class="doc-materia-card-body">
-            <div class="doc-materia-row">
-              <span class="doc-materia-label-text">Horario:</span>
-              <span class="doc-badge">
-                {{ formatearHorario(curso.turno_nombre || curso.turno || curso.horario) }}
-              </span>
-            </div>
-            <div class="doc-materia-row">
-              <span class="doc-materia-label-text">Inicio de Gestión:</span>
-              <span class="doc-materia-value-text">{{ curso.fechaInicio || curso.fecha_inicio || 'N/A' }}</span>
-            </div>
-            <div class="doc-materia-row">
-              <span class="doc-materia-label-text">Conclusión de Gestión:</span>
-              <span class="doc-materia-value-text">{{ curso.fechaFin || curso.fecha_fin || 'N/A' }}</span>
+          <div v-for="curso in cursosFiltrados" :key="curso.idCursoMateria || curso.id_curso_materia || curso.id" class="doc-materia-card-box">
+            
+            <div class="doc-materia-card-header">
+              <h4>{{ curso.materia_nombre || curso.nombre || curso.materia }}</h4>
             </div>
 
-            <div class="doc-materia-capacity-block">
-              <span class="doc-capacity-title">CAPACIDAD DE LA MATERIA</span>
-              <div class="doc-capacity-counter">
-                <strong class="doc-counter-total">
-                  {{ curso.alumnos_count ?? 0 }} / {{ curso.maxInscritos || curso.max_inscritos || curso.cupo_maximo || curso.cupo || 0 }}
-                </strong>
-                <span class="doc-counter-label">Estudiantes</span>
+            <div class="doc-materia-card-body">
+              <div class="doc-materia-row">
+                <span class="doc-materia-label-text">Horario:</span>
+                <span class="doc-badge">
+                  {{ formatearHorario(curso.turno_nombre || curso.turno || curso.horario) }}
+                </span>
+              </div>
+              <div class="doc-materia-row">
+                <span class="doc-materia-label-text">Inicio de Gestión:</span>
+                <span class="doc-materia-value-text">{{ curso.fechaInicio || curso.fecha_inicio || 'N/A' }}</span>
+              </div>
+              <div class="doc-materia-row">
+                <span class="doc-materia-label-text">Conclusión de Gestión:</span>
+                <span class="doc-materia-value-text">{{ curso.fechaFin || curso.fecha_fin || 'N/A' }}</span>
+              </div>
+
+              <div class="doc-materia-capacity-block">
+                <span class="doc-capacity-title">CAPACIDAD DE LA MATERIA</span>
+                <div class="doc-capacity-counter">
+                  <strong class="doc-counter-total">
+                    {{ curso.alumnos_count ?? 0 }} / {{ curso.maxInscritos || curso.max_inscritos || curso.cupo_maximo || curso.cupo || 0 }}
+                  </strong>
+                  <span class="doc-counter-label">Estudiantes</span>
+                </div>
               </div>
             </div>
+
+            <div class="doc-materia-card-footer">
+              <button class="doc-action-btn doc-action-btn--full" @click="verDetalleCurso(curso)">Ver Alumnos</button>
+            </div>
+
           </div>
 
-          <div class="doc-materia-card-footer">
-            <button class="doc-action-btn doc-action-btn--full" @click="verDetalleCurso(curso)">Ver Alumnos</button>
+          <div v-if="!cursosFiltrados.length && !loading" class="doc-empty-box">
+            <i class="ti ti-box-off"></i> {{ textoBusqueda ? `No se encontraron materias activas con "${textoBusqueda}".` : 'No tiene materias asignadas o activas en esta gestión.' }}
           </div>
-
         </div>
+      </template>
 
-        <div v-if="!cursos.length && !loading" class="doc-empty-box">
-          <i class="ti ti-box-off"></i> No hay materias asignadas.
+      <template v-else-if="modoDocente === 'detalle'">
+        <div class="doc-table-card">
+          <div class="doc-table-header doc-table-header--flex">
+            <button class="doc-back-btn" @click="cambiarVista('cursos')">
+              <i class="ti ti-arrow-left"></i> Regresar
+            </button>
+            <h4>{{ cursoSeleccionado?.materia_nombre || cursoSeleccionado?.nombre || cursoSeleccionado?.materia }}</h4>
+          </div>
+          <div class="doc-table-scroll">
+            <table class="doc-table">
+              <thead>
+                <tr><th>CI</th><th>Estudiante</th><th>Correo</th><th>Fecha Inscripción</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="alumno in estudiantesInscritos" :key="alumno.id_estudiante || alumno.id_inscripcion || alumno.id">
+                  <td style="font-family:monospace;font-size:.85rem;color:var(--color-mint-dark);font-weight:600;">{{ alumno.ci || alumno.documento || 'N/A' }}</td>
+                  <td style="font-weight:500;">{{ alumno.apellido1 || '' }} {{ alumno.apellido2 || '' }}, {{ alumno.nombre1 || '' }}</td>
+                  <td class="doc-cell-muted">{{ alumno.correo || alumno.email || 'Sin correo' }}</td>
+                  <td class="doc-cell-muted">{{ alumno.fecha_inscripcion || 'N/A' }}</td>
+                </tr>
+                <tr v-if="!estudiantesInscritos.length && !loading">
+                  <td colspan="4" class="doc-empty">No hay alumnos matriculados.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-    </template>
+      </template>
 
-    <template v-else-if="modoDocente === 'detalle'">
-      <div class="doc-table-card">
-        <div class="doc-table-header doc-table-header--flex">
-          <button class="doc-back-btn" @click="cambiarVista('cursos')">
-            <i class="ti ti-arrow-left"></i> Regresar
-          </button>
-          <h4>{{ cursoSeleccionado?.materia_nombre || cursoSeleccionado?.nombre || cursoSeleccionado?.materia }}</h4>
-        </div>
-        <div class="doc-table-scroll">
-          <table class="doc-table">
-            <thead>
-              <tr><th>CI</th><th>Estudiante</th><th>Correo</th><th>Fecha Inscripción</th></tr>
-            </thead>
-            <tbody>
-              <tr v-for="alumno in estudiantesInscritos" :key="alumno.id_estudiante || alumno.id_inscripcion || alumno.id">
-                <td style="font-family:monospace;font-size:.85rem;color:var(--color-mint-dark);font-weight:600;">{{ alumno.ci || alumno.documento || 'N/A' }}</td>
-                <td style="font-weight:500;">{{ alumno.apellido1 || '' }} {{ alumno.apellido2 || '' }}, {{ alumno.nombre1 || '' }}</td>
-                <td class="doc-cell-muted">{{ alumno.correo || alumno.email || 'Sin correo' }}</td>
-                <td class="doc-cell-muted">{{ alumno.fecha_inscripcion || 'N/A' }}</td>
-              </tr>
-              <tr v-if="!estudiantesInscritos.length && !loading">
-                <td colspan="4" class="doc-empty">No hay alumnos matriculados.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </template>
+      <DocenteRegistrarNotas v-else-if="modoDocente === 'registrar_notas'" :user="user" :api="api" :badgeTone="badgeTone" />
+      <DocenteRendimiento    v-else-if="modoDocente === 'rendimiento'"     :user="user" :api="api" :badgeTone="badgeTone" />
+      <DocenteReporteNotas   v-else-if="modoDocente === 'reporte_notas'"   :user="user" :api="api" :badgeTone="badgeTone" />
 
-    <DocenteRegistrarNotas v-else-if="modoDocente === 'registrar_notas'" :user="user" :api="api" :badgeTone="badgeTone" />
-    <DocenteRendimiento    v-else-if="modoDocente === 'rendimiento'"     :user="user" :api="api" :badgeTone="badgeTone" />
-    <DocenteReporteNotas   v-else-if="modoDocente === 'reporte_notas'"   :user="user" :api="api" :badgeTone="badgeTone" />
-
+    </div>
   </div>
 </template>
 
 <style scoped>
-/*<<<<<<< Updated upstream*/
-/* Fade animación */
+/* Transiciones */
 .uni-section-body > * { animation: fadeIn .2s ease-out; }
-/*=======*/
-/*<<<<<<< Updated upstream*/
+
 .mb-4 { margin-bottom: 1.5rem; }
 .txt-right { text-align: right; }
 .font-medium { font-weight: 500; }
@@ -229,174 +297,126 @@ onMounted(obtenerCursos)
 .text-cyan { color: var(--color-mint-dark); }
 .primary-cell { color: var(--color-black) !important; font-weight: 600; }
 
-.fade-in-view { animation: fadeIn 0.25s ease-out; }
-/*>>>>>>> Stashed changes*/
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/*<<<<<<< Updated upstream*/
-/* CUADRÍCULA DE TARJETAS PARA CURSOS */
-.doc-cards-container {
-/*=======*/
-/* ── Welcome ──────────────────────────────────── */
-.welcome-card {
-  background: var(--color-linen);
-  padding: 1.5rem 2rem;
-}
-}
-/* ESTRUCTURA GENERAL DE 3 COLUMNAS OSCURAS */
-.premium-dashboard-container {
-  display: grid;
-  grid-template-columns: 240px 1fr 280px;
-  width: 100%;
-  height: 100vh;
-  background: #0b0f19;
-  color: #f1f5f9;
-  font-family: system-ui, -apple-system, sans-serif;
-  box-sizing: border-box;
-  overflow: hidden;
-}
-
-/* COLUMNA 1: SIDEBAR DE NAVEGACIÓN TRASLÚCIDA */
-.sidebar-navigation {
-  background: rgba(15, 23, 42, 0.6);
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
-  padding: 2.5rem 1.25rem;
-  display: flex;
-  flex-direction: column;
-}
-.sidebar-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 2.5rem;
-  padding-left: 0.5rem;
-}
-.brand-dot {
-  width: 12px;
-  height: 12px;
-  background: #38bdf8;
-  border-radius: 50%;
-  box-shadow: 0 0 12px #38bdf8;
-}
-.brand-txt {
-  font-weight: 800;
-  font-size: 0.9rem;
-  letter-spacing: 0.15em;
-  color: #f8fafc;
-}
-.sidebar-menu {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.sidebar-menu button {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-  padding: 0.8rem 1rem;
-  background: transparent;
-  border: none;
-  border-radius: 8px;
-  color: #94a3b8;
-  font-size: 0.9rem;
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.sidebar-menu button:hover {
-  color: #f1f5f9;
-  background: rgba(255, 255, 255, 0.03);
-}
-.sidebar-menu button.active {
-  color: #38bdf8;
-  background: rgba(56, 189, 248, 0.08);
-}
-.menu-icon {
-  width: 18px;
-  height: 18px;
-}
-.sidebar-footer {
-  margin-top: auto;
-}
-.btn-logout-minimal {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: 100%;
-  padding: 0.8rem 1rem;
-  background: transparent;
-  border: none;
-  border-radius: 8px;
-  color: #ef4444;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  opacity: 0.8;
-  transition: all 0.2s;
-}
-.btn-logout-minimal:hover {
-  background: rgba(239, 68, 68, 0.05);
-  opacity: 1;
-}
-
-/* COLUMNA 2: MAIN WORKSPACE CENTRAL */
-.main-workspace {
-  padding: 2.5rem 3rem;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  background: #0f172a;
-  min-height: 0;
-}
-.workspace-topbar {
+/* DISEÑO DE LA CABECERA COMPARTIDA (Navegación + Buscador alineado) */
+.uni-top-nav-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2.5rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08); 
+  padding-bottom: 0.25rem;
+  margin: 0 1.5rem;
 }
-.context-path {
-  font-size: 0.75rem;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+
+.uni-tab-bar {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: none !important;
+  padding-bottom: 0;
 }
-.workspace-topbar h2 {
-  font-size: 1.75rem;
+
+/* Buscador Empotrado Estilizado */
+.search-inline-container {
+  width: 100%;
+  max-width: 290px;
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon-embed {
+  position: absolute;
+  left: 0.85rem;
+  color: #a0aec0;
+  font-size: 0.95rem;
+  pointer-events: none;
+}
+
+.doc-search-input {
+  width: 100%;
+  padding: 0.5rem 2rem 0.5rem 2.2rem;
+  font-size: 0.85rem;
+  color: #1a202c;
+  background-color: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.doc-search-input:focus {
+  border-color: #0891b2;
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.12);
+}
+
+.clear-search-btn {
+  position: absolute;
+  right: 0.6rem;
+  background: transparent;
+  border: none;
+  color: #a0aec0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  border-radius: 50%;
+  padding: 0.2rem;
+}
+
+.clear-search-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #4a5568;
+}
+
+/* Burbujas de sugerencia */
+.search-predictions-row-box {
+  margin: 0.4rem 1.5rem 0 1.5rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.search-predictions-box {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.prediction-label {
+  font-size: 0.68rem;
+  color: #718096;
   font-weight: 700;
-  margin-top: 0.25rem;
-  color: #f8fafc;
+  text-transform: uppercase;
 }
 
-/* CARDS DE BIENVENIDA E INDICADORES */
-.welcome-banner {
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.4));
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  padding: 2rem;
-/* >>>>>>> Stashed changes */
+.prediction-tags {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.prediction-tag-item {
+  font-size: 0.72rem;
+  background: #edf2f7;
+  color: #2d3748;
+  padding: 0.15rem 0.55rem;
   border-radius: 12px;
-  margin-bottom: 1.5rem;
-}
-.welcome-card h3 {
-  font-family: 'Playfair Display', serif;
-  font-size: 1.25rem;
-  margin: 0 0 0.4rem;
-  color: var(--color-black);
-}
-.welcome-card p {
-  color: var(--uni-muted);
-  font-size: 0.9rem;
-  line-height: 1.6;
-  margin: 0;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.15s;
 }
 
-/* ── Metric cards ─────────────────────────────── */
-.docente-cards-grid {
-/*>>>>>>> Stashed changes*/
+.prediction-tag-item:hover {
+  background: rgba(6, 182, 212, 0.1);
+  color: #0891b2;
+}
+
+/* CONTENEDOR Y TARJETAS */
+.doc-cards-container {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1.5rem;
@@ -513,7 +533,7 @@ onMounted(obtenerCursos)
   border: 1px dashed rgba(0,0,0,.05);
 }
 
-/* TABLE CARD GENERAL */
+/* TABLA DE DETALLES */
 .doc-table-card {
   background: var(--color-white);
   border: 1px solid rgba(0,0,0,.06);
@@ -541,14 +561,13 @@ onMounted(obtenerCursos)
 }
 .doc-table td { padding: 1rem 1.5rem; border-bottom: 1px solid rgba(0,0,0,.03); }
 .doc-table tr:hover td { background: #fafafa; }
-.doc-cell-primary { font-weight: 600; color: var(--color-black); }
-.doc-cell-muted   { color: var(--uni-muted); }
-.doc-empty        { text-align: center; color: var(--uni-muted); padding: 3rem !important; }
+.doc-cell-muted { color: var(--uni-muted); }
+.doc-empty { text-align: center; color: var(--uni-muted); padding: 3rem !important; }
 
 .doc-badge {
   background: rgba(6,182,212,.08); color: #0891b2;
   padding: .35rem .75rem; border-radius: 6px;
-  font-size: .78rem; font-weight: 600; text-transform: none;
+  font-size: .78rem; font-weight: 600;
 }
 .doc-action-btn {
   background: transparent; border: 1px solid rgba(0,0,0,.12);

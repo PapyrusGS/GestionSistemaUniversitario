@@ -43,7 +43,9 @@ return new class extends Migration
                 FROM cursos_materias cm
                 INNER JOIN materias m ON cm.idMateria = m.idMateria
                 INNER JOIN cursos c ON cm.idCurso = c.idCurso -- Enlace con la tabla donde está el campo capacidad
-                WHERE cm.idDocente = p_idDocente AND cm.estado = 1;
+                WHERE cm.idDocente = p_idDocente 
+                  AND cm.estado = 1
+                  AND m.estado = 1; -- <--- CORRECCIÓN CLAVE: Filtra para que no liste materias dadas de baja
             END;
         ");
     }
