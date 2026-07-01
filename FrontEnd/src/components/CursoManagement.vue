@@ -49,6 +49,12 @@ const submitting = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
 const errors = ref({})
+const localErrors = reactive({
+  idCurso: '',
+  idMateria: '',
+  idDocente: '',
+  horarios: [],
+})
 const showConfirmModal = ref(false)
 const cursoToDisable = ref(null)
 const showCreateModal = ref(false)
@@ -57,38 +63,59 @@ const form = reactive({
   idCurso: '',
   idMateria: '',
   idDocente: '',
-  idHorario1: '',
-  idHorario2: '',
-  idHorario3: '',
+  horarios: [''],   // array dinámico: máx 3 horarios
   idPeriodo: '',
 })
 
+// ── Horarios disponibles por posición (excluye los ya seleccionados en otras posiciones) ──
+function availableHorarios(index) {
+  const selected = form.horarios.filter((id, i) => i !== index && id !== '')
+  return horarios.value.filter(h => !selected.includes(String(h.idHorario)))
+}
+
+// ── Puede añadir otro horario si: hay menos de 3 y el último no está vacío ──
+const canAddHorario = computed(() => {
+  return form.horarios.length < 3 && form.horarios[form.horarios.length - 1] !== ''
+})
+
+function addHorario() {
+  if (canAddHorario.value) {
+    form.horarios.push('')
+    localErrors.horarios.push('')
+  }
+}
+
+function removeHorario(index) {
+  if (form.horarios.length <= 1) return
+  form.horarios.splice(index, 1)
+  localErrors.horarios.splice(index, 1)
+  // Limpiar errores del servidor de horarios eliminados
+  errors.value.idHorario2 = null
+  errors.value.idHorario3 = null
+}
+
+// ── Watch: cuando cambian los horarios o el período, recarga docentes disponibles ──
 watch(
-  [
-    () => form.idHorario1,
-    () => form.idHorario2,
-    () => form.idHorario3,
-    () => form.idPeriodo,
-    docentes
-  ],
+  [() => [...form.horarios], () => form.idPeriodo, docentes],
   async () => {
-    if (!form.idHorario1) {
+    const [h1, h2, h3] = form.horarios
+    if (!h1) {
       docentesDisponibles.value = docentes.value
       return
     }
-    
+
     try {
       const response = await props.api.get('/cursos/docentes-disponibles', {
         params: {
           idPeriodo: form.idPeriodo,
-          idHorario1: form.idHorario1,
-          idHorario2: form.idHorario2 || null,
-          idHorario3: form.idHorario3 || null,
+          idHorario1: h1 || null,
+          idHorario2: h2 || null,
+          idHorario3: h3 || null,
         }
       })
       const payload = payloadFromResponse(response.data)
       docentesDisponibles.value = payload.docentes || []
-      
+
       if (form.idDocente && !docentesDisponibles.value.some(d => String(d.idUsuario) === String(form.idDocente))) {
         form.idDocente = ''
       }
@@ -96,7 +123,7 @@ watch(
       docentesDisponibles.value = docentes.value
     }
   },
-  { immediate: true }
+  { deep: true, immediate: true }
 )
 
 const isMateriaActive = (idMateria) => {
@@ -110,7 +137,7 @@ function payloadFromResponse(data) {
 
 function formatHorarioLabel(horario) {
   if (!horario) return ''
-  const days = { 1: 'Lunes', 2: 'Martes', 3: 'Miercoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sabado', 7: 'Domingo' }
+  const days = { 1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sábado', 7: 'Domingo' }
   const dayName = days[horario.diaSemana] || `Día ${horario.diaSemana}`
   const start = horario.horaInicio ? horario.horaInicio.substring(0, 5) : ''
   const end = horario.horaFin ? horario.horaFin.substring(0, 5) : ''
@@ -126,12 +153,37 @@ function resetForm() {
   form.idCurso = ''
   form.idMateria = ''
   form.idDocente = ''
-  form.idHorario1 = ''
-  form.idHorario2 = ''
-  form.idHorario3 = ''
+  form.horarios = ['']
   form.idPeriodo = periodos.value.length > 0 ? String(periodos.value[0].idPeriodo) : ''
   filterCarrera.value = ''
   errors.value = {}
+  localErrors.idCurso = ''
+  localErrors.idMateria = ''
+  localErrors.idDocente = ''
+  localErrors.horarios = ['']
+}
+
+// ── Validación client-side ──
+function validateForm() {
+  let valid = true
+
+  localErrors.idCurso = form.idCurso ? '' : 'El aula es obligatoria.'
+  if (localErrors.idCurso) valid = false
+
+  localErrors.idMateria = form.idMateria ? '' : 'La materia es obligatoria.'
+  if (localErrors.idMateria) valid = false
+
+  // Validar horarios
+  localErrors.horarios = form.horarios.map((h, i) => {
+    if (i === 0 && !h) return 'El horario principal es obligatorio.'
+    return ''
+  })
+  if (localErrors.horarios.some(e => e)) valid = false
+
+  localErrors.idDocente = form.idDocente ? '' : 'El docente es obligatorio.'
+  if (localErrors.idDocente) valid = false
+
+  return valid
 }
 
 async function fetchCursoData() {
@@ -163,31 +215,43 @@ async function fetchCursoData() {
 }
 
 async function submitForm() {
+  if (!validateForm()) {
+    errorMessage.value = 'Por favor, completa todos los campos obligatorios.'
+    return
+  }
+
   submitting.value = true
   resetMessages()
   errors.value = {}
+
+  const [h1, h2, h3] = form.horarios
+
   try {
     const response = await props.api.post('/cursos', {
       idCurso: form.idCurso,
       idMateria: form.idMateria,
       idDocente: Number(form.idDocente),
-      idHorario1: Number(form.idHorario1),
-      idHorario2: form.idHorario2 ? Number(form.idHorario2) : null,
-      idHorario3: form.idHorario3 ? Number(form.idHorario3) : null,
+      idHorario1: Number(h1),
+      idHorario2: h2 ? Number(h2) : null,
+      idHorario3: h3 ? Number(h3) : null,
       idPeriodo: Number(form.idPeriodo),
     })
     const payload = payloadFromResponse(response.data)
     cursos.value.unshift(payload.curso)
-    successMessage.value = response.data.message || 'Curso registrado correctamente.'
+
+    // Mensaje de éxito con detalle
+    const materiaNombre = materias.value.find(m => m.idMateria === form.idMateria)?.nombre || form.idMateria
+    successMessage.value = `Curso de "${materiaNombre}" registrado correctamente en el aula ${form.idCurso}.`
+
     resetForm()
     showCreateModal.value = false
   } catch (error) {
     const response = error.response?.data
     if (response?.errors) {
       errors.value = response.errors
-      errorMessage.value = 'Por favor, corrige los errores del formulario.'
+      errorMessage.value = 'Por favor, corrige los errores indicados en el formulario.'
     } else {
-      errorMessage.value = response?.message || 'Ocurrió un error inesperado.'
+      errorMessage.value = response?.message || 'Ocurrió un error inesperado al registrar el curso.'
     }
   } finally {
     submitting.value = false
@@ -336,7 +400,7 @@ onMounted(fetchCursoData)
                 type="button"
                 :disabled="submitting || !isMateriaActive(curso.idMateria)"
                 @click="enableCurso(curso)"
-                :title="isMateriaActive(curso.idMateria) ? 'Habilitar curso' : 'No se puede habilitar porque la materia está deshabilitada'"
+                :title="isMateriaActive(curso.idMateria) ? 'Habilitar curso' : 'No se puede habilitar: la materia está deshabilitada'"
               >
                 Habilitar
               </button>
@@ -352,7 +416,10 @@ onMounted(fetchCursoData)
         <div class="cm-modal">
 
           <div class="cm-modal-header">
-            <h4 class="cm-modal-title">Registrar nuevo curso</h4>
+            <div>
+              <h4 class="cm-modal-title">Registrar nuevo curso</h4>
+              <p class="cm-modal-sub">Completa los campos para crear una nueva oferta académica.</p>
+            </div>
             <button class="cm-close-btn" type="button" @click="showCreateModal = false">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
@@ -360,17 +427,26 @@ onMounted(fetchCursoData)
 
           <form class="cm-form" @submit.prevent="submitForm">
 
+            <!-- Aula -->
             <div class="cm-field">
-              <label class="cm-label">Curso / Aula *</label>
-              <select v-model="form.idCurso" class="cm-select" required>
-                <option value="" disabled>Seleccione un curso/aula</option>
+              <label class="cm-label">Aula / Curso físico <span class="cm-required">*</span></label>
+              <select
+                v-model="form.idCurso"
+                class="cm-select"
+                :class="{ 'cm-select--error': localErrors.idCurso || errors.idCurso }"
+                required
+                @change="localErrors.idCurso = ''"
+              >
+                <option value="" disabled>Seleccione un aula</option>
                 <option v-for="cf in cursosFisicos" :key="cf.idCurso" :value="cf.idCurso">
-                  {{ cf.idCurso }} (Capacidad: {{ cf.capacidad }})
+                  {{ cf.idCurso }} — Capacidad: {{ cf.capacidad }} personas
                 </option>
               </select>
-              <small v-if="errors.idCurso" class="cm-field-error">{{ errors.idCurso[0] }}</small>
+              <small v-if="localErrors.idCurso" class="cm-field-error">{{ localErrors.idCurso }}</small>
+              <small v-else-if="errors.idCurso" class="cm-field-error">{{ errors.idCurso[0] }}</small>
             </div>
 
+            <!-- Filtro carrera -->
             <div class="cm-field cm-field--filter">
               <label class="cm-label cm-label--filter">Filtrar por carrera</label>
               <select v-model="filterCarrera" class="cm-select cm-select--filter" @change="form.idMateria = ''">
@@ -381,77 +457,148 @@ onMounted(fetchCursoData)
               </select>
             </div>
 
+            <!-- Materia -->
             <div class="cm-field">
-              <label class="cm-label">Materia *</label>
-              <select v-model="form.idMateria" class="cm-select" required>
+              <label class="cm-label">Materia <span class="cm-required">*</span></label>
+              <select
+                v-model="form.idMateria"
+                class="cm-select"
+                :class="{ 'cm-select--error': localErrors.idMateria || errors.idMateria }"
+                required
+                @change="localErrors.idMateria = ''"
+              >
                 <option value="" disabled>{{ filterCarrera ? 'Seleccione una materia de esta carrera' : 'Seleccione una materia' }}</option>
                 <option v-for="materia in materiasFiltradas" :key="materia.idMateria" :value="materia.idMateria">
                   {{ materia.nombre }} ({{ materia.idMateria }})
                 </option>
               </select>
-              <small v-if="errors.idMateria" class="cm-field-error">{{ errors.idMateria[0] }}</small>
+              <small v-if="localErrors.idMateria" class="cm-field-error">{{ localErrors.idMateria }}</small>
+              <small v-else-if="errors.idMateria" class="cm-field-error">{{ errors.idMateria[0] }}</small>
             </div>
 
-            <div class="cm-field">
-              <label class="cm-label">Horario 1 *</label>
-              <select v-model="form.idHorario1" class="cm-select" required>
-                <option value="" disabled>Seleccione el horario 1</option>
-                <option v-for="horario in horarios" :key="horario.idHorario" :value="String(horario.idHorario)">
-                  {{ formatHorarioLabel(horario) }}
-                </option>
-              </select>
-              <small v-if="errors.idHorario1" class="cm-field-error">{{ errors.idHorario1[0] }}</small>
+            <!-- ── Sección de Horarios (dinámica) ── -->
+            <div class="cm-horarios-section">
+              <div class="cm-horarios-header">
+                <label class="cm-label">
+                  Horarios
+                  <span class="cm-required">*</span>
+                  <span class="cm-horarios-hint">(hasta 3 bloques del mismo día)</span>
+                </label>
+                <span class="cm-horarios-counter">{{ form.horarios.filter(h => h).length }}/3 seleccionado{{ form.horarios.filter(h => h).length !== 1 ? 's' : '' }}</span>
+              </div>
+
+              <div
+                v-for="(horarioId, index) in form.horarios"
+                :key="index"
+                class="cm-horario-row"
+              >
+                <div class="cm-horario-row-inner">
+                  <span class="cm-horario-label">
+                    {{ index === 0 ? 'Bloque 1' : index === 1 ? 'Bloque 2' : 'Bloque 3' }}
+                    <span v-if="index === 0" class="cm-required">*</span>
+                    <span v-else class="cm-optional">(opcional)</span>
+                  </span>
+                  <select
+                    v-model="form.horarios[index]"
+                    class="cm-select cm-select--horario"
+                    :class="{ 'cm-select--error': (localErrors.horarios[index] || errors[`idHorario${index + 1}`]) }"
+                    :required="index === 0"
+                    @change="localErrors.horarios[index] = ''"
+                  >
+                    <option value="" :disabled="index === 0">
+                      {{ index === 0 ? 'Seleccione el horario principal' : 'Sin horario adicional' }}
+                    </option>
+                    <option
+                      v-for="horario in availableHorarios(index)"
+                      :key="horario.idHorario"
+                      :value="String(horario.idHorario)"
+                    >
+                      {{ formatHorarioLabel(horario) }}
+                    </option>
+                  </select>
+                  <button
+                    v-if="form.horarios.length > 1"
+                    type="button"
+                    class="cm-horario-remove"
+                    :title="`Quitar bloque ${index + 1}`"
+                    @click="removeHorario(index)"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+                <small v-if="localErrors.horarios[index]" class="cm-field-error">{{ localErrors.horarios[index] }}</small>
+                <small v-else-if="errors[`idHorario${index + 1}`]" class="cm-field-error">{{ errors[`idHorario${index + 1}`][0] }}</small>
+              </div>
+
+              <!-- Botón agregar horario -->
+              <button
+                v-if="canAddHorario"
+                type="button"
+                class="cm-horario-add"
+                @click="addHorario"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Añadir otro bloque horario
+              </button>
+
+              <p class="cm-horarios-info">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Los bloques adicionales deben ser continuos (sin huecos) y del mismo día.
+              </p>
             </div>
 
+            <!-- Docente -->
             <div class="cm-field">
-              <label class="cm-label">Horario 2 <span class="cm-optional">(opcional)</span></label>
-              <select v-model="form.idHorario2" class="cm-select">
-                <option value="">Ninguno</option>
-                <option v-for="horario in horarios" :key="horario.idHorario" :value="String(horario.idHorario)">
-                  {{ formatHorarioLabel(horario) }}
-                </option>
-              </select>
-              <small v-if="errors.idHorario2" class="cm-field-error">{{ errors.idHorario2[0] }}</small>
-            </div>
+              <label class="cm-label">Docente <span class="cm-required">*</span></label>
 
-            <div class="cm-field">
-              <label class="cm-label">Horario 3 <span class="cm-optional">(opcional)</span></label>
-              <select v-model="form.idHorario3" class="cm-select">
-                <option value="">Ninguno</option>
-                <option v-for="horario in horarios" :key="horario.idHorario" :value="String(horario.idHorario)">
-                  {{ formatHorarioLabel(horario) }}
-                </option>
-              </select>
-              <small v-if="errors.idHorario3" class="cm-field-error">{{ errors.idHorario3[0] }}</small>
-            </div>
+              <!-- Aviso sin horario -->
+              <div v-if="!form.horarios[0]" class="cm-docente-hint cm-docente-hint--waiting">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Selecciona primero el horario para ver docentes disponibles.
+              </div>
 
-            <div class="cm-field">
-              <label class="cm-label">Docente *</label>
-              <select v-model="form.idDocente" class="cm-select" :disabled="!form.idHorario1" required>
-                <option value="" disabled>
-                  {{ !form.idHorario1 ? 'Seleccione primero un horario' : (docentesDisponibles.length === 0 ? 'Sin docentes disponibles' : 'Seleccione un docente') }}
-                </option>
+              <!-- Aviso sin docentes disponibles -->
+              <div
+                v-else-if="docentesDisponibles.length === 0"
+                class="cm-docente-hint cm-docente-hint--empty"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                No hay docentes disponibles para los horarios seleccionados. Prueba con otro bloque horario.
+              </div>
+
+              <select
+                v-else
+                v-model="form.idDocente"
+                class="cm-select"
+                :class="{ 'cm-select--error': localErrors.idDocente || errors.idDocente }"
+                required
+                @change="localErrors.idDocente = ''"
+              >
+                <option value="" disabled>Seleccione un docente</option>
                 <option v-for="docente in docentesDisponibles" :key="docente.idUsuario" :value="String(docente.idUsuario)">
                   {{ docente.nombreCompleto }} — {{ docente.correo }}
                 </option>
               </select>
-              <small v-if="errors.idDocente" class="cm-field-error">{{ errors.idDocente[0] }}</small>
+              <small v-if="localErrors.idDocente" class="cm-field-error">{{ localErrors.idDocente }}</small>
+              <small v-else-if="errors.idDocente" class="cm-field-error">{{ errors.idDocente[0] }}</small>
             </div>
 
+            <!-- Régimen académico (solo lectura) -->
             <div class="cm-field">
-              <label class="cm-label">Régimen académico *</label>
-              <select v-model="form.idPeriodo" class="cm-select cm-select--disabled" disabled required>
-                <option value="" disabled>Seleccione un periodo</option>
-                <option v-for="periodo in periodos" :key="periodo.idPeriodo" :value="String(periodo.idPeriodo)">
-                  {{ periodo.nombre }} (Periodo actual)
-                </option>
-              </select>
+              <label class="cm-label">Régimen académico</label>
+              <div class="cm-periodo-display">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                {{ periodos.find(p => String(p.idPeriodo) === String(form.idPeriodo))?.nombre || 'Período actual' }}
+                <span class="cm-periodo-badge">Período activo</span>
+              </div>
               <small v-if="errors.idPeriodo" class="cm-field-error">{{ errors.idPeriodo[0] }}</small>
             </div>
 
+            <!-- Acciones del formulario -->
             <div class="cm-form-actions">
               <button class="cm-btn-secondary" type="button" @click="showCreateModal = false">Cancelar</button>
               <button class="uni-btn-action-success" type="submit" :disabled="submitting">
+                <svg v-if="submitting" class="cm-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
                 {{ submitting ? 'Guardando...' : 'Guardar curso' }}
               </button>
             </div>
@@ -709,31 +856,45 @@ onMounted(fetchCursoData)
 
 /* ── Modal crear curso ── */
 .cm-modal {
-  width: min(100%, 34rem);
+  width: min(100%, 36rem);
   background: var(--color-white);
   border: 1px solid var(--color-linen);
   border-radius: 16px;
-  padding: 1.75rem;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 16px 40px rgba(0,0,0,.12);
+  overflow: hidden;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 50px rgba(0,0,0,.15);
+  animation: cmModalIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes cmModalIn {
+  from { transform: scale(0.96) translateY(8px); opacity: 0; }
+  to   { transform: scale(1) translateY(0); opacity: 1; }
 }
 
 .cm-modal-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem 1rem;
   border-bottom: 1px solid var(--color-linen);
-  padding-bottom: 0.75rem;
-  margin-bottom: 1.25rem;
+  flex-shrink: 0;
 }
 
 .cm-modal-title {
-  margin: 0;
+  margin: 0 0 2px;
   font-size: 1rem;
   font-weight: 700;
   color: var(--uni-text);
   font-family: 'Playfair Display', serif;
+}
+
+.cm-modal-sub {
+  margin: 0;
+  font-size: 11px;
+  color: var(--uni-muted);
 }
 
 .cm-close-btn {
@@ -745,6 +906,7 @@ onMounted(fetchCursoData)
   border-radius: 6px;
   display: flex;
   transition: color 0.15s;
+  flex-shrink: 0;
 }
 .cm-close-btn:hover { color: var(--uni-text); }
 
@@ -752,7 +914,9 @@ onMounted(fetchCursoData)
 .cm-form {
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 0.9rem;
+  padding: 1.25rem 1.5rem 1.5rem;
+  overflow-y: auto;
 }
 
 .cm-field {
@@ -767,10 +931,18 @@ onMounted(fetchCursoData)
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--uni-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .cm-label--filter {
   color: var(--color-mint-dark);
+}
+
+.cm-required {
+  color: #b22b2b;
+  font-weight: 700;
 }
 
 .cm-optional {
@@ -796,28 +968,199 @@ onMounted(fetchCursoData)
   transition: border-color 0.2s;
 }
 .cm-select:focus { border-color: var(--color-mint-dark); }
-
 .cm-select--filter {
   border-color: var(--color-mint-light);
   background: var(--uni-success-bg);
 }
 .cm-select--filter:focus { border-color: var(--color-mint-dark); }
-
-.cm-select--disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.cm-select--error {
+  border-color: var(--uni-error-border) !important;
+  background: var(--uni-error-bg);
 }
 
 .cm-field-error {
   font-size: 11px;
   color: var(--uni-error-text);
+  margin-top: 1px;
+}
+
+/* ── Sección de horarios dinámica ── */
+.cm-horarios-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: #fafaf9;
+  border: 1.5px solid var(--color-linen);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+}
+
+.cm-horarios-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.cm-horarios-hint {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 10px;
+  color: var(--uni-muted);
+  margin-left: 4px;
+}
+
+.cm-horarios-counter {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--uni-muted);
+  background: var(--color-linen);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.cm-horario-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cm-horario-row-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cm-horario-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--uni-muted);
+  white-space: nowrap;
+  min-width: 56px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.cm-select--horario {
+  flex: 1;
+}
+
+.cm-horario-remove {
+  background: none;
+  border: 1.5px solid var(--uni-error-border);
+  color: var(--uni-error-text);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  padding: 0;
+}
+.cm-horario-remove:hover {
+  background: var(--uni-error-bg);
+}
+
+.cm-horario-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1.5px dashed var(--color-mint-light);
+  border-radius: 20px;
+  color: var(--color-mint-dark);
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  width: 100%;
+  justify-content: center;
+  margin-top: 4px;
+}
+.cm-horario-add:hover {
+  background: var(--uni-success-bg);
+  border-color: var(--color-mint-dark);
+}
+
+.cm-horarios-info {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: var(--uni-muted);
+  margin: 4px 0 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--color-linen);
+}
+
+/* ── Docente hints ── */
+.cm-docente-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 0.6rem 0.85rem;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.cm-docente-hint--waiting {
+  background: #f5f5f3;
+  color: var(--uni-muted);
+  border: 1px solid var(--color-linen);
+}
+.cm-docente-hint--empty {
+  background: #fff8f0;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+.cm-docente-hint svg { flex-shrink: 0; margin-top: 1px; }
+
+/* ── Período display ── */
+.cm-periodo-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.55rem 0.85rem;
+  border: 1.5px solid var(--color-linen);
+  border-radius: 20px;
+  font-size: 12px;
+  color: var(--uni-text);
+  background: #f5f5f3;
+}
+.cm-periodo-badge {
+  margin-left: auto;
+  background: var(--uni-success-bg);
+  color: var(--uni-success-text);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+/* ── Spinner ── */
+.cm-spin {
+  animation: cmSpin 0.8s linear infinite;
+}
+@keyframes cmSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
 .cm-form-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.6rem;
-  padding-top: 0.5rem;
+  padding-top: 0.75rem;
   border-top: 1px solid var(--color-linen);
   margin-top: 0.25rem;
 }
@@ -876,14 +1219,20 @@ onMounted(fetchCursoData)
   justify-content: center;
   gap: 0.6rem;
 }
+
 .cm-row--inactive {
   opacity: 0.5;
 }
+
 .uni-btn-action-disabled {
   background: #e8e8e5 !important;
   color: #a0a0a0 !important;
   border: 1px solid #d0cfca !important;
   cursor: not-allowed !important;
   opacity: 0.6;
+}
+
+.cm-field--filter {
+  /* indicador visual sutil */
 }
 </style>

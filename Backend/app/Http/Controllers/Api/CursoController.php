@@ -43,11 +43,24 @@ class CursoController extends Controller
                 201
             );
         } catch (\Illuminate\Database\QueryException $e) {
-            $errorInfo = $e->errorInfo;
-            $message = isset($errorInfo[2]) ? $errorInfo[2] : $e->getMessage();
-            return ApiResponse::error($message, null, 400);
+            // Extraer solo el MESSAGE_TEXT del SIGNAL del stored procedure (ya en español legible)
+            $raw = $e->getMessage();
+            // Los SP usan SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = '...'
+            // El mensaje viene en el formato: "SQLSTATE[45000]: ... 1644 ... MESSAGE_TEXT"
+            if (preg_match('/1644 ([^"]+)$/m', $raw, $matches)) {
+                $message = trim($matches[1]);
+            } elseif (isset($e->errorInfo[2])) {
+                $message = $e->errorInfo[2];
+            } else {
+                $message = 'Ocurrió un error al registrar el curso. Por favor, verifique los datos ingresados.';
+            }
+            return ApiResponse::error($message, null, 422);
         } catch (\Throwable $e) {
-            return ApiResponse::error($e->getMessage(), null, 400);
+            return ApiResponse::error(
+                $e->getMessage() ?: 'Ocurrió un error inesperado al registrar el curso.',
+                null,
+                400
+            );
         }
     }
 

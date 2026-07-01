@@ -120,13 +120,34 @@ class CursoRequest extends FormRequest
                     if ($h1->diaSemana != $h2->diaSemana) {
                         $validator->errors()->add('idHorario2', 'El segundo horario debe ser del mismo día que el primero.');
                     } else {
-                        $t1Start = substr($h1->horaInicio, 0, 5);
                         $t1End = substr($h1->horaFin, 0, 5);
                         $t2Start = substr($h2->horaInicio, 0, 5);
                         $t2End = substr($h2->horaFin, 0, 5);
+                        $t1Start = substr($h1->horaInicio, 0, 5);
 
                         if ($t1End !== $t2Start && $t2End !== $t1Start) {
-                            $validator->errors()->add('idHorario2', 'El segundo horario debe ser continuo al primero.');
+                            $validator->errors()->add('idHorario2', 'El segundo horario debe ser contiguo al primero (sin huecos entre bloques).');
+                        }
+                    }
+                }
+            }
+
+            // Validar continuidad entre el 2º y 3º horario (si se seleccionó el 3º)
+            if ($h3Id && $h2Id) {
+                $h2 = $h2 ?? \Illuminate\Support\Facades\DB::table('horarios')->where('idHorario', $h2Id)->first();
+                $h3 = \Illuminate\Support\Facades\DB::table('horarios')->where('idHorario', $h3Id)->first();
+
+                if ($h2 && $h3) {
+                    if ($h2->diaSemana != $h3->diaSemana) {
+                        $validator->errors()->add('idHorario3', 'El tercer horario debe ser del mismo día que los anteriores.');
+                    } else {
+                        $t2End = substr($h2->horaFin, 0, 5);
+                        $t3Start = substr($h3->horaInicio, 0, 5);
+                        $t3End = substr($h3->horaFin, 0, 5);
+                        $t2Start = substr($h2->horaInicio, 0, 5);
+
+                        if ($t2End !== $t3Start && $t3End !== $t2Start) {
+                            $validator->errors()->add('idHorario3', 'El tercer horario debe ser contiguo al segundo (sin huecos entre bloques).');
                         }
                     }
                 }
