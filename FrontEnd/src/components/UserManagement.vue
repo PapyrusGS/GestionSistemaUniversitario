@@ -572,15 +572,7 @@ onMounted(() => {
         </div>
 
         <div v-if="successMessage" class="uni-alert uni-alert--success">{{ successMessage }}</div>
-        <div v-if="activeErrors.length > 0 || errorMessage" class="uni-alert uni-alert--error">
-          <div v-if="errorMessage && activeErrors.length === 0">{{ errorMessage }}</div>
-          <div v-else>
-            <div style="font-weight: 700; margin-bottom: 5px;">Por favor, corrige los siguientes errores:</div>
-            <ul style="margin: 0; padding-left: 20px; list-style-type: disc;">
-              <li v-for="(err, idx) in activeErrors" :key="idx">{{ err }}</li>
-            </ul>
-          </div>
-        </div>
+        <div v-if="errorMessage" class="uni-alert uni-alert--error">{{ errorMessage }}</div>
 
         <form @submit.prevent="submitForm" class="um-form">
 
@@ -637,44 +629,44 @@ onMounted(() => {
                 <label class="um-field">
                   <span>Primer nombre *</span>
                   <input v-model.trim="form.nombre1" type="text" inputmode="text" required :disabled="submittings" placeholder="Ej: María" @input="form.nombre1 = filterName(form.nombre1); touched.nombre1 && validateField('nombre1')" @blur="validateField('nombre1')" />
-                  <span v-if="formErrors.nombre1" class="um-field-error">{{ formErrors.nombre1 }}</span>
+                  <span v-if="formErrors.nombre1" class="um-field-error" :class="{ 'um-input-error': formErrors.nombre1 || errors.nombre1 }">{{ formErrors.nombre1 }}</span>
                   <span v-else-if="errors.nombre1" class="um-field-error">{{ errors.nombre1[0] }}</span>
                 </label>
                 <label class="um-field">
                   <span>Segundo nombre</span>
                   <input v-model.trim="form.nombre2" type="text" inputmode="text" :disabled="submittings" placeholder="Opcional" @input="form.nombre2 = filterName(form.nombre2); touched.nombre2 && validateField('nombre2')" @blur="validateField('nombre2')" />
-                  <span v-if="formErrors.nombre2" class="um-field-error">{{ formErrors.nombre2 }}</span>
+                  <span v-if="formErrors.nombre2" class="um-field-error" :class="{ 'um-input-error': formErrors.nombre2 || errors.nombre2 }">{{ formErrors.nombre2 }}</span>
                   <span v-else-if="errors.nombre2" class="um-field-error">{{ errors.nombre2[0] }}</span>
                 </label>
                 <label class="um-field">
                   <span>Primer apellido *</span>
                   <input v-model.trim="form.apellido1" type="text" inputmode="text" required :disabled="submittings" placeholder="Ej: García" @input="form.apellido1 = filterName(form.apellido1); touched.apellido1 && validateField('apellido1')" @blur="validateField('apellido1')" />
-                  <span v-if="formErrors.apellido1" class="um-field-error">{{ formErrors.apellido1 }}</span>
+                  <span v-if="formErrors.apellido1" class="um-field-error" :class="{ 'um-input-error': formErrors.apellido1 || errors.apellido1 }">{{ formErrors.apellido1 }}</span>
                   <span v-else-if="errors.apellido1" class="um-field-error">{{ errors.apellido1[0] }}</span>
                 </label>
                 <label class="um-field">
                   <span>Segundo apellido</span>
                   <input v-model.trim="form.apellido2" type="text" inputmode="text" :disabled="submittings" placeholder="Opcional" @input="form.apellido2 = filterName(form.apellido2); touched.apellido2 && validateField('apellido2')" @blur="validateField('apellido2')" />
-                  <span v-if="formErrors.apellido2" class="um-field-error">{{ formErrors.apellido2 }}</span>
+                  <span v-if="formErrors.apellido2" class="um-field-error" :class="{ 'um-input-error': formErrors.apellido2 || errors.apellido2 }">{{ formErrors.apellido2 }}</span>
                   <span v-else-if="errors.apellido2" class="um-field-error">{{ errors.apellido2[0] }}</span>
                 </label>
                 <label class="um-field">
                   <span>Carnet (CI) *</span>
                   <input v-model.trim="form.ci" type="text" inputmode="numeric" required :disabled="submittings" placeholder="Ej: 12345678" @input="form.ci = filterDigits(form.ci); touched.ci && validateField('ci')" @blur="validateField('ci')" />
-                  <span v-if="formErrors.ci" class="um-field-error">{{ formErrors.ci }}</span>
+                  <span v-if="formErrors.ci" class="um-field-error" :class="{ 'um-input-error': formErrors.ci || errors.ci }">{{ formErrors.ci }}</span>
                   <span v-else-if="errors.ci" class="um-field-error">{{ errors.ci[0] }}</span>
                 </label>
                 <label class="um-field">
                   <span>Teléfono</span>
                   <input v-model.trim="form.telefono" type="tel" inputmode="numeric" :disabled="submittings" placeholder="Ej: 76543210" maxlength="8" @input="form.telefono = filterDigits(form.telefono); touched.telefono && validateField('telefono')" @blur="validateField('telefono')" />
-                  <span v-if="formErrors.telefono" class="um-field-error">{{ formErrors.telefono }}</span>
+                  <span v-if="formErrors.telefono" class="um-field-error" :class="{ 'um-input-error': formErrors.telefono || errors.telefono }">{{ formErrors.telefono }}</span>
                   <span v-else-if="errors.telefono" class="um-field-error">{{ errors.telefono[0] }}</span>
                 </label>
               </div>
               <label class="um-field um-field--full">
                 <span>Correo institucional *</span>
                 <input v-model.trim="form.correo" type="email" inputmode="email" required :disabled="submittings" placeholder="usuario@uni.edu.bo" @input="touched.correo && validateField('correo')" @blur="validateField('correo')" />
-                <span v-if="formErrors.correo" class="um-field-error">{{ formErrors.correo }}</span>
+                <span v-if="formErrors.correo" class="um-field-error" :class="{ 'um-input-error': formErrors.correo || errors.correo }">{{ formErrors.correo }}</span>
                 <span v-else-if="errors.correo" class="um-field-error">{{ errors.correo[0] }}</span>
               </label>
             </div>
@@ -1020,6 +1012,10 @@ onMounted(() => {
   z-index: 50;
 }
 
+.um-input-error {
+  color: var(--uni-error-text, #9b3636) !important;
+}
+
 /* ── Modal ── */
 .um-modal {
   width: min(100%, 36rem);
@@ -1191,7 +1187,7 @@ onMounted(() => {
 }
 .um-field-error {
   font-size: 11px;
-  color: #b85c5c;
+  color: var(--uni-error-text, #7a2424);
   margin-top: 2px;
 }
 

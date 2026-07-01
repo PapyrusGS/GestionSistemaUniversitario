@@ -747,22 +747,31 @@ onMounted(fetchMateriaData)
 }
 
 /* Tabla */
+/* Tabla */
 .mm-table-wrap { overflow-x: auto; }
-.mm-table { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+.mm-table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: auto; }
 .mm-table thead tr { background: #fafafa; border-bottom: 1px solid var(--color-linen); }
 .mm-table th {
-  padding: 0.7rem 1rem;
+  padding: 0.6rem 0.75rem;
   text-align: left;
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--uni-muted);
+  white-space: nowrap;
 }
 .mm-table td {
-  padding: 0.7rem 1rem;
+  padding: 0.6rem 0.75rem;
   border-bottom: 1px solid rgba(0,0,0,.04);
   color: var(--uni-text);
+  white-space: nowrap;
+}
+.mm-table td:nth-child(2),
+.mm-table td:nth-child(3),
+.mm-table td:nth-child(5) {
+  white-space: normal;
+  max-width: 220px;
 }
 .mm-table tbody tr:hover { background: #f7f7f5; }
 .mm-table tbody tr:last-child td { border-bottom: none; }

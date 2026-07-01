@@ -217,7 +217,7 @@
     </div>
 
     <!-- ── Estado vacío ─────────────────────────────────────────────────── -->
-    <div v-if="searched[activeTab] && currentRowCount === 0 && !loading" class="ra-empty">
+    <div v-if="searched[activeTab] && currentRowCount === 0 && !loading && !(activeTab === 'kardex' && resultKardex.cabecera)" class="ra-empty">
       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
       <p class="ra-empty-title">Sin resultados</p>
       <p class="ra-empty-sub">No hay información disponible para los filtros aplicados.</p>
@@ -252,35 +252,38 @@
     </div>
 
     <!-- ── Tabla Kárdex ──────────────────────────────────────────────────── -->
-    <template v-if="activeTab === 'kardex' && resultKardex.historial.length > 0">
+    <template v-if="activeTab === 'kardex' && resultKardex.cabecera">
       <div class="ra-kardex-card">
         <div class="ra-kardex-field"><span class="ra-kardex-label">Estudiante</span><span class="ra-kardex-value">{{ resultKardex.cabecera.nombre }}</span></div>
         <div class="ra-kardex-field"><span class="ra-kardex-label">C.I.</span><span class="ra-kardex-value">{{ resultKardex.cabecera.ci }}</span></div>
         <div class="ra-kardex-field"><span class="ra-kardex-label">Correo</span><span class="ra-kardex-value">{{ resultKardex.cabecera.correo }}</span></div>
         <div class="ra-kardex-field"><span class="ra-kardex-label">Carrera</span><span class="ra-kardex-value">{{ resultKardex.cabecera.carrera }}</span></div>
-        <div class="ra-kardex-field"><span class="ra-kardex-label">Aprobadas</span><span class="ra-kardex-value">{{ kardexStats.aprobadas }} / {{ kardexStats.total }}</span></div>
-        <div class="ra-kardex-field"><span class="ra-kardex-label">Promedio</span><span class="ra-kardex-value">{{ kardexStats.promedio }}</span></div>
+        <div v-if="resultKardex.historial.length > 0" class="ra-kardex-field"><span class="ra-kardex-label">Aprobadas</span><span class="ra-kardex-value">{{ kardexStats.aprobadas }} / {{ kardexStats.total }}</span></div>
+        <div v-if="resultKardex.historial.length > 0" class="ra-kardex-field"><span class="ra-kardex-label">Promedio</span><span class="ra-kardex-value">{{ kardexStats.promedio }}</span></div>
       </div>
-      <div class="ra-table-wrap">
-        <div class="ra-table-scroll">
-          <table class="ra-table">
-            <thead><tr><th>Período</th><th>Materia</th><th>Sem.</th><th>Nota</th><th>Estado</th></tr></thead>
-            <tbody>
-              <tr v-for="(fila, i) in resultKardex.historial" :key="i">
-                <td>{{ fila.periodo }}</td>
-                <td>{{ fila.materia }}</td>
-                <td class="ra-num">{{ fila.semestre }}</td>
-                <td class="ra-num">{{ fila.nota ?? '—' }}</td>
-                <td>
-                  <span class="ra-badge" :class="{ 'ra-badge--green': fila.estadoAcademico === 'Aprobada', 'ra-badge--red': fila.estadoAcademico === 'Reprobada', 'ra-badge--gray': fila.estadoAcademico === 'Sin nota' }">
-                    {{ fila.estadoAcademico }}
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+      <template v-if="resultKardex.historial.length > 0">
+        <div class="ra-table-wrap">
+          <div class="ra-table-scroll">
+            <table class="ra-table">
+              <thead><tr><th>Período</th><th>Materia</th><th>Sem.</th><th>Nota</th><th>Estado</th></tr></thead>
+              <tbody>
+                <tr v-for="(fila, i) in resultKardex.historial" :key="i">
+                  <td>{{ fila.periodo }}</td>
+                  <td>{{ fila.materia }}</td>
+                  <td class="ra-num">{{ fila.semestre }}</td>
+                  <td class="ra-num">{{ fila.nota ?? '—' }}</td>
+                  <td>
+                    <span class="ra-badge" :class="{ 'ra-badge--green': fila.estadoAcademico === 'Aprobada', 'ra-badge--red': fila.estadoAcademico === 'Reprobada', 'ra-badge--gray': fila.estadoAcademico === 'Sin nota' }">
+                      {{ fila.estadoAcademico }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      </template>
+      <p v-else class="ra-empty">El estudiante no tiene materias cursadas en su historial.</p>
     </template>
 
     <!-- ── Tabla Auditoría ───────────────────────────────────────────────── -->
@@ -370,7 +373,7 @@
     <!-- ── Tabla Carga Docente ─────────────────────────────────────────── -->
     <div v-if="activeTab === 'cargaDocente' && resultCargaDocente.data.length > 0" class="ra-table-wrap">
       <div class="ra-table-scroll">
-        <table class="ra-table">
+        <table class="ra-table ra-table-carga">
           <thead><tr><th v-for="(h, i) in resultCargaDocente.headings" :key="i">{{ h }}</th></tr></thead>
           <tbody>
             <tr v-for="(row, i) in resultCargaDocente.data" :key="i">
@@ -764,4 +767,16 @@ const ocupBadgeClass = (pctStr) => {
 .ra-ocup-pct--high   { color: #c05621; }
 .ra-ocup-pct--medium { color: #2b6cb0; }
 .ra-ocup-pct--low    { color: #276749; }
+/* ── Tabla Carga Docente centrada ── */
+.ra-table-carga th,
+.ra-table-carga td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.ra-table-carga .ra-num,
+.ra-table-carga .ra-mono,
+.ra-table-carga .font-medium {
+  text-align: center;
+}
 </style>
