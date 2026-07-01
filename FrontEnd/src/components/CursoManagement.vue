@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, reactive, ref, computed } from 'vue'
+import { onMounted, reactive, ref, computed, watch } from 'vue'
 
 const props = defineProps({
   api: {
@@ -14,6 +14,7 @@ const materias = ref([])
 const allMaterias = ref([])
 const carreras = ref([])
 const docentes = ref([])
+const docentesDisponibles = ref([])
 const horarios = ref([])
 const periodos = ref([])
 const filterCarrera = ref('')
@@ -40,6 +41,42 @@ const form = reactive({
   idHorario3: '',
   idPeriodo: '',
 })
+
+watch(
+  [
+    () => form.idHorario1,
+    () => form.idHorario2,
+    () => form.idHorario3,
+    () => form.idPeriodo,
+    docentes
+  ],
+  async () => {
+    if (!form.idHorario1) {
+      docentesDisponibles.value = docentes.value
+      return
+    }
+    
+    try {
+      const response = await props.api.get('/cursos/docentes-disponibles', {
+        params: {
+          idPeriodo: form.idPeriodo,
+          idHorario1: form.idHorario1,
+          idHorario2: form.idHorario2 || null,
+          idHorario3: form.idHorario3 || null,
+        }
+      })
+      const payload = payloadFromResponse(response.data)
+      docentesDisponibles.value = payload.docentes || []
+      
+      if (form.idDocente && !docentesDisponibles.value.some(d => String(d.idUsuario) === String(form.idDocente))) {
+        form.idDocente = ''
+      }
+    } catch {
+      docentesDisponibles.value = docentes.value
+    }
+  },
+  { immediate: true }
+)
 
 const isMateriaActive = (idMateria) => {
   const m = allMaterias.value.find(x => x.idMateria === idMateria)
@@ -319,17 +356,6 @@ onMounted(fetchCursoData)
             </div>
 
             <div class="cm-field">
-              <label class="cm-label">Docente *</label>
-              <select v-model="form.idDocente" class="cm-select" required>
-                <option value="" disabled>Seleccione un docente</option>
-                <option v-for="docente in docentes" :key="docente.idUsuario" :value="String(docente.idUsuario)">
-                  {{ docente.nombreCompleto }} — {{ docente.correo }}
-                </option>
-              </select>
-              <small v-if="errors.idDocente" class="cm-field-error">{{ errors.idDocente[0] }}</small>
-            </div>
-
-            <div class="cm-field">
               <label class="cm-label">Horario 1 *</label>
               <select v-model="form.idHorario1" class="cm-select" required>
                 <option value="" disabled>Seleccione el horario 1</option>
@@ -360,6 +386,19 @@ onMounted(fetchCursoData)
                 </option>
               </select>
               <small v-if="errors.idHorario3" class="cm-field-error">{{ errors.idHorario3[0] }}</small>
+            </div>
+
+            <div class="cm-field">
+              <label class="cm-label">Docente *</label>
+              <select v-model="form.idDocente" class="cm-select" :disabled="!form.idHorario1" required>
+                <option value="" disabled>
+                  {{ !form.idHorario1 ? 'Seleccione primero un horario' : (docentesDisponibles.length === 0 ? 'Sin docentes disponibles' : 'Seleccione un docente') }}
+                </option>
+                <option v-for="docente in docentesDisponibles" :key="docente.idUsuario" :value="String(docente.idUsuario)">
+                  {{ docente.nombreCompleto }} — {{ docente.correo }}
+                </option>
+              </select>
+              <small v-if="errors.idDocente" class="cm-field-error">{{ errors.idDocente[0] }}</small>
             </div>
 
             <div class="cm-field">

@@ -32,6 +32,7 @@ Route::middleware(['auth:sanctum', 'role:Administrador'])->group(function () {
     // ── Cursos ────────────────────────────────────────────────────────────────
     Route::get('/cursos',                                      [CursoController::class, 'index']);
     Route::get('/cursos/form-data',                            [CursoController::class, 'formData']);
+    Route::get('/cursos/docentes-disponibles',                 [CursoController::class, 'docentesDisponibles']);
     Route::post('/cursos',                                     [CursoController::class, 'store']);
     Route::put('/cursos/{cursoMateria}/asignar-docente',       [CursoController::class, 'asignarDocente']);
     Route::get('/cursos/{cursoMateria}/inscripciones',         [CursoController::class, 'inscripciones']);

@@ -60,6 +60,11 @@ class CursoService
         return $this->payload($this->cursos->enable($id));
     }
 
+    public function docentesDisponibles(int $idPeriodo, ?int $h1, ?int $h2, ?int $h3): Collection
+    {
+        return $this->docentes->disponiblesForSelect($idPeriodo, $h1, $h2, $h3);
+    }
+
     private function payload(array $curso): array
     {
         return [

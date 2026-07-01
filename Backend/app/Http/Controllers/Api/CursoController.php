@@ -124,6 +124,21 @@ class CursoController extends Controller
         ], 'Inscripciones cargadas correctamente.');
     }
 
+    public function docentesDisponibles(\Illuminate\Http\Request $request): JsonResponse
+    {
+        $idPeriodo = (int) $request->query('idPeriodo');
+        $idHorario1 = $request->query('idHorario1') ? (int) $request->query('idHorario1') : null;
+        $idHorario2 = $request->query('idHorario2') ? (int) $request->query('idHorario2') : null;
+        $idHorario3 = $request->query('idHorario3') ? (int) $request->query('idHorario3') : null;
+
+        $docentes = $this->cursoService->docentesDisponibles($idPeriodo, $idHorario1, $idHorario2, $idHorario3);
+
+        return ApiResponse::success(
+            ['docentes' => $docentes->values()],
+            'Docentes disponibles cargados correctamente.'
+        );
+    }
+
     public function destroy($idCursoMateria): JsonResponse
     {
         $updated = $this->cursoService->destroy($idCursoMateria);
