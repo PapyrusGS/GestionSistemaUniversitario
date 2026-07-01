@@ -46,8 +46,8 @@ function validateFieldName() {
   const val = form.nombre || ''
   if (!val.trim()) {
     localErrors.nombre = 'El nombre de la carrera es obligatorio.'
-  } else if (/\d/.test(val)) {
-    localErrors.nombre = 'No se aceptan números.'
+  } else if (!/^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/.test(val)) {
+    localErrors.nombre = 'Solo se permiten letras y espacios.'
   } else {
     localErrors.nombre = ''
   }
@@ -57,8 +57,10 @@ function validateFieldDescripcion() {
   if (errors.value.descripcion) {
     errors.value.descripcion = null
   }
-  const val = form.descripcion || ''
-  if (val.length > 150) {
+const val = form.descripcion || ''
+  if (val && !/^[A-Za-zÁÉÍÓÚáéíóúÑñ\s,.]+$/.test(val)) {
+    localErrors.descripcion = 'Solo se permiten letras.'
+  } else if (val.length > 150) {
     localErrors.descripcion = 'La descripción no puede exceder los 150 caracteres.'
   } else {
     localErrors.descripcion = ''
@@ -81,6 +83,12 @@ async function fetchCarreras() {
 async function submitForm() {
   validateFieldName()
   validateFieldDescripcion()
+  function validateAll() {
+    validateFieldName()
+    validateFieldDescripcion()
+    return !localErrors.nombre &&
+          !localErrors.descripcion
+  }
   if (localErrors.nombre || localErrors.descripcion) {
     errorMessage.value = 'Por favor, corrige los errores del formulario.'
     return
@@ -280,6 +288,7 @@ onMounted(fetchCarreras)
               <div class="cm-actions">
                 <button class="cm-btn-icon" @click="openEdit(c)" title="Editar carrera">
                   <i class="ti ti-pencil"></i>
+                  <span>Editar</span>
                 </button>
                 <button
                   v-if="c.estado"
@@ -289,6 +298,7 @@ onMounted(fetchCarreras)
                   title="Deshabilitar carrera"
                 >
                   <i class="ti ti-ban"></i>
+                  <span>Deshabilitar</span>
                 </button>
                 <button
                   v-else
@@ -298,6 +308,7 @@ onMounted(fetchCarreras)
                   title="Habilitar carrera"
                 >
                   <i class="ti ti-circle-check"></i>
+                  <span>Habilitar</span>
                 </button>
               </div>
             </td>
@@ -335,7 +346,7 @@ onMounted(fetchCarreras)
                 :disabled="submitting"
                 maxlength="50"
                 placeholder="Ej: Ingeniería en Sistemas"
-                @input="validateFieldName"
+                @input="form.nombre = form.nombre.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ\s]/g, '');validateFieldName();"
               />
               <span v-if="localErrors.nombre" class="cm-field-error">{{ localErrors.nombre }}</span>
               <span v-else-if="errors.nombre" class="cm-field-error">{{ errors.nombre[0] }}</span>
@@ -352,7 +363,7 @@ onMounted(fetchCarreras)
                 rows="3"
                 maxlength="150"
                 placeholder="Descripción opcional de la carrera..."
-                @input="validateFieldDescripcion"
+                @input="form.descripcion = form.descripcion.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ\s,.]/g, '');validateFieldDescripcion();"
               ></textarea>
               <span v-if="localErrors.descripcion" class="cm-field-error">{{ localErrors.descripcion }}</span>
               <span v-else-if="errors.descripcion" class="cm-field-error">{{ errors.descripcion[0] }}</span>
@@ -534,15 +545,16 @@ onMounted(fetchCarreras)
 .cm-btn-icon {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 30px; height: 30px;
+  gap: 6px;
+  padding: 6px 12px;
   border: 1.5px solid #e8e8e5;
   border-radius: 8px;
   background: #fff;
-  color: #5b5c5e;
   cursor: pointer;
-  font-size: 14px;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  width: auto;
+  height: auto;
+  font-size: 12px;
+  font-weight: 600;
 }
 .cm-btn-icon:hover { background: #f4f4f2; border-color: #8c9f96; color: #1a1a1a; }
 .cm-btn-icon--danger { color: #b85c5c; }

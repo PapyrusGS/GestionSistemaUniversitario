@@ -58,12 +58,20 @@ function validateFieldName() {
 
 function titleCase(str) {
   if (!str) return ''
+
+  const romanos = /^(i|ii|iii|iv|v|vi|vii|viii|ix|x)$/i
+
   return str
     .trim()
     .replace(/\s+/g, ' ')
-    .toLowerCase()
     .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .map(word => {
+      if (romanos.test(word)) {
+        return word.toUpperCase()
+      }
+
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    })
     .join(' ')
 }
 
@@ -115,6 +123,42 @@ const form = reactive({
   semestre: '',
 })
 
+const draftForm = reactive({
+  idMateria: '',
+  idCarrera: '',
+  idMateriaPrevia: '',
+  nombre: '',
+  semestre: '',
+})
+
+function saveDraft() {
+  draftForm.idMateria = form.idMateria
+  draftForm.idCarrera = form.idCarrera
+  draftForm.idMateriaPrevia = form.idMateriaPrevia
+  draftForm.nombre = form.nombre
+  draftForm.semestre = form.semestre
+}
+
+function restoreDraft() {
+  form.idMateria = draftForm.idMateria
+  form.idCarrera = draftForm.idCarrera
+  form.idMateriaPrevia = draftForm.idMateriaPrevia
+  form.nombre = draftForm.nombre
+  form.semestre = draftForm.semestre
+}
+
+function clearDraft() {
+  draftForm.idMateria = ''
+  draftForm.idCarrera = ''
+  draftForm.idMateriaPrevia = ''
+  draftForm.nombre = ''
+  draftForm.semestre = ''
+}
+
+function hasDraftData() {
+  return draftForm.idCarrera || draftForm.nombre || draftForm.semestre
+}
+
 watch(
   () => form.idCarrera,
   (newVal) => {
@@ -130,13 +174,26 @@ const isCareerActive = (idCarrera) => {
 }
 
 const prerequisitosFiltrados = () => {
-  if (!form.idCarrera) {
-    return materiasActivas.value.filter((m) => m.idMateria !== form.idMateria)
+  if (!form.idCarrera || !form.semestre) {
+    return []
+  }
+  if (form.semestre === 'Electiva') {
+    const carreraId = Number(form.idCarrera)
+    return materiasActivas.value.filter((m) => {
+      if (Number(m.idCarrera) !== carreraId) return false
+      if (m.idMateria === form.idMateria) return false
+      return true
+    })
   }
   const carreraId = Number(form.idCarrera)
-  return materiasActivas.value.filter(
-    (m) => Number(m.idCarrera) === carreraId && m.idMateria !== form.idMateria
-  )
+  const currentSemestre = Number(form.semestre)
+  return materiasActivas.value.filter((m) => {
+    if (Number(m.idCarrera) !== carreraId) return false
+    if (m.idMateria === form.idMateria) return false
+    const mSemestre = Number(m.semestre)
+    if (isNaN(mSemestre)) return false
+    return mSemestre < currentSemestre
+  })
 }
 
 function resetMessages() {
@@ -157,11 +214,18 @@ function resetForm() {
 function openCreate() {
   isEditing.value = false
   resetMessages()
-  resetForm()
+  if (hasDraftData()) {
+    restoreDraft()
+  } else {
+    resetForm()
+  }
   showModal.value = true
 }
 
 function openEdit(materia) {
+  if (!isEditing.value) {
+    saveDraft()
+  }
   isEditing.value = true
   resetMessages()
   form.idMateria = materia.idMateria
@@ -176,6 +240,12 @@ function openEdit(materia) {
 
 function closeModal() {
   showModal.value = false
+  if (isEditing.value) {
+    restoreDraft()
+    isEditing.value = false
+  } else {
+    saveDraft()
+  }
 }
 
 function payloadFromResponse(data) {
@@ -242,8 +312,9 @@ async function submitForm() {
       materias.value.unshift(payload.materia)
       materiasActivas.value.unshift(payload.materia)
     }
-    closeModal()
+    clearDraft()
     resetForm()
+    showModal.value = false
   } catch (error) {
     const response = error.response?.data
     if (response?.errors) {
@@ -495,7 +566,7 @@ onMounted(fetchMateriaData)
             <div class="mm-two-cols">
               <div class="mm-field">
                 <label class="mm-label">Nombre *</label>
-                <input v-model="form.nombre" type="text" class="mm-input" :disabled="submitting" maxlength="30" required @input="validateFieldName" />
+                <input v-model="form.nombre" type="text" class="mm-input" :disabled="submitting" maxlength="30" required @input="form.nombre = $event.target.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ\s]/g, '')" />
                 <small v-if="localErrors.nombre" class="mm-field-error">{{ localErrors.nombre }}</small>
                 <small v-else-if="errors.nombre" class="mm-field-error">{{ errors.nombre[0] }}</small>
               </div>

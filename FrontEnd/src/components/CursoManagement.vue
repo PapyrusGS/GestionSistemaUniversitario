@@ -18,10 +18,31 @@ const docentesDisponibles = ref([])
 const horarios = ref([])
 const periodos = ref([])
 const filterCarrera = ref('')
+const filterCarreraCurso = ref('')
 
 const materiasFiltradas = computed(() => {
   if (!filterCarrera.value) return materias.value
   return materias.value.filter(m => String(m.idCarrera) === String(filterCarrera.value))
+})
+
+const cursosConCarrera = computed(() => {
+  return cursos.value.map(c => {
+    const materia = allMaterias.value.find(m => m.idMateria === c.idMateria)
+    return {
+      ...c,
+      nombreCarrera: materia?.carrera || 'Sin carrera',
+    }
+  })
+})
+
+const filteredCursos = computed(() => {
+  let list = cursosConCarrera.value
+  if (filterCarreraCurso.value) {
+    list = list.filter(c =>
+      allMaterias.value.find(m => m.idMateria === c.idMateria && String(m.idCarrera) === String(filterCarreraCurso.value))
+    )
+  }
+  return list
 })
 const loading = ref(false)
 const submitting = ref(false)
@@ -253,6 +274,20 @@ onMounted(fetchCursoData)
       {{ errorMessage }}
     </div>
 
+    <!-- Filtro por carrera -->
+    <div class="cm-filter-bar">
+      <div class="cm-filter-group">
+        <label class="cm-label cm-label--filter">Filtrar por carrera</label>
+        <select v-model="filterCarreraCurso" class="cm-select cm-select--filter">
+          <option value="">Todas las carreras</option>
+          <option v-for="carrera in carreras" :key="carrera.idCarrera" :value="carrera.idCarrera">
+            {{ carrera.nombre }}
+          </option>
+        </select>
+      </div>
+      <span class="cm-filter-count">{{ filteredCursos.length }} curso{{ filteredCursos.length !== 1 ? 's' : '' }}</span>
+    </div>
+
     <!-- Tabla -->
     <div class="cm-table-wrap">
       <table class="cm-table">
@@ -260,6 +295,7 @@ onMounted(fetchCursoData)
           <tr>
             <th>Código</th>
             <th>Materia</th>
+            <th>Carrera</th>
             <th>Docente</th>
             <th>Horario</th>
             <th>Periodo</th>
@@ -268,12 +304,13 @@ onMounted(fetchCursoData)
           </tr>
         </thead>
         <tbody>
-          <tr v-if="cursos.length === 0">
-            <td colspan="7" class="cm-empty">No hay cursos registrados.</td>
+          <tr v-if="filteredCursos.length === 0">
+            <td colspan="8" class="cm-empty">No hay cursos registrados.</td>
           </tr>
-          <tr v-for="curso in cursos" :key="curso.idCursoMateria" :class="{ 'cm-row--inactive': !curso.estado }">
+          <tr v-for="curso in filteredCursos" :key="curso.idCursoMateria" :class="{ 'cm-row--inactive': !curso.estado }">
             <td><code class="cm-code">{{ curso.idCurso }}</code></td>
             <td>{{ curso.materia || 'Sin materia' }}</td>
+            <td><span class="cm-badge cm-badge--career">{{ curso.nombreCarrera }}</span></td>
             <td>{{ curso.docente || 'Sin docente' }}</td>
             <td>{{ curso.horarioDetalle || 'Sin horario' }}</td>
             <td>{{ curso.periodo || 'Sin periodo' }}</td>
@@ -630,6 +667,33 @@ onMounted(fetchCursoData)
 .cm-btn-sm {
   padding: 5px 12px;
   font-size: 11px;
+}
+
+/* ── Filter bar ── */
+.cm-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.cm-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.cm-filter-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--uni-muted);
+}
+
+/* ── Career badge ── */
+.cm-badge--career {
+  background: var(--color-linen);
+  color: var(--uni-text);
+  font-size: 10px;
+  font-weight: 600;
 }
 
 /* ── Backdrop ── */

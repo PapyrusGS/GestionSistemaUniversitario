@@ -165,11 +165,11 @@ const activeErrors = computed(() => {
 })
 
 function filterName(value) {
-  return value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]/g, '')
+  return value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]/g, '').slice(0, 20)
 }
 
 function filterDigits(value) {
-  return value.replace(/\D/g, '')
+  return value.replace(/\D/g, '').slice(0, 17)
 }
 
 function validateField(field) {
