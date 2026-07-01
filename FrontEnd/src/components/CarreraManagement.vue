@@ -90,6 +90,12 @@ async function submitForm() {
   clearMessages()
   errors.value = {}
 
+  if (!validateAll()) {
+    submitting.value = false
+    errorMessage.value = 'Por favor, corrige los errores del formulario.'
+    return
+  }
+
   try {
     let data
     if (isEditing.value) {
