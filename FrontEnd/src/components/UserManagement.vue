@@ -223,6 +223,69 @@ async function fetchCareers() {
   }
 }
 
+const draftForm = reactive({
+  nombre1: '',
+  nombre2: '',
+  apellido1: '',
+  apellido2: '',
+  ci: '',
+  correo: '',
+  telefono: '',
+  password: '',
+  password_confirmation: '',
+  idRol: '',
+  idCarrera: '',
+  estado: true,
+})
+
+function saveDraft() {
+  draftForm.nombre1 = form.nombre1
+  draftForm.nombre2 = form.nombre2
+  draftForm.apellido1 = form.apellido1
+  draftForm.apellido2 = form.apellido2
+  draftForm.ci = form.ci
+  draftForm.correo = form.correo
+  draftForm.telefono = form.telefono
+  draftForm.password = form.password
+  draftForm.password_confirmation = form.password_confirmation
+  draftForm.idRol = form.idRol
+  draftForm.idCarrera = form.idCarrera
+  draftForm.estado = form.estado
+}
+
+function restoreDraft() {
+  form.nombre1 = draftForm.nombre1
+  form.nombre2 = draftForm.nombre2
+  form.apellido1 = draftForm.apellido1
+  form.apellido2 = draftForm.apellido2
+  form.ci = draftForm.ci
+  form.correo = draftForm.correo
+  form.telefono = draftForm.telefono
+  form.password = draftForm.password
+  form.password_confirmation = draftForm.password_confirmation
+  form.idRol = draftForm.idRol
+  form.idCarrera = draftForm.idCarrera
+  form.estado = draftForm.estado
+  
+  errors.value = {}
+  Object.keys(formErrors).forEach(k => formErrors[k] = '')
+}
+
+function clearDraft() {
+  draftForm.nombre1 = ''
+  draftForm.nombre2 = ''
+  draftForm.apellido1 = ''
+  draftForm.apellido2 = ''
+  draftForm.ci = ''
+  draftForm.correo = ''
+  draftForm.telefono = ''
+  draftForm.password = ''
+  draftForm.password_confirmation = ''
+  draftForm.idRol = ''
+  draftForm.idCarrera = ''
+  draftForm.estado = true
+}
+
 function resetForm() {
   form.nombre1 = ''
   form.nombre2 = ''
@@ -250,14 +313,20 @@ function resetMessages() {
 }
 
 function openModal() {
-  resetForm()
   resetMessages()
+  if (isEditing.value) {
+    restoreDraft()
+  }
+  isEditing.value = false
+  editingUserId.value = null
   showCreateModal.value = true
 }
 
 function openEditModal(usr) {
-  resetForm()
   resetMessages()
+  if (!isEditing.value) {
+    saveDraft()
+  }
   isEditing.value = true
   editingUserId.value = usr.idUsuario
 
@@ -273,6 +342,15 @@ function openEditModal(usr) {
   form.estado = usr.estado !== undefined ? usr.estado : true
 
   showCreateModal.value = true
+}
+
+function closeModal() {
+  showCreateModal.value = false
+  if (isEditing.value) {
+    restoreDraft()
+    isEditing.value = false
+    editingUserId.value = null
+  }
 }
 
 async function submitForm() {
@@ -307,6 +385,7 @@ async function submitForm() {
       if (index !== -1) {
         users.value[index] = resPayload.user
       }
+      clearDraft()
       resetForm()
       showCreateModal.value = false
     } else {
@@ -314,6 +393,7 @@ async function submitForm() {
       const resPayload = data.data ?? data
       successMessage.value = data.message || 'Usuario registrado correctamente.'
       users.value.push(resPayload.user)
+      clearDraft()
       resetForm()
       showCreateModal.value = false
     }
@@ -327,6 +407,38 @@ async function submitForm() {
     }
   } finally {
     submittings.value = false
+  }
+}
+
+async function toggleEstado(usr) {
+  loading.value = true
+  resetMessages()
+  try {
+    const payload = {
+      nombre1: usr.nombre1,
+      nombre2: usr.nombre2,
+      apellido1: usr.apellido1,
+      apellido2: usr.apellido2,
+      ci: usr.ci,
+      correo: usr.correo,
+      telefono: usr.telefono,
+      idCarrera: usr.idCarrera,
+      estado: !usr.estado
+    }
+
+    const { data } = await props.api.put(`/users/${usr.idUsuario}`, payload)
+    const resPayload = data.data ?? data
+    
+    const index = users.value.findIndex(u => u.idUsuario === usr.idUsuario)
+    if (index !== -1) {
+      users.value[index] = resPayload.user
+    }
+    successMessage.value = `Usuario "${usr.nombreCompleto}" ${!usr.estado ? 'activado' : 'desactivado'} correctamente.`
+  } catch (error) {
+    const response = error.response?.data
+    errorMessage.value = response?.message || 'No se pudo cambiar el estado del usuario.'
+  } finally {
+    loading.value = false
   }
 }
 
@@ -416,9 +528,29 @@ onMounted(() => {
               </span>
             </td>
             <td>
-              <button class="um-btn-ghost um-btn-sm" type="button" @click="openEditModal(usr)">
-                <i class="ti ti-edit"></i> Editar
-              </button>
+              <div style="display: flex; gap: 6px; align-items: center;">
+                <button class="um-btn-ghost um-btn-sm" type="button" @click="openEditModal(usr)">
+                  <i class="ti ti-edit"></i> Editar
+                </button>
+                <button
+                  v-if="usr.estado"
+                  class="uni-btn-action-danger um-btn-sm"
+                  type="button"
+                  :disabled="loading"
+                  @click="toggleEstado(usr)"
+                >
+                  Desactivar
+                </button>
+                <button
+                  v-else
+                  class="uni-btn-action-success um-btn-sm"
+                  type="button"
+                  :disabled="loading"
+                  @click="toggleEstado(usr)"
+                >
+                  Activar
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -429,12 +561,12 @@ onMounted(() => {
 
   <!-- ── MODAL ───────────────────────────────────────────── -->
   <Teleport to="body">
-    <div v-if="showCreateModal" class="um-backdrop" @mousedown.self="showCreateModal = false">
+    <div v-if="showCreateModal" class="um-backdrop" @mousedown.self="closeModal">
       <div class="um-modal">
 
         <div class="um-modal-header">
           <h4>{{ isEditing ? 'Editar Usuario' : 'Registrar nuevo usuario' }}</h4>
-          <button class="um-close" type="button" @click="showCreateModal = false">
+          <button class="um-close" type="button" @click="closeModal">
             <i class="ti ti-x"></i>
           </button>
         </div>
@@ -662,7 +794,7 @@ onMounted(() => {
 
             <!-- Acciones -->
             <div class="um-form-actions">
-              <button class="um-btn-ghost" type="button" @click="showCreateModal = false" :disabled="submittings">
+              <button class="um-btn-ghost" type="button" @click="closeModal" :disabled="submittings">
                 Cancelar
               </button>
               <button class="um-btn-primary" type="submit" :disabled="submittings">
