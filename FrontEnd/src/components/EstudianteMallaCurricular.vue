@@ -11,10 +11,32 @@ const emit = defineEmits(['message'])
 const loading = ref(false)
 const malla   = ref([])
 
+// Valida que cada bloque de semestre tenga forma correcta antes de mostrarlo:
+// número de semestre válido (entero >= 0) y un arreglo de materias.
+function isSemestreValido(semestre) {
+  if (!semestre || typeof semestre !== 'object') return false
+  const num = Number(semestre.semestre)
+  if (Number.isNaN(num) || num < 0 || !Number.isInteger(num)) return false
+  return Array.isArray(semestre.materias)
+}
+
+// Orden: semestres 1, 2, 3... de forma ascendente, y las electivas
+// (semestre 0) siempre al final de la malla, nunca al inicio.
+const mallaOrdenada = computed(() => {
+  return malla.value
+    .filter(isSemestreValido)
+    .slice()
+    .sort((a, b) => {
+      const semA = Number(a.semestre) === 0 ? Infinity : Number(a.semestre)
+      const semB = Number(b.semestre) === 0 ? Infinity : Number(b.semestre)
+      return semA - semB
+    })
+})
+
 const progreso = computed(() => {
-  if (!malla.value.length) return { pct: 0, aprobadas: 0, total: 0 }
-  const total = malla.value.reduce((c, s) => c + s.materias.length, 0)
-  const aprobadas = malla.value.reduce(
+  if (!mallaOrdenada.value.length) return { pct: 0, aprobadas: 0, total: 0 }
+  const total = mallaOrdenada.value.reduce((c, s) => c + s.materias.length, 0)
+  const aprobadas = mallaOrdenada.value.reduce(
     (c, s) => c + s.materias.filter(m => statusTone(m.estadoAcademico) === 'aprobada').length, 0
   )
   return {
@@ -73,13 +95,12 @@ onMounted(loadMalla)
       </button>
     </div>
 
-      <!-- Leyenda -->
-      <div class="mc-legend">
-        <span class="mc-legend-item mc-legend--aprobada"><i class="ti ti-circle-check"></i> Aprobada</span>
-        <span class="mc-legend-item mc-legend--reprobada"><i class="ti ti-circle-x"></i> Reprobada</span>
-        <span class="mc-legend-item mc-legend--inscrita"><i class="ti ti-pencil"></i> En curso</span>
-        <span class="mc-legend-item mc-legend--pendiente"><i class="ti ti-clock"></i> Pendiente</span>
-      </div>
+    <!-- Leyenda -->
+    <div class="mc-legend">
+      <span class="mc-legend-item mc-legend--aprobada"><i class="ti ti-circle-check"></i> Aprobada</span>
+      <span class="mc-legend-item mc-legend--reprobada"><i class="ti ti-circle-x"></i> Reprobada</span>
+      <span class="mc-legend-item mc-legend--inscrita"><i class="ti ti-pencil"></i> En curso</span>
+      <span class="mc-legend-item mc-legend--pendiente"><i class="ti ti-clock"></i> Pendiente</span>
     </div>
 
     <!-- ── Cargando ── -->
@@ -89,23 +110,23 @@ onMounted(loadMalla)
     </div>
 
     <!-- ── Vacío ── -->
-    <div v-else-if="!malla.length" class="mc-empty">
+    <div v-else-if="!mallaOrdenada.length" class="mc-empty">
       <i class="ti ti-layout-grid-remove mc-empty-icon"></i>
       <p class="mc-empty-title">Sin malla curricular</p>
       <p class="mc-empty-sub">No hay malla asociada a tu carrera.</p>
     </div>
 
-    <!-- ── Grid de semestres ── -->
+    <!-- ── Grid de semestres (1, 2, 3... y Electivas al final) ── -->
     <div v-else class="mc-grid">
-      <article v-for="semestre in malla" :key="semestre.semestre" class="mc-semestre">
+      <article v-for="semestre in mallaOrdenada" :key="semestre.semestre" class="mc-semestre">
 
         <!-- Cabecera del semestre -->
         <div class="mc-sem-head">
-          <div class="mc-sem-num">
-            <span class="mc-sem-num-label">{{ semestre.semestre }}</span>
+          <div class="mc-sem-num" :class="{ 'mc-sem-num--electiva': semestre.semestre === 0 }">
+            <span class="mc-sem-num-label">{{ semestre.semestre === 0 ? 'E' : semestre.semestre }}</span>
           </div>
           <div class="mc-sem-info">
-            <span class="mc-sem-title">Semestre {{ semestre.semestre }}</span>
+            <span class="mc-sem-title">{{ semestre.semestre === 0 ? 'Electivas' : 'Semestre ' + semestre.semestre }}</span>
             <span class="mc-sem-count">
               {{ semestre.materias.filter(m => statusTone(m.estadoAcademico) === 'aprobada').length }}
               /
@@ -154,6 +175,7 @@ onMounted(loadMalla)
 
       </article>
     </div>
+  </div>
 </template>
 
 <style scoped>
@@ -273,6 +295,7 @@ onMounted(loadMalla)
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
+.mc-sem-num--electiva { background: #bfb09b; }
 .mc-sem-num-label {
   font-size: 13px; font-weight: 700; color: #fff; line-height: 1;
 }

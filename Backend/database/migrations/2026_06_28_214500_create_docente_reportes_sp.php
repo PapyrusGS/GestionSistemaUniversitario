@@ -18,19 +18,28 @@ return new class extends Migration
         DB::unprepared(<<<SQL
 CREATE PROCEDURE sp_docente_filtros(IN p_docente_id INT)
 BEGIN
-    -- Obtener periodos del docente (incluir todos, activos e inactivos)
+    -- Obtener periodos del docente
     SELECT DISTINCT 'periodo' AS tipo, CAST(p.idPeriodo AS CHAR) AS id, p.nombre AS valor
     FROM periodos p
     INNER JOIN cursos_materias cm ON cm.idPeriodo = p.idPeriodo
-    WHERE cm.idDocente = p_docente_id
+    INNER JOIN materias m ON cm.idMateria = m.idMateria
+    INNER JOIN cursos c ON cm.idCurso = c.idCurso
+    WHERE cm.idDocente = p_docente_id 
+      AND cm.estado = 1 
+      AND c.estado = 1 
+      AND m.estado = 1
     
     UNION ALL
     
-    -- Obtener materias del docente
+    -- Obtener materias del docente (solo activas)
     SELECT DISTINCT 'materia' AS tipo, cm.idMateria COLLATE utf8mb4_unicode_ci AS id, m.nombre AS valor
     FROM cursos_materias cm
-    INNER JOIN materias m ON m.idMateria = cm.idMateria
-    WHERE cm.idDocente = p_docente_id AND cm.estado = 1;
+    INNER JOIN materias m ON cm.idMateria = m.idMateria
+    INNER JOIN cursos c ON cm.idCurso = c.idCurso
+    WHERE cm.idDocente = p_docente_id 
+      AND cm.estado = 1 
+      AND m.estado = 1
+      AND c.estado = 1;
 END
 SQL);
 

@@ -64,14 +64,69 @@ function displayValue(value) {
   return value
 }
 
+// Campos donde puede venir el periodo/gestión académica dentro de una fila.
+const PERIODO_KEYS = ['periodo', 'gestion', 'periodoacademico', 'gestionacademica', 'periodogestion']
+
+// Revisa si una fila (o materia anidada) corresponde al periodo seleccionado,
+// comparando por IGUALDAD EXACTA contra campos explícitos de periodo/gestión
+// (en vez de "incluye", que generaba falsos positivos con ids, notas o fechas
+// que casualmente contenían los mismos dígitos que el periodo).
+function rowMatchesPeriodo(row, periodo) {
+  if (!row || typeof row !== 'object') return false
+
+  const directMatch = Object.entries(row).some(([key, val]) => {
+    if (val === null || val === undefined) return false
+    const k = key.toLowerCase()
+    if (!PERIODO_KEYS.some(pk => k.includes(pk))) return false
+    return String(val).toLowerCase().trim() === periodo.toLowerCase().trim()
+  })
+  if (directMatch) return true
+
+  // El historial académico viene agrupado por semestre, con las materias
+  // anidadas en un arreglo (`materias`). Si el periodo no está en el nivel
+  // superior, lo buscamos dentro de cada materia anidada.
+  return Object.values(row).some(val => {
+    if (Array.isArray(val)) {
+      return val.some(item => rowMatchesPeriodo(item, periodo))
+    }
+    return false
+  })
+}
+
+function filtrarPorPeriodo(data) {
+  if (reportePeriodo.value === 'todos' || !data?.length) return data
+  const periodo = reportePeriodo.value
+
+  return data
+    .map(row => {
+      // Si la fila trae materias anidadas (caso del historial agrupado por
+      // semestre), filtramos también ese arreglo interno para no arrastrar
+      // materias de otros periodos dentro del mismo grupo.
+      if (Array.isArray(row.materias)) {
+        const materiasDelPeriodo = row.materias.filter(m => rowMatchesPeriodo(m, periodo))
+        const grupoCoincide = rowMatchesPeriodo({ ...row, materias: undefined }, periodo)
+
+        if (materiasDelPeriodo.length) {
+          return { ...row, materias: materiasDelPeriodo }
+        }
+        return grupoCoincide ? row : null
+      }
+
+      return rowMatchesPeriodo(row, periodo) ? row : null
+    })
+    .filter(Boolean)
+}
+
 async function generarReporte() {
   loading.value = true
   reporte.value = null
   try {
-    const body = { tipo: reporteTipo.value }
-    if (reportePeriodo.value !== 'todos') body.periodo = reportePeriodo.value
-    const { data: res } = await props.api.post('/estudiante/reporte', body)
-    reporte.value = res.data ?? res
+    const params = { tipo: reporteTipo.value }
+    if (reportePeriodo.value !== 'todos') params.periodo = reportePeriodo.value
+    const { data: res } = await props.api.post('/estudiante/reporte', params)
+    const raw = res.data ?? res
+    if (raw?.data) raw.data = filtrarPorPeriodo(raw.data)
+    reporte.value = raw
   } catch (e) {
     emit('message', { type: 'error', text: e.response?.data?.message || 'No pudimos generar el reporte.' })
   } finally {
@@ -85,13 +140,13 @@ async function exportarReporte(tipo) {
   else exportingCsv.value = true
 
   try {
-    const body = { tipo: reporteTipo.value }
-    if (reportePeriodo.value !== 'todos') body.periodo = reportePeriodo.value
+    const params = { tipo: reporteTipo.value }
+    if (reportePeriodo.value !== 'todos') params.periodo = reportePeriodo.value
 
     // El backend recibe el tipo de export como query param o en el body
     const response = await props.api.post(
-      `/estudiante/reporte/${tipo}`,   // ← ajusta según tu ruta real
-      body,
+      `/estudiante/reporte/${tipo}`,
+      params,
       { responseType: 'blob' }
     )
 

@@ -43,6 +43,8 @@ const studentMessage = ref('')
 const studentMessageType = ref('')
 
 const loginForm = reactive({ login: '', password: '' })
+const showPassword = ref(false)
+const showLogoutConfirm = ref(false)
 
 api.interceptors.request.use((config) => {
   if (token.value) config.headers.Authorization = `Bearer ${token.value}`
@@ -78,6 +80,8 @@ function clearSession() {
   token.value = ''
   sessionStorage.removeItem(sessionKey)
   user.value = null
+  loginForm.login = ''
+  loginForm.password = ''
   adminSection.value = 'usuarios'
   studentSection.value = 'materias'
   currentGlobalView.value = 'dashboard'
@@ -100,11 +104,17 @@ function resetMessages() {
 
 function parseError(error, fallback) {
   const response = error.response?.data
-  if (response?.message) return response.message
+
+  // Prioridad 1: errores de validación específicos por campo (login, password, etc.)
   if (response?.errors) {
     const firstField = Object.values(response.errors)[0]
     if (Array.isArray(firstField) && firstField.length > 0) return firstField[0]
   }
+
+  // Prioridad 2: mensaje general del backend, si no hay errors detallados
+  if (response?.message) return response.message
+  if (response?.error) return response.error
+
   return fallback
 }
 
@@ -119,9 +129,27 @@ async function loadProfile() {
   }
 }
 
+const loginErrors = reactive({ login: '', password: '' })
+
+function validateLogin() {
+  let valid = true
+  loginErrors.login = ''
+  loginErrors.password = ''
+  if (!loginForm.login.trim()) {
+    loginErrors.login = 'El correo es obligatorio.'
+    valid = false
+  }
+  if (!loginForm.password) {
+    loginErrors.password = 'La contraseña es obligatoria.'
+    valid = false
+  }
+  return valid
+}
+
 async function login() {
-  loading.value = true
   resetMessages()
+  if (!validateLogin()) return
+  loading.value = true
   try {
     const { data } = await api.post('/auth/login', loginForm)
     const payload = data.data ?? data
@@ -134,8 +162,13 @@ async function login() {
   }
 }
 
-async function logout() {
+function confirmLogout() {
+  showLogoutConfirm.value = true
+}
+
+async function executeLogout() {
   loading.value = true
+  showLogoutConfirm.value = false
   resetMessages()
   try {
     await api.post('/auth/logout')
@@ -143,6 +176,10 @@ async function logout() {
     clearSession()
     loading.value = false
   }
+}
+
+function cancelLogout() {
+  showLogoutConfirm.value = false
 }
 
 onMounted(loadProfile)
@@ -160,20 +197,25 @@ onMounted(loadProfile)
           <div class="uni-avatar-placeholder">
             <i class="ti ti-user-circle"></i>
           </div>
-          <div v-if="successMessage" class="uni-alert uni-alert--success">{{ successMessage }}</div>
-          <div v-if="errorMessage"   class="uni-alert uni-alert--error">{{ errorMessage }}</div>
+          <div v-if="successMessage" class="uni-alert uni-alert--success"><i class="ti ti-circle-check"></i> {{ successMessage }}</div>
+          <div v-if="errorMessage"   class="uni-alert uni-alert--error"><i class="ti ti-alert-circle"></i> {{ errorMessage }}</div>
           <form @submit.prevent="login" class="uni-form-grid">
             <div class="uni-field">
               <div class="uni-input-wrap">
                 <i class="ti ti-user"></i>
-                <input v-model.trim="loginForm.login" type="text" placeholder="Usuario o Correo" autocomplete="username" required />
+                <input v-model.trim="loginForm.login" type="text" placeholder="Usuario o Correo" autocomplete="username" />
               </div>
+              <span v-if="loginErrors.login" class="uni-field-error">{{ loginErrors.login }}</span>
             </div>
             <div class="uni-field">
               <div class="uni-input-wrap">
                 <i class="ti ti-lock"></i>
-                <input v-model="loginForm.password" type="password" placeholder="Contraseña" autocomplete="current-password" required />
+                <input v-model="loginForm.password" :type="showPassword ? 'text' : 'password'" placeholder="Contraseña" autocomplete="current-password" />
+                <button type="button" class="uni-pw-toggle" @click="showPassword = !showPassword" tabindex="-1">
+                  <i :class="showPassword ? 'ti ti-eye-off' : 'ti ti-eye'"></i>
+                </button>
               </div>
+              <span v-if="loginErrors.password" class="uni-field-error">{{ loginErrors.password }}</span>
             </div>
             <button class="uni-btn-primary" type="submit" :disabled="loading">
               {{ loading ? 'VERIFICANDO...' : 'INGRESAR' }}
@@ -181,14 +223,10 @@ onMounted(loadProfile)
           </form>
         </div>
         <div class="uni-dots-indicator">
-          <span class="active"></span><span></span><span></span>
         </div>
       </div>
       <div class="uni-capsule-right">
         <nav class="uni-top-nav">
-          <span class="uni-nav-link">Inicio</span>
-          <span class="uni-nav-link">Soporte</span>
-          <span class="uni-nav-link">Contacto</span>
         </nav>
         <div class="uni-hero-content">
           <h1>Bienvenido</h1>
@@ -199,36 +237,6 @@ onMounted(loadProfile)
   </div>
 
   <div v-else class="uni-workspace">
-    <aside class="uni-sidebar">
-      <div class="uni-sidebar-top">
-        <div class="uni-sidebar-brand"><i class="ti ti-building-community"></i></div>
-        
-        <button 
-          v-if="currentGlobalView === 'dashboard'" 
-          class="uni-icon-btn" 
-          @click="currentGlobalView = 'perfil'" 
-          title="Ver Perfil"
-        >
-          <i class="ti ti-user"></i><span>Perfil</span>
-        </button>
-        
-        <button 
-          v-else 
-          class="uni-icon-btn uni-icon-btn--back" 
-          @click="currentGlobalView = 'dashboard'" 
-          title="Volver al Menú"
-        >
-          <i class="ti ti-arrow-back-up"></i><span>Volver</span>
-        </button>
-      </div>
-      
-      <div class="uni-sidebar-bottom">
-        <button class="uni-icon-btn uni-icon-btn--logout" :disabled="loading" @click="logout" title="Cerrar sesión">
-          <i class="ti ti-logout"></i><span>{{ loading ? 'Saliendo' : 'Cerrar Sesión' }}</span>
-        </button>
-      </div>
-    </aside>
-
     <main class="uni-main">
       <div class="uni-main-header">
         <div class="uni-main-header-left">
@@ -237,7 +245,19 @@ onMounted(loadProfile)
           </span>
           <h1 class="uni-main-title">{{ fullName }}</h1>
         </div>
-        <span class="uni-role-badge" :data-tone="badgeTone">{{ roleName }}</span>
+        <div class="uni-main-header-right">
+          <div class="uni-header-actions">
+            <button v-if="currentGlobalView === 'dashboard'" class="uni-header-btn" @click="currentGlobalView = 'perfil'" title="Ver Perfil">
+              <i class="ti ti-user"></i><span>Perfil</span>
+            </button>
+            <button v-else class="uni-header-btn uni-header-btn--back" @click="currentGlobalView = 'dashboard'" title="Volver">
+              <i class="ti ti-arrow-back-up"></i><span>Volver</span>
+            </button>
+            <button class="uni-header-btn uni-header-btn--logout" @click="confirmLogout" :disabled="loading" title="Cerrar sesión">
+              <i class="ti ti-logout"></i><span>{{ loading ? 'Saliendo...' : 'Salir' }}</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       <PerfilView 
@@ -307,6 +327,24 @@ onMounted(loadProfile)
         </div>
       </template>
     </main>
+
+    <!-- Confirmación de cierre de sesión -->
+    <Teleport to="body">
+      <div v-if="showLogoutConfirm" class="uni-backdrop" @mousedown.self="cancelLogout">
+        <div class="uni-confirm-dialog">
+          <div class="uni-confirm-icon"><i class="ti ti-alert-triangle"></i></div>
+          <h3>Cerrar sesión</h3>
+          <p>¿Estás seguro de que deseas salir del sistema?</p>
+          <div class="uni-confirm-actions">
+            <button class="uni-btn-ghost" type="button" @click="cancelLogout">Cancelar</button>
+            <button class="uni-btn-danger" type="button" @click="executeLogout" :disabled="loading">
+              {{ loading ? 'Saliendo...' : 'Cerrar sesión' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
   </div>
 </template>
 
@@ -378,11 +416,12 @@ button { cursor: pointer; }
 .uni-input-wrap input {
   width: 100%; background: transparent;
   border: 1.5px solid var(--color-dark-gray); border-radius: 30px;
-  color: var(--color-black); padding: 12px 16px 12px 46px;
+  color: var(--color-black); padding: 12px 40px 12px 46px;
   font-size: 13px; font-weight: 500; outline: none; transition: all .2s;
 }
 .uni-input-wrap input:focus { border-color: var(--color-mint-dark); box-shadow: 0 0 0 3px rgba(103,125,123,.15); }
 .uni-input-wrap input::placeholder { color: #909090; font-weight: 400; }
+.uni-field-error { display: block; font-size: 11px; color: #b85c5c; margin-top: 5px; padding-left: 4px; font-weight: 500; }
 .uni-btn-primary {
   width: 100%; background: var(--color-mint-dark); border: none; border-radius: 30px;
   color: var(--color-white); font-size: 12px; font-weight: 700; padding: 13px;
@@ -410,35 +449,80 @@ button { cursor: pointer; }
 /* ══ WORKSPACE ══════════════════════════════════════════════════ */
 .uni-workspace {
   width: 100%; height: 100%;
-  display: grid; grid-template-columns: var(--sidebar-w) 1fr;
+  display: grid; grid-template-columns: 1fr;
   overflow: hidden; background: #f4f4f2;
 }
 
-/* ── Sidebar delgado ── */
-.uni-sidebar {
-  width: var(--sidebar-w); height: 100%;
-  background: var(--color-white);
-  border-right: 1px solid rgba(0,0,0,.07);
-  display: flex; flex-direction: column;
-  align-items: center; padding: 1.25rem 0;
+/* ── Botón toggle de contraseña ── */
+.uni-pw-toggle {
+  position: absolute; right: 14px; top: 50%;
+  transform: translateY(-50%);
+  width: 24px; height: 24px;
+  background: none; border: none; color: var(--color-dark-gray);
+  cursor: pointer; padding: 0; margin: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
 }
-.uni-sidebar-top    { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; padding: 0 8px; }
-.uni-sidebar-bottom { margin-top: auto; width: 100%; padding: 0 8px; }
-.uni-sidebar-brand  { font-size: 22px; color: var(--color-mint-dark); margin-bottom: 1rem; }
+.uni-pw-toggle i {
+  display: block;
+  line-height: 1;
+}
+.uni-pw-toggle:hover { color: var(--color-mint-dark); }
 
-.uni-icon-btn {
-  width: 100%; background: transparent; border: none; border-radius: 10px;
-  color: var(--uni-muted); display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 3px;
-  padding: 9px 4px; font-size: 9px; font-weight: 600;
-  letter-spacing: .02em; text-transform: uppercase;
-  transition: background .15s, color .15s; cursor: pointer; line-height: 1;
+/* ── Acciones del header ── */
+.uni-main-header-right {
+  display: flex; align-items: center; gap: 0.75rem;
+  flex-shrink: 0;
 }
-.uni-icon-btn i { font-size: 20px; line-height: 1; }
-.uni-icon-btn:hover { background: var(--color-linen); color: var(--color-black); }
-.uni-icon-btn--back { color: var(--color-mint-dark); font-weight: 700; }
-.uni-icon-btn--logout { color: #a05050; }
-.uni-icon-btn--logout:hover { background: #faf0f0; color: #7a2424; }
+.uni-header-actions {
+  display: flex; align-items: center; gap: 4px;
+}
+.uni-header-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: transparent; border: none; border-radius: 8px;
+  padding: 6px 10px; font-size: 11px; font-weight: 600;
+  color: var(--uni-muted); cursor: pointer;
+  transition: background .15s, color .15s; line-height: 1;
+}
+.uni-header-btn i { font-size: 16px; }
+.uni-header-btn:hover { background: var(--color-linen); color: var(--color-black); }
+.uni-header-btn--back { color: var(--color-mint-dark); }
+.uni-header-btn--logout { color: #a05050; }
+.uni-header-btn--logout:hover { background: #faf0f0; color: #7a2424; }
+.uni-header-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Confirmación de cierre de sesión ── */
+.uni-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: grid; place-items: center;
+  padding: 1rem; z-index: 100;
+}
+.uni-confirm-dialog {
+  background: #fff; border-radius: 18px;
+  padding: 2rem; max-width: 380px; width: 100%;
+  text-align: center; box-shadow: 0 24px 48px rgba(0,0,0,0.14);
+}
+.uni-confirm-icon { font-size: 3rem; color: #dca6a6; margin-bottom: 1rem; line-height: 1; }
+.uni-confirm-dialog h3 { margin: 0 0 0.5rem; font-size: 1.15rem; font-weight: 700; color: #1a1a1a; }
+.uni-confirm-dialog p { margin: 0 0 1.5rem; font-size: 0.85rem; color: #5b5c5e; }
+.uni-confirm-actions { display: flex; gap: 0.6rem; justify-content: center; }
+.uni-btn-ghost {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: transparent; color: #5b5c5e;
+  border: 1.5px solid #d0cfca; border-radius: 20px;
+  padding: 8px 18px; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: background .15s;
+}
+.uni-btn-ghost:hover { background: #f4f4f2; color: #1a1a1a; }
+.uni-btn-danger {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #b85c5c; color: #fff; border: none;
+  border-radius: 20px; padding: 8px 18px; font-size: 12px;
+  font-weight: 600; cursor: pointer; transition: background .15s;
+}
+.uni-btn-danger:hover { background: #9c4646; }
+.uni-btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* ── Área principal ── */
 .uni-main {
@@ -554,10 +638,9 @@ button { cursor: pointer; }
   .uni-capsule-right { display: none; }
 }
 @media (max-width: 640px) {
-  .uni-workspace { grid-template-columns: 1fr; }
-  .uni-sidebar { display: none; }
   .uni-dashboard-card { margin: 1rem; }
   .uni-main-header { padding: 1rem 1.25rem; }
+  .uni-main-header-right { flex-wrap: wrap; }
   .uni-info-grid { grid-template-columns: 1fr; }
 }
 </style>
