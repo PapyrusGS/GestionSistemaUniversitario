@@ -175,4 +175,24 @@ class CursoController extends Controller
             return ApiResponse::error($e->getMessage(), null, 422);
         }
     }
+
+    public function quitarEstudiante($idInscripcion): JsonResponse
+    {
+        try {
+            $inscripcion = \App\Models\Inscripcion::findOrFail($idInscripcion);
+            $inscripcion->estado = 0;
+            $inscripcion->save();
+
+            return ApiResponse::success(
+                null,
+                'Estudiante retirado del curso correctamente.'
+            );
+        } catch (\Throwable $e) {
+            return ApiResponse::error(
+                $e->getMessage() ?: 'No se pudo retirar al estudiante del curso.',
+                null,
+                422
+            );
+        }
+    }
 }

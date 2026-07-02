@@ -59,6 +59,14 @@ const showConfirmModal = ref(false)
 const cursoToDisable = ref(null)
 const showCreateModal = ref(false)
 
+// Estado para modal de detalles y retiro de estudiantes
+const showDetailsModal = ref(false)
+const selectedCurso = ref(null)
+const enrolledStudents = ref([])
+const loadingStudents = ref(false)
+const showConfirmRemoveModal = ref(false)
+const studentToRemove = ref(null)
+
 const form = reactive({
   idCurso: '',
   idMateria: '',
@@ -304,6 +312,56 @@ async function enableCurso(curso) {
   }
 }
 
+async function showDetails(curso) {
+  selectedCurso.value = curso
+  showDetailsModal.value = true
+  enrolledStudents.value = []
+  await fetchEnrolledStudents()
+}
+
+async function fetchEnrolledStudents() {
+  if (!selectedCurso.value) return
+  loadingStudents.value = true
+  try {
+    const response = await props.api.get(`/cursos/${selectedCurso.value.idCursoMateria}/inscripciones`)
+    const payload = payloadFromResponse(response.data)
+    enrolledStudents.value = payload.estudiantes || []
+  } catch (error) {
+    errorMessage.value = error.response?.data?.message || 'No se pudieron cargar las inscripciones del curso.'
+  } finally {
+    loadingStudents.value = false
+  }
+}
+
+function askRemoveStudent(student) {
+  studentToRemove.value = student
+  showConfirmRemoveModal.value = true
+}
+
+function cancelRemoveStudent() {
+  showConfirmRemoveModal.value = false
+  studentToRemove.value = null
+}
+
+async function confirmRemoveStudent() {
+  if (!studentToRemove.value) return
+  const idInscripcion = studentToRemove.value.idInscripcion
+  showConfirmRemoveModal.value = false
+  submitting.value = true
+  resetMessages()
+  try {
+    const response = await props.api.delete(`/cursos/inscripciones/${idInscripcion}`)
+    successMessage.value = response.data.message || 'Estudiante retirado del curso correctamente.'
+    await fetchEnrolledStudents()
+    await fetchCursoData()
+  } catch (error) {
+    errorMessage.value = error.response?.data?.message || 'No se pudo retirar al estudiante del curso.'
+  } finally {
+    submitting.value = false
+    studentToRemove.value = null
+  }
+}
+
 onMounted(fetchCursoData)
 </script>
 
@@ -384,6 +442,15 @@ onMounted(fetchCursoData)
               </span>
             </td>
             <td>
+              <button
+                class="cm-btn-secondary cm-btn-sm"
+                type="button"
+                @click="showDetails(curso)"
+                style="margin-right: 0.4rem; padding: 5px 10px;"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 3px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                Detalles
+              </button>
               <button
                 v-if="curso.estado"
                 class="uni-btn-action-danger cm-btn-sm"
@@ -640,6 +707,142 @@ onMounted(fetchCursoData)
             </button>
             <button class="uni-btn-action-danger" type="button" :disabled="submitting" @click="confirmDisableCurso">
               {{ submitting ? 'Deshabilitando...' : 'Confirmar deshabilitar' }}
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- ── Modal: Detalle de curso y estudiantes inscritos ── -->
+    <Teleport to="body">
+      <div v-if="showDetailsModal" class="cm-backdrop" @mousedown.self="showDetailsModal = false">
+        <div class="cm-modal cm-modal--details">
+          
+          <div class="cm-modal-header">
+            <div>
+              <h4 class="cm-modal-title">Detalles de Curso</h4>
+              <p class="cm-modal-sub">Información general y alumnos inscritos en este curso.</p>
+            </div>
+            <button class="cm-close-btn" type="button" @click="showDetailsModal = false">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <div class="cm-details-content">
+            <!-- Ficha informativa del curso -->
+            <div class="cm-details-info-grid" v-if="selectedCurso">
+              <div class="cm-details-info-card">
+                <span>Aula / Curso</span>
+                <strong>{{ selectedCurso.idCurso }}</strong>
+              </div>
+              <div class="cm-details-info-card">
+                <span>Materia</span>
+                <strong>{{ selectedCurso.materia }}</strong>
+              </div>
+              <div class="cm-details-info-card">
+                <span>Docente</span>
+                <strong>{{ selectedCurso.docente || 'Sin docente asignado' }}</strong>
+              </div>
+              <div class="cm-details-info-card">
+                <span>Régimen / Periodo</span>
+                <strong>{{ selectedCurso.periodo }}</strong>
+              </div>
+            </div>
+
+            <!-- Listado de Estudiantes -->
+            <div class="cm-students-section">
+              <div class="cm-students-header">
+                <h5 class="cm-students-title">Alumnos Inscritos</h5>
+                <span class="cm-students-badge" v-if="!loadingStudents">
+                  {{ enrolledStudents.length }} alumno{{ enrolledStudents.length !== 1 ? 's' : '' }}
+                </span>
+              </div>
+
+              <!-- Estado de carga -->
+              <div v-if="loadingStudents" class="cm-students-loading">
+                <svg class="cm-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                <span>Cargando estudiantes inscritos...</span>
+              </div>
+
+              <!-- Lista de estudiantes -->
+              <div v-else class="cm-students-list-wrap">
+                <table class="cm-students-table">
+                  <thead>
+                    <tr>
+                      <th>Nombre Completo</th>
+                      <th>CI</th>
+                      <th>Correo</th>
+                      <th style="text-align: right;">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="enrolledStudents.length === 0">
+                      <td colspan="4" class="cm-students-empty">No hay estudiantes inscritos en este curso.</td>
+                    </tr>
+                    <tr v-for="ins in enrolledStudents" :key="ins.idInscripcion">
+                      <td>
+                        <div class="cm-student-name">
+                          {{ ins.estudiante?.nombreCompleto || 'Sin Nombre' }}
+                        </div>
+                      </td>
+                      <td><code class="cm-code">{{ ins.estudiante?.ci }}</code></td>
+                      <td>{{ ins.estudiante?.correo }}</td>
+                      <td style="text-align: right;">
+                        <button 
+                          class="uni-btn-action-danger cm-btn-sm" 
+                          type="button" 
+                          :disabled="submitting"
+                          @click="askRemoveStudent(ins)"
+                        >
+                          Quitar
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="cm-modal-footer">
+            <button class="cm-btn-secondary" type="button" @click="showDetailsModal = false">Cerrar</button>
+          </div>
+
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- ── Modal: Confirmar retiro de estudiante ── -->
+    <Teleport to="body">
+      <div v-if="showConfirmRemoveModal" class="cm-backdrop" @mousedown.self="cancelRemoveStudent">
+        <div class="cm-confirm-modal">
+
+          <div class="cm-confirm-icon cm-confirm-icon--warning">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+
+          <h4 class="cm-confirm-title">Retirar Estudiante</h4>
+
+          <p class="cm-confirm-subject" v-if="studentToRemove">
+            ¿Estás seguro de que deseas retirar a <strong>{{ studentToRemove.estudiante?.nombreCompleto }}</strong> del curso?
+          </p>
+
+          <p class="cm-confirm-warning">
+            Esta acción dará de baja la inscripción de este estudiante. Sus calificaciones asociadas a esta materia quedarán inactivas.
+          </p>
+
+          <div class="cm-confirm-actions">
+            <button class="cm-btn-secondary" type="button" :disabled="submitting" @click="cancelRemoveStudent">
+              Cancelar
+            </button>
+            <button class="uni-btn-action-danger" type="button" :disabled="submitting" @click="confirmRemoveStudent">
+              {{ submitting ? 'Retirando...' : 'Confirmar Retiro' }}
             </button>
           </div>
 
@@ -1234,5 +1437,157 @@ onMounted(fetchCursoData)
 
 .cm-field--filter {
   /* indicador visual sutil */
+}
+
+/* ── Modal de Detalles ── */
+.cm-modal--details {
+  width: min(100%, 45rem);
+}
+
+.cm-details-content {
+  padding: 1.25rem 1.5rem 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.cm-details-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  background: #fcfcfb;
+  border: 1px solid var(--color-linen);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.cm-details-info-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cm-details-info-card span {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--uni-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cm-details-info-card strong {
+  font-size: 13px;
+  color: var(--uni-text);
+  word-break: break-word;
+}
+
+/* ── Sección de Alumnos ── */
+.cm-students-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.cm-students-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1.5px solid var(--color-linen);
+  padding-bottom: 0.5rem;
+}
+
+.cm-students-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--uni-text);
+}
+
+.cm-students-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-mint-dark);
+  background: var(--uni-success-bg);
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--color-mint-light);
+}
+
+.cm-students-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 2.5rem;
+  font-size: 12px;
+  color: var(--uni-muted);
+}
+
+.cm-students-list-wrap {
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
+  overflow: hidden;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.cm-students-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.cm-students-table th {
+  background: #fafafa;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--uni-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--color-linen);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.cm-students-table td {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid rgba(0,0,0,.04);
+  color: var(--uni-text);
+}
+
+.cm-students-table tr:last-child td {
+  border-bottom: none;
+}
+
+.cm-students-table tbody tr:hover {
+  background: #f7f7f5;
+}
+
+.cm-student-name {
+  font-weight: 600;
+}
+
+.cm-students-empty {
+  text-align: center;
+  color: var(--uni-muted);
+  padding: 2rem !important;
+}
+
+.cm-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--color-linen);
+  background: #fafafa;
+}
+
+.cm-confirm-icon--warning {
+  background: #fff8f0 !important;
+  color: #d97706 !important;
+  border: 1px solid #fcd34d;
 }
 </style>

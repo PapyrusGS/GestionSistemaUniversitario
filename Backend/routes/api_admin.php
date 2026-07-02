@@ -37,11 +37,13 @@ Route::middleware(['auth:sanctum', 'role:Administrador'])->group(function () {
     Route::post('/cursos',                                     [CursoController::class, 'store']);
     Route::put('/cursos/{cursoMateria}/asignar-docente',       [CursoController::class, 'asignarDocente']);
     Route::get('/cursos/{cursoMateria}/inscripciones',         [CursoController::class, 'inscripciones']);
+    Route::delete('/cursos/inscripciones/{idInscripcion}',     [CursoController::class, 'quitarEstudiante']);
     Route::delete('/cursos/{idCursoMateria}',                  [CursoController::class, 'destroy']);
     Route::patch('/cursos/{idCursoMateria}/enable',            [CursoController::class, 'enable']);
 
     // ── Cursos Físicos (Aulas) ────────────────────────────────────────────────
     Route::get('/cursos-fisicos',                              [CursoFisicoController::class, 'index']);
+    Route::get('/cursos-fisicos/{idCurso}/horario',            [CursoFisicoController::class, 'horario']);
     Route::post('/cursos-fisicos',                             [CursoFisicoController::class, 'store']);
     Route::put('/cursos-fisicos/{idCurso}',                    [CursoFisicoController::class, 'update']);
     Route::delete('/cursos-fisicos/{idCurso}',                 [CursoFisicoController::class, 'destroy']);

@@ -79,4 +79,43 @@ class CursoFisicoController extends Controller
             return ApiResponse::error($e->getMessage(), null, 400);
         }
     }
+
+    public function horario(string $idCurso): JsonResponse
+    {
+        try {
+            $schedules = \Illuminate\Support\Facades\DB::table('cursos_materias as cm')
+                ->join('materias as m', 'm.idMateria', '=', 'cm.idMateria')
+                ->join('carreras as c', 'c.idCarrera', '=', 'm.idCarrera')
+                ->join('usuarios as u', 'u.idUsuario', '=', 'cm.idDocente')
+                ->join('periodos as p', 'p.idPeriodo', '=', 'cm.idPeriodo')
+                ->join('horariocurso as hc', 'hc.idCursoMateria', '=', 'cm.idCursoMateria')
+                ->join('horarios as h', 'h.idHorario', '=', 'hc.idHorario')
+                ->where('cm.idCurso', $idCurso)
+                ->where('cm.estado', 1)
+                ->where('p.estado', 1)
+                ->select([
+                    'h.diaSemana',
+                    'h.horaInicio',
+                    'h.horaFin',
+                    'm.nombre as materia',
+                    'p.nombre as periodo',
+                    \Illuminate\Support\Facades\DB::raw("TRIM(CONCAT(u.nombre1, ' ', COALESCE(u.nombre2, ''), ' ', u.apellido1, ' ', COALESCE(u.apellido2, ''))) as docente"),
+                    'c.nombre as carrera'
+                ])
+                ->orderBy('h.diaSemana')
+                ->orderBy('h.horaInicio')
+                ->get();
+
+            return ApiResponse::success(
+                ['schedules' => $schedules],
+                'Horario de aula cargado correctamente.'
+            );
+        } catch (\Throwable $e) {
+            return ApiResponse::error(
+                $e->getMessage() ?: 'No se pudo cargar el horario del aula.',
+                null,
+                400
+            );
+        }
+    }
 }
