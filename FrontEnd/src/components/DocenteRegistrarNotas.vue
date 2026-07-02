@@ -12,14 +12,38 @@ const props = defineProps({
 
 // ── Estado principal ──────────────────────────────────────────────────────────
 const loading         = ref(false)
-const guardandoId     = ref(null)   // idInscripcion que está guardando
+const guardandoId     = ref(null)
 const successMessage  = ref('')
 const errorMessage    = ref('')
 
 const cursos      = ref([])
-const filas       = ref([])          // [{estudiante, idInscripcion, idNota|null, nota_original, nota_input, editando}]
-const cursoActual = ref('')
+const filas       = ref([])
+const cursoActual = ref(null)
 const materiaInfo = ref(null)
+
+// ── Vista: 'cursos' | 'notas' ────────────────────────────────────────────────
+const view = ref('cursos')
+
+// ── Filtro por semestre ───────────────────────────────────────────────────────
+const semestreFiltro = ref('')
+
+const cursosFiltrados = computed(() => {
+  let list = cursos.value
+  if (semestreFiltro.value !== '') {
+    list = list.filter(c => String(c.materia_semestre ?? '') === semestreFiltro.value)
+  }
+  return list
+})
+
+const semestresDisponibles = computed(() => {
+  const s = new Set(cursos.value.map(c => c.materia_semestre).filter(v => v != null && v !== ''))
+  return [...s].sort((a, b) => {
+    const na = Number(a), nb = Number(b)
+    if (!isNaN(na) && !isNaN(nb)) return na - nb
+    if (isNaN(na) && isNaN(nb)) return String(a).localeCompare(String(b))
+    return isNaN(na) ? 1 : -1
+  })
+})
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function flash(tipo, msg) {
@@ -51,13 +75,27 @@ async function cargarCursos() {
   }
 }
 
-// ── Cargar estudiantes + notas al seleccionar materia ────────────────────────
-async function alCambiarCurso() {
-  filas.value    = []
-  materiaInfo.value = null
-  if (!cursoActual.value) return
+// ── Seleccionar curso e ir a vista de notas ──────────────────────────────────
+async function seleccionarCurso(curso) {
+  cursoActual.value = curso.idCursoMateria
+  materiaInfo.value = curso
+  view.value = 'notas'
+  await cargarEstudiantes()
+}
 
-  materiaInfo.value = cursos.value.find(c => c.idCursoMateria == cursoActual.value) ?? null
+function volver() {
+  view.value = 'cursos'
+  filas.value = []
+  cursoActual.value = null
+  materiaInfo.value = null
+  successMessage.value = ''
+  errorMessage.value = ''
+}
+
+// ── Cargar estudiantes + notas ────────────────────────────────────────────────
+async function cargarEstudiantes() {
+  filas.value = []
+  if (!cursoActual.value) return
 
   loading.value = true
   try {
@@ -92,7 +130,7 @@ async function alCambiarCurso() {
   }
 }
 
-// ── Guardar nota (crear o actualizar) ─────────────────────────────────────────
+// ── Guardar nota ──────────────────────────────────────────────────────────────
 async function guardarNota(fila) {
   fila.error = ''
   const val = fila.nota_input
@@ -109,10 +147,8 @@ async function guardarNota(fila) {
   guardandoId.value = fila.idInscripcion
   try {
     if (fila.idNota) {
-      // Actualizar
       await props.api.put(`/docente/notas/${fila.idNota}`, { nota: n })
     } else {
-      // Crear
       const res = await props.api.post('/docente/notas', {
         estudiante_materia_id: fila.idInscripcion,
         nota: n
@@ -135,7 +171,7 @@ function cancelarEdicion(fila) {
   fila.error      = ''
 }
 
-// ── Computed stats ────────────────────────────────────────────────────────────
+// ── Stats ─────────────────────────────────────────────────────────────────────
 const stats = computed(() => {
   const conNota   = filas.value.filter(f => f.nota_original !== null)
   const aprobados = conNota.filter(f => Number(f.nota_original) >= 51)
@@ -155,218 +191,336 @@ onMounted(cargarCursos)
 </script>
 
 <template>
-  <div class="fade-in-view">
+  <div class="drn-root">
 
     <!-- Header -->
     <div class="workspace-topbar">
       <div class="topbar-left">
         <span class="context-path">Docentes / Calificaciones</span>
         <h2>Registrar Calificaciones</h2>
-        <p class="subtitle-text">Selecciona una materia para ver y gestionar las notas de todos los estudiantes inscritos</p>
+        <p class="subtitle-text" v-if="view === 'cursos'">Selecciona un curso para registrar las notas de los estudiantes inscritos</p>
+        <p class="subtitle-text" v-else>Gestiona las notas de los estudiantes del curso seleccionado</p>
       </div>
     </div>
 
-    <!-- Alerts globales -->
+    <!-- Alerts -->
     <transition name="alert-slide">
-      <div v-if="successMessage" class="alert-inline success mb-4">✓ {{ successMessage }}</div>
+      <div v-if="successMessage" class="alert-inline success mb-4">{{ successMessage }}</div>
     </transition>
     <transition name="alert-slide">
-      <div v-if="errorMessage" class="alert-inline error mb-4">✕ {{ errorMessage }}</div>
+      <div v-if="errorMessage" class="alert-inline error mb-4">{{ errorMessage }}</div>
     </transition>
 
-    <!-- Selector de materia -->
-    <div class="selector-card">
-      <div class="selector-icon">📚</div>
-      <div class="selector-body">
-        <label class="selector-label">Materia / Curso asignado</label>
-        <select v-model="cursoActual" @change="alCambiarCurso" :disabled="loading" class="selector-select">
-          <option value="" disabled>— Seleccione una materia —</option>
-          <option v-for="c in cursos" :key="c.idCursoMateria" :value="c.idCursoMateria">
-            {{ c.materia_nombre }} — {{ c.turno_nombre }}
-          </option>
-        </select>
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- VISTA: LISTA DE CURSOS                                        -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <template v-if="view === 'cursos'">
+
+      <!-- Filtro por semestre -->
+      <div class="drn-filters">
+        <div class="drn-filter-group">
+          <label class="drn-filter-label">Semestre</label>
+          <select v-model="semestreFiltro" class="drn-filter-select">
+            <option value="">Todos los semestres</option>
+            <option v-for="s in semestresDisponibles" :key="s" :value="String(s)">
+              Semestre {{ s }}
+            </option>
+          </select>
+        </div>
+        <span class="drn-count">{{ cursosFiltrados.length }} curso{{ cursosFiltrados.length !== 1 ? 's' : '' }}</span>
       </div>
-    </div>
 
-    <!-- Stats (aparecen solo cuando hay curso y estudiantes) -->
-    <transition name="fade-up">
-      <div v-if="cursoActual && filas.length > 0 && !loading" class="stats-bar">
-        <div class="stat-pill">
-          <span class="stat-num">{{ stats.total }}</span>
-          <span class="stat-label">Inscritos</span>
-        </div>
-        <div class="stat-pill">
-          <span class="stat-num">{{ stats.conNota }}</span>
-          <span class="stat-label">Con nota</span>
-        </div>
-        <div class="stat-pill green">
-          <span class="stat-num">{{ stats.aprobados }}</span>
-          <span class="stat-label">Aprobados</span>
-        </div>
-        <div class="stat-pill red">
-          <span class="stat-num">{{ stats.reprobados }}</span>
-          <span class="stat-label">Reprobados</span>
-        </div>
-        <div class="stat-pill blue">
-          <span class="stat-num">{{ stats.promedio }}</span>
-          <span class="stat-label">Promedio</span>
+      <!-- Lista de cursos -->
+      <div v-if="loading" class="spinner-container">
+        <div class="loading-spinner"></div>
+        <span class="loading-text">Cargando cursos...</span>
+      </div>
+
+      <div v-else-if="cursosFiltrados.length === 0" class="empty-state">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" class="empty-icon"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+        <p>No hay cursos asignados para los filtros seleccionados.</p>
+      </div>
+
+      <div v-else class="drn-course-list">
+        <div
+          v-for="curso in cursosFiltrados"
+          :key="curso.idCursoMateria"
+          class="drn-course-card"
+        >
+          <div class="drn-course-info">
+            <span class="drn-course-name">{{ curso.materia_nombre }}</span>
+            <span class="drn-course-meta">{{ curso.turno_nombre }} &middot; Semestre {{ curso.materia_semestre }}</span>
+          </div>
+          <button class="drn-btn-action" type="button" @click="seleccionarCurso(curso)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Asignar Notas
+          </button>
         </div>
       </div>
-    </transition>
+    </template>
 
-    <!-- Spinner -->
-    <div v-if="loading" class="spinner-container">
-      <div class="loading-spinner"></div>
-      <span class="loading-text">Cargando información...</span>
-    </div>
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- VISTA: REGISTRO DE NOTAS                                      -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <template v-if="view === 'notas'">
 
-    <!-- Placeholder vacío -->
-    <div v-else-if="!cursoActual" class="empty-state">
-      <div class="empty-icon">🎓</div>
-      <p>Selecciona una materia arriba para comenzar a gestionar las calificaciones.</p>
-    </div>
+      <!-- Volver -->
+      <button class="drn-btn-back" type="button" @click="volver" :disabled="loading">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+        Volver a cursos
+      </button>
 
-    <!-- Tabla inline -->
-    <transition name="fade-up">
-      <div v-if="cursoActual && !loading" class="table-card-wrapper">
-        <div class="table-card-header">
-          <h4>
-            Estudiantes inscritos
-            <span v-if="materiaInfo" class="materia-badge">{{ materiaInfo.materia_nombre }}</span>
-          </h4>
-          <span class="total-badge">{{ filas.length }} estudiante{{ filas.length !== 1 ? 's' : '' }}</span>
+      <!-- Stats -->
+      <transition name="fade-up">
+        <div v-if="filas.length > 0 && !loading" class="stats-bar">
+          <div class="stat-pill">
+            <span class="stat-num">{{ stats.total }}</span>
+            <span class="stat-label">Inscritos</span>
+          </div>
+          <div class="stat-pill">
+            <span class="stat-num">{{ stats.conNota }}</span>
+            <span class="stat-label">Con nota</span>
+          </div>
+          <div class="stat-pill green">
+            <span class="stat-num">{{ stats.aprobados }}</span>
+            <span class="stat-label">Aprobados</span>
+          </div>
+          <div class="stat-pill red">
+            <span class="stat-num">{{ stats.reprobados }}</span>
+            <span class="stat-label">Reprobados</span>
+          </div>
+          <div class="stat-pill blue">
+            <span class="stat-num">{{ stats.promedio }}</span>
+            <span class="stat-label">Promedio</span>
+          </div>
         </div>
+      </transition>
 
-        <div v-if="filas.length === 0" class="empty-table-msg">
-          No hay estudiantes inscritos en esta materia.
-        </div>
+      <!-- Spinner -->
+      <div v-if="loading" class="spinner-container">
+        <div class="loading-spinner"></div>
+        <span class="loading-text">Cargando estudiantes...</span>
+      </div>
 
-        <div v-else class="table-responsive">
-          <table class="workspace-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Estudiante</th>
-                <th class="txt-center">CI</th>
-                <th class="txt-center">Nota</th>
-                <th class="txt-center">Estado</th>
-                <th class="txt-center">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(fila, idx) in filas" :key="fila.idInscripcion"
-                  :class="{ 'row-editing': fila.editando }">
+      <!-- Tabla -->
+      <transition name="fade-up">
+        <div v-if="!loading" class="table-card-wrapper">
+          <div class="table-card-header">
+            <h4>
+              Estudiantes inscritos
+              <span v-if="materiaInfo" class="materia-badge">{{ materiaInfo.materia_nombre }}</span>
+            </h4>
+            <span class="total-badge">{{ filas.length }} estudiante{{ filas.length !== 1 ? 's' : '' }}</span>
+          </div>
 
-                <!-- # -->
-                <td class="txt-center text-muted num-col">{{ idx + 1 }}</td>
+          <div v-if="filas.length === 0" class="empty-table-msg">
+            No hay estudiantes inscritos en esta materia.
+          </div>
 
-                <!-- Nombre -->
-                <td class="primary-cell font-medium">{{ fila.nombre }}</td>
+          <div v-else class="table-responsive">
+            <table class="workspace-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Estudiante</th>
+                  <th class="txt-center">CI</th>
+                  <th class="txt-center">Nota</th>
+                  <th class="txt-center">Estado</th>
+                  <th class="txt-center">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(fila, idx) in filas" :key="fila.idInscripcion"
+                    :class="{ 'row-editing': fila.editando }">
 
-                <!-- CI -->
-                <td class="txt-center text-muted font-mono">{{ fila.ci }}</td>
+                  <td class="txt-center text-muted num-col">{{ idx + 1 }}</td>
+                  <td class="primary-cell font-medium">{{ fila.nombre }}</td>
+                  <td class="txt-center text-muted font-mono">{{ fila.ci }}</td>
 
-                <!-- Nota (inline editable) -->
-                <td class="txt-center nota-col">
-                  <div v-if="fila.editando" class="nota-input-wrap">
-                    <input
-                      v-model.number="fila.nota_input"
-                      type="number" min="0" max="100" step="0.01"
-                      placeholder="0–100"
-                      class="nota-input"
-                      :disabled="guardandoId === fila.idInscripcion"
-                      @keyup.enter="guardarNota(fila)"
-                      @keyup.escape="cancelarEdicion(fila)"
-                      autofocus
-                    />
-                    <small v-if="fila.error" class="field-error">{{ fila.error }}</small>
-                  </div>
-                  <span v-else class="nota-badge" :class="notaClass(fila.nota_original)">
-                    {{ fila.nota_original !== null ? Number(fila.nota_original).toFixed(1) : '—' }}
-                  </span>
-                </td>
-
-                <!-- Estado -->
-                <td class="txt-center">
-                  <span class="badge-state" :class="notaClass(fila.nota_original)">
-                    <template v-if="fila.nota_original === null">Sin nota</template>
-                    <template v-else-if="Number(fila.nota_original) >= 51">Aprobado</template>
-                    <template v-else>Reprobado</template>
-                  </span>
-                </td>
-
-                <!-- Acciones -->
-                <td class="txt-center">
-                  <!-- Modo normal: botón Editar / Agregar -->
-                  <template v-if="!fila.editando">
-                    <button class="action-row-btn" @click="fila.editando = true; fila.error = ''">
-                      <svg viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zm-2.207 2.207L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
-                      {{ fila.nota_original !== null ? 'Editar' : 'Agregar' }}
-                    </button>
-                  </template>
-
-                  <!-- Modo edición: Guardar / Cancelar -->
-                  <template v-else>
-                    <div class="action-edit-group">
-                      <button class="save-btn" @click="guardarNota(fila)"
-                              :disabled="guardandoId === fila.idInscripcion">
-                        <span v-if="guardandoId === fila.idInscripcion" class="btn-spinner"></span>
-                        <span v-else>✓</span>
-                        Guardar
-                      </button>
-                      <button class="cancel-btn" @click="cancelarEdicion(fila)"
-                              :disabled="guardandoId === fila.idInscripcion">
-                        ✕
-                      </button>
+                  <td class="txt-center nota-col">
+                    <div v-if="fila.editando" class="nota-input-wrap">
+                      <input
+                        v-model.number="fila.nota_input"
+                        type="number" min="0" max="100" step="0.01"
+                        placeholder="0–100"
+                        class="nota-input"
+                        :disabled="guardandoId === fila.idInscripcion"
+                        @keyup.enter="guardarNota(fila)"
+                        @keyup.escape="cancelarEdicion(fila)"
+                        autofocus
+                      />
+                      <small v-if="fila.error" class="field-error">{{ fila.error }}</small>
                     </div>
-                  </template>
-                </td>
+                    <span v-else class="nota-badge" :class="notaClass(fila.nota_original)">
+                      {{ fila.nota_original !== null ? Number(fila.nota_original).toFixed(1) : '—' }}
+                    </span>
+                  </td>
 
-              </tr>
-            </tbody>
-          </table>
+                  <td class="txt-center">
+                    <span class="badge-state" :class="notaClass(fila.nota_original)">
+                      <template v-if="fila.nota_original === null">Sin nota</template>
+                      <template v-else-if="Number(fila.nota_original) >= 51">Aprobado</template>
+                      <template v-else>Reprobado</template>
+                    </span>
+                  </td>
+
+                  <td class="txt-center">
+                    <template v-if="!fila.editando">
+                      <button class="action-row-btn" @click="fila.editando = true; fila.error = ''">
+                        <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zm-2.207 2.207L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
+                        {{ fila.nota_original !== null ? 'Editar' : 'Agregar' }}
+                      </button>
+                    </template>
+                    <template v-else>
+                      <div class="action-edit-group">
+                        <button class="save-btn" @click="guardarNota(fila)"
+                                :disabled="guardandoId === fila.idInscripcion">
+                          <span v-if="guardandoId === fila.idInscripcion" class="btn-spinner"></span>
+                          <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                          Guardar
+                        </button>
+                        <button class="cancel-btn" @click="cancelarEdicion(fila)"
+                                :disabled="guardandoId === fila.idInscripcion">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                      </div>
+                    </template>
+                  </td>
+
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-    </transition>
+      </transition>
+    </template>
 
   </div>
 </template>
 
 <style scoped>
 /* ── Base ─────────────────────────────────────────────────────────────────── */
+.drn-root { animation: fadeIn 0.25s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .subtitle-text { font-size: 0.88rem; color: #6b7280; margin-top: 0.2rem; }
 .mb-4          { margin-bottom: 1.25rem; }
-.fade-in-view  { animation: fadeIn 0.25s ease-out; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
-/* ── Selector Card ────────────────────────────────────────────────────────── */
-.selector-card {
+/* ── Filters ──────────────────────────────────────────────────────────────── */
+.drn-filters {
   display: flex;
   align-items: center;
   gap: 1rem;
-  background: #fafafa;
-  border: 1px solid rgba(0,0,0,0.07);
-  border-radius: 12px;
-  padding: 1.25rem 1.5rem;
   margin-top: 1rem;
   margin-bottom: 1.25rem;
+  flex-wrap: wrap;
 }
-.selector-icon { font-size: 1.6rem; flex-shrink: 0; }
-.selector-body { flex: 1; display: flex; flex-direction: column; gap: 0.35rem; }
-.selector-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: #6b7280; }
-.selector-select {
+.drn-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.drn-filter-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  color: #6b7280;
+}
+.drn-filter-select {
   background: var(--color-white);
   border: 1px solid rgba(0,0,0,0.12);
   border-radius: 8px;
-  padding: 0.65rem 1rem;
-  font-size: 0.9rem;
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  font-size: 0.85rem;
   color: var(--color-black);
-  width: 100%;
-  max-width: 500px;
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 1rem;
+  cursor: pointer;
+}
+.drn-filter-select:focus { border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56,189,248,0.15); }
+.drn-count {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+}
+
+/* ── Course list ──────────────────────────────────────────────────────────── */
+.drn-course-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.drn-course-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: var(--color-white);
+  border: 1px solid rgba(0,0,0,0.07);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
-.selector-select:focus { outline: none; border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56,189,248,0.15); }
-.selector-select:disabled { opacity: 0.5; cursor: not-allowed; }
+.drn-course-card:hover {
+  border-color: rgba(56,189,248,0.3);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.drn-course-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.drn-course-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-black);
+}
+.drn-course-meta {
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+.drn-btn-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #4e615e;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.drn-btn-action:hover { background: #3b4a48; }
+
+/* ── Back button ──────────────────────────────────────────────────────────── */
+.drn-btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: transparent;
+  border: 1px solid rgba(0,0,0,0.1);
+  color: #6b7280;
+  border-radius: 8px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-bottom: 1rem;
+}
+.drn-btn-back:hover { background: #f3f4f6; color: var(--color-black); border-color: #38bdf8; }
+.drn-btn-back:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── Stats bar ────────────────────────────────────────────────────────────── */
 .stats-bar {
@@ -397,7 +551,7 @@ onMounted(cargarCursos)
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: 5rem 2rem; gap: 1rem; color: #9ca3af;
 }
-.empty-icon { font-size: 3rem; }
+.empty-icon { opacity: 0.4; }
 .empty-state p { font-size: 0.9rem; text-align: center; max-width: 320px; }
 
 /* ── Table wrapper ───────────────────────────────────────────────────────── */

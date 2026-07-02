@@ -70,7 +70,14 @@ class EstudianteController extends Controller
     public function notas(Request $request): JsonResponse
     {
         $student = $this->studentService->getStudentOrFail($request);
-        $grades = $this->studentService->notas($student);
+
+        $filters = array_filter([
+            'search' => $request->query('search'),
+            'semestre' => $request->query('semestre'),
+            'periodo' => $request->query('periodo'),
+        ]);
+
+        $grades = $this->studentService->notas($student, $filters);
 
         return ApiResponse::success([
             'data' => $grades,
