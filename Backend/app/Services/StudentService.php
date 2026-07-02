@@ -148,9 +148,30 @@ class StudentService
             ]);
     }
 
-    public function notas(object $student): Collection
+    public function notas(object $student, array $filters = []): Collection
     {
-        return $this->mapGrades($this->students->grades((int) $student->idEstudiante));
+        $grades = $this->students->grades((int) $student->idEstudiante);
+
+        if (!empty($filters['search'])) {
+            $s = strtolower(trim($filters['search']));
+            $grades = $grades->filter(fn ($g) =>
+                str_contains(strtolower($g->materia ?? ''), $s) ||
+                str_contains(strtolower($g->docente ?? ''), $s) ||
+                str_contains(strtolower($g->periodo ?? ''), $s)
+            )->values();
+        }
+
+        if (!empty($filters['semestre'])) {
+            $sem = (int) $filters['semestre'];
+            $grades = $grades->filter(fn ($g) => (int) ($g->semestre ?? 0) === $sem)->values();
+        }
+
+        if (!empty($filters['periodo'])) {
+            $p = strtolower(trim($filters['periodo']));
+            $grades = $grades->filter(fn ($g) => str_contains(strtolower($g->periodo ?? ''), $p))->values();
+        }
+
+        return $this->mapGrades($grades);
     }
 
     public function historial(object $student): Collection
@@ -284,6 +305,8 @@ class StudentService
             'periodo' => $grade->periodo,
             'nota' => (float) $grade->nota,
             'estadoAcademico' => (float) $grade->nota >= self::NOTA_APROBACION ? 'Aprobada' : 'Reprobada',
+            'docente' => $grade->docente ?? '',
+            'fechaRegistro' => $grade->fechaRegistro ?? null,
         ]);
     }
 
