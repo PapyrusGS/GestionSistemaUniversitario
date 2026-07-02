@@ -169,7 +169,7 @@ function filterName(value) {
 }
 
 function filterDigits(value) {
-  return value.replace(/\D/g, '').slice(0, 17)
+  return value.replace(/\D/g, '').slice(0, 10)
 }
 
 function validateField(field) {

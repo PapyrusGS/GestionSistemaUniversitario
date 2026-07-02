@@ -16,7 +16,7 @@ class MateriaRequest extends FormRequest
     {
         $materiaId = $this->route('materia');
 
-        return [
+        $rules = [
             'idMateria' => [
                 'required',
                 'string',
@@ -24,7 +24,6 @@ class MateriaRequest extends FormRequest
                 Rule::unique('materias', 'idMateria')->ignore($materiaId, 'idMateria'),
             ],
             'idCarrera' => ['required', 'integer', 'exists:carreras,idCarrera'],
-            'idMateriaPrevia' => ['nullable', 'string', 'max:100', 'different:idMateria', 'exists:materias,idMateria'],
             'nombre' => [
                 'required',
                 'string',
@@ -36,6 +35,34 @@ class MateriaRequest extends FormRequest
             ],
             'semestre' => ['required', 'string', 'max:10', 'regex:/^(?:[1-9]|10|Electiva)$/'],
         ];
+
+        $semestre = $this->input('semestre');
+        $rules['idMateriaPrevia'] = ['nullable'];
+
+        if ($semestre === '1') {
+            $rules['idMateriaPrevia'][] = function ($attribute, $value, $fail) {
+                if (!empty($value)) {
+                    $fail('Las materias de primer semestre no pueden tener prerrequisito.');
+                }
+            };
+        } else {
+            $rules['idMateriaPrevia'][] = 'string';
+            $rules['idMateriaPrevia'][] = 'max:100';
+            $rules['idMateriaPrevia'][] = 'different:idMateria';
+            $rules['idMateriaPrevia'][] = 'exists:materias,idMateria';
+            $rules['idMateriaPrevia'][] = function ($attribute, $value, $fail) {
+                if (!empty($value)) {
+                    $sem = \Illuminate\Support\Facades\DB::table('materias')
+                        ->where('idMateria', $value)
+                        ->value('semestre');
+                    if ($sem && strtolower($sem) === 'electiva') {
+                        $fail('Una materia electiva no puede ser prerequisito de otra materia.');
+                    }
+                }
+            };
+        }
+
+        return $rules;
     }
 
     public function messages(): array

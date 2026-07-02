@@ -168,6 +168,15 @@ watch(
   }
 )
 
+watch(
+  () => form.semestre,
+  (newVal) => {
+    if (newVal === '1') {
+      form.idMateriaPrevia = ''
+    }
+  }
+)
+
 const isCareerActive = (idCarrera) => {
   const c = allCarreras.value.find(x => Number(x.idCarrera) === Number(idCarrera))
   return c ? c.estado : false
@@ -177,22 +186,12 @@ const prerequisitosFiltrados = () => {
   if (!form.idCarrera || !form.semestre) {
     return []
   }
-  if (form.semestre === 'Electiva') {
-    const carreraId = Number(form.idCarrera)
-    return materiasActivas.value.filter((m) => {
-      if (Number(m.idCarrera) !== carreraId) return false
-      if (m.idMateria === form.idMateria) return false
-      return true
-    })
-  }
   const carreraId = Number(form.idCarrera)
-  const currentSemestre = Number(form.semestre)
   return materiasActivas.value.filter((m) => {
     if (Number(m.idCarrera) !== carreraId) return false
     if (m.idMateria === form.idMateria) return false
-    const mSemestre = Number(m.semestre)
-    if (isNaN(mSemestre)) return false
-    return mSemestre < currentSemestre
+    if (String(m.semestre).toLowerCase() === 'electiva') return false
+    return true
   })
 }
 
@@ -582,14 +581,15 @@ onMounted(fetchMateriaData)
             </div>
 
             <div class="mm-field">
-              <label class="mm-label">Prerrequisito <span class="mm-optional">(opcional)</span></label>
-              <select v-model="form.idMateriaPrevia" class="mm-select" :disabled="submitting">
+              <label class="mm-label">Prerrequisito</label>
+              <select v-model="form.idMateriaPrevia" class="mm-select" :disabled="submitting || form.semestre === '1'">
                 <option value="">Sin prerrequisito</option>
                 <option v-for="materia in prerequisitosFiltrados()" :key="materia.idMateria" :value="materia.idMateria">
                   {{ materia.nombre }} ({{ materia.idMateria }})
                 </option>
               </select>
-              <small v-if="errors.idMateriaPrevia" class="mm-field-error">{{ errors.idMateriaPrevia[0] }}</small>
+              <small v-if="form.semestre === '1'" class="mm-field-hint">Las materias de primer semestre no pueden tener prerrequisito.</small>
+              <small v-else-if="errors.idMateriaPrevia" class="mm-field-error">{{ errors.idMateriaPrevia[0] }}</small>
             </div>
 
             <div class="mm-form-actions">
@@ -884,6 +884,7 @@ onMounted(fetchMateriaData)
 @media (max-width: 560px) { .mm-two-cols { grid-template-columns: 1fr; } }
 .mm-field { display: flex; flex-direction: column; gap: 0.3rem; }
 .mm-field-error { font-size: 11px; color: var(--uni-error-text); }
+.mm-field-hint  { font-size: 11px; color: #9ca3af; font-style: italic; }
 .mm-form-actions {
   display: flex;
   justify-content: flex-end;
