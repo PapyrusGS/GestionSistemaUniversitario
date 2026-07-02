@@ -67,6 +67,50 @@ class EstudianteController extends Controller
         ], 'Materias inscritas.');
     }
 
+    public function horario(Request $request): JsonResponse
+    {
+        try {
+            $student = $this->studentService->getStudentOrFail($request);
+            $idEstudiante = $student->idEstudiante;
+
+            $schedules = \Illuminate\Support\Facades\DB::table('estudiantemateria as em')
+                ->join('cursos_materias as cm', 'cm.idCursoMateria', '=', 'em.idCursoMateria')
+                ->join('materias as m', 'm.idMateria', '=', 'cm.idMateria')
+                ->join('carreras as c', 'c.idCarrera', '=', 'm.idCarrera')
+                ->join('usuarios as u', 'u.idUsuario', '=', 'cm.idDocente')
+                ->join('periodos as p', 'p.idPeriodo', '=', 'cm.idPeriodo')
+                ->join('horariocurso as hc', 'hc.idCursoMateria', '=', 'cm.idCursoMateria')
+                ->join('horarios as h', 'h.idHorario', '=', 'hc.idHorario')
+                ->where('em.idEstudiante', $idEstudiante)
+                ->where('em.estado', 1)
+                ->where('cm.estado', 1)
+                ->select([
+                    'h.diaSemana',
+                    'h.horaInicio',
+                    'h.horaFin',
+                    'm.nombre as materia',
+                    'cm.idCurso as aula',
+                    'p.nombre as periodo',
+                    \Illuminate\Support\Facades\DB::raw("TRIM(CONCAT(u.nombre1, ' ', COALESCE(u.nombre2, ''), ' ', u.apellido1, ' ', COALESCE(u.apellido2, ''))) as docente"),
+                    'c.nombre as carrera'
+                ])
+                ->orderBy('h.diaSemana')
+                ->orderBy('h.horaInicio')
+                ->get();
+
+            return ApiResponse::success(
+                ['schedules' => $schedules],
+                'Horario del estudiante cargado correctamente.'
+            );
+        } catch (\Throwable $e) {
+            return ApiResponse::error(
+                $e->getMessage() ?: 'No se pudo cargar el horario del estudiante.',
+                null,
+                400
+            );
+        }
+    }
+
     public function notas(Request $request): JsonResponse
     {
         $student = $this->studentService->getStudentOrFail($request);

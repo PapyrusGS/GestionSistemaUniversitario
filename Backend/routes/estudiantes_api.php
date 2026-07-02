@@ -8,6 +8,7 @@ Route::middleware(['auth:sanctum', 'role:Estudiante'])->prefix('estudiante')->gr
     Route::get('/materias-disponibles', [EstudianteController::class, 'materiasDisponibles']);
     Route::post('/inscribir', [EstudianteController::class, 'inscribir']);
     Route::get('/inscripciones', [EstudianteController::class, 'inscripciones']);
+    Route::get('/horario', [EstudianteController::class, 'horario']);
     Route::get('/notas', [EstudianteController::class, 'notas']);
     Route::get('/historial', [EstudianteController::class, 'historial']);
     Route::get('/malla', [EstudianteController::class, 'malla']);

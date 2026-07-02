@@ -1435,9 +1435,6 @@ onMounted(fetchCursoData)
   opacity: 0.6;
 }
 
-.cm-field--filter {
-  /* indicador visual sutil */
-}
 
 /* ── Modal de Detalles ── */
 .cm-modal--details {

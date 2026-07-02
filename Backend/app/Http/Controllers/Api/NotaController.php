@@ -125,4 +125,44 @@ class NotaController extends Controller
             return ApiResponse::error($e->getMessage(), null, 400);
         }
     }
+
+    public function horario(\Illuminate\Http\Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+            $idUsuario = $user->idUsuario;
+
+            $schedules = \Illuminate\Support\Facades\DB::table('cursos_materias as cm')
+                ->join('materias as m', 'm.idMateria', '=', 'cm.idMateria')
+                ->join('carreras as c', 'c.idCarrera', '=', 'm.idCarrera')
+                ->join('periodos as p', 'p.idPeriodo', '=', 'cm.idPeriodo')
+                ->join('horariocurso as hc', 'hc.idCursoMateria', '=', 'cm.idCursoMateria')
+                ->join('horarios as h', 'h.idHorario', '=', 'hc.idHorario')
+                ->where('cm.idDocente', $idUsuario)
+                ->where('cm.estado', 1)
+                ->select([
+                    'h.diaSemana',
+                    'h.horaInicio',
+                    'h.horaFin',
+                    'm.nombre as materia',
+                    'cm.idCurso as aula',
+                    'p.nombre as periodo',
+                    'c.nombre as carrera'
+                ])
+                ->orderBy('h.diaSemana')
+                ->orderBy('h.horaInicio')
+                ->get();
+
+            return ApiResponse::success(
+                ['schedules' => $schedules],
+                'Horario del docente cargado correctamente.'
+            );
+        } catch (\Throwable $e) {
+            return ApiResponse::error(
+                $e->getMessage() ?: 'No se pudo cargar el horario del docente.',
+                null,
+                400
+            );
+        }
+    }
 }

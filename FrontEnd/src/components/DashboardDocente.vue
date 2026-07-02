@@ -18,6 +18,10 @@ const cursos               = ref([])
 const cursoSeleccionado   = ref(null)
 const estudiantesInscritos = ref([])
 
+// Horarios del docente
+const schedules = ref([])
+const loadingSchedule = ref(false)
+
 // Estado para controlar la barra de búsqueda interactiva
 const textoBusqueda = ref('')
 
@@ -137,9 +141,62 @@ const totalEstudiantesMax = computed(() =>
   cursos.value.reduce((acc, c) => acc + (parseInt(c.maxInscritos || c.max_inscritos || c.cupo_maximo || c.cupo || 0) || 0), 0)
 )
 
+// Configuración para grilla de horarios del docente
+const timeSlots = [
+  { label: '07:30 - 09:20', start: '07:30:00', end: '09:20:00' },
+  { label: '09:20 - 11:10', start: '09:20:00', end: '11:10:00' },
+  { label: '11:10 - 13:00', start: '11:10:00', end: '13:00:00' },
+  { label: '13:30 - 15:10', start: '13:30:00', end: '15:10:00' },
+  { label: '15:10 - 16:50', start: '15:10:00', end: '16:50:00' },
+  { label: '16:50 - 18:30', start: '16:50:00', end: '18:30:00' }
+]
+
+const dayNames = {
+  1: 'Lunes',
+  2: 'Martes',
+  3: 'Miércoles',
+  4: 'Jueves',
+  5: 'Viernes',
+  6: 'Sábado'
+}
+
+async function obtenerHorarios() {
+  loadingSchedule.value = true
+  errorMessage.value = ''
+  try {
+    const response = await props.api.get('/docente/horario')
+    const payload = response.data?.data ?? response.data
+    schedules.value = payload.schedules || []
+  } catch (error) {
+    errorMessage.value = error.response?.data?.message || 'No se pudo cargar el horario del docente.'
+  } finally {
+    loadingSchedule.value = false
+  }
+}
+
+function getOccupiedSlot(day, slot) {
+  return schedules.value.find(item => {
+    if (Number(item.diaSemana) !== day) return false
+    return item.horaInicio < slot.end && item.horaFin > slot.start
+  })
+}
+
+const unmatchedSchedules = computed(() => {
+  return schedules.value.filter(item => {
+    const matched = timeSlots.some(slot => {
+      return Number(item.diaSemana) >= 1 && Number(item.diaSemana) <= 6 &&
+             item.horaInicio < slot.end && item.horaFin > slot.start
+    })
+    return !matched
+  })
+})
+
 function cambiarVista(vista) {
   modoDocente.value = vista
   errorMessage.value = ''
+  if (vista === 'horarios') {
+    obtenerHorarios()
+  }
 }
 
 onMounted(obtenerCursos)
@@ -152,6 +209,9 @@ onMounted(obtenerCursos)
       <div class="uni-tab-bar">
         <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': modoDocente === 'cursos' || modoDocente === 'detalle' }" @click="cambiarVista('cursos')">
           <i class="ti ti-book"></i>Cursos
+        </button>
+        <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': modoDocente === 'horarios' }" @click="cambiarVista('horarios')">
+          <i class="ti ti-calendar"></i>Horarios
         </button>
         <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': modoDocente === 'registrar_notas' }" @click="cambiarVista('registrar_notas')">
           <i class="ti ti-edit"></i>Calificaciones
@@ -273,6 +333,92 @@ onMounted(obtenerCursos)
                 </tr>
               </tbody>
             </table>
+          </div>
+        </div>
+      </template>
+
+      <template v-else-if="modoDocente === 'horarios'">
+        <div class="doc-table-card">
+          <div class="doc-table-header">
+            <h4 style="font-family:'Playfair Display', serif; font-size:1.25rem; font-weight:700; color:var(--color-black);">Mi Horario Semanal</h4>
+            <p style="font-size:11px; color:var(--uni-muted); margin:2px 0 0 0;">Visualiza la distribución semanal de tus asignaturas en sus respectivos bloques y aulas físicas.</p>
+          </div>
+
+          <div class="doc-schedule-body">
+            <!-- Loading indicator -->
+            <div v-if="loadingSchedule" class="doc-schedule-loading">
+              <svg class="doc-spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+              <span style="margin-left: 8px;">Cargando tu horario académico...</span>
+            </div>
+
+            <template v-else>
+              <!-- Info del Periodo -->
+              <div class="doc-schedule-legend">
+                <div class="doc-legend-item">
+                  <span class="doc-legend-color doc-legend-color--occupied"></span>
+                  <span>Clase Asignada</span>
+                </div>
+                <div class="doc-legend-item">
+                  <span class="doc-legend-color doc-legend-color--free"></span>
+                  <span>Libre / Disponible</span>
+                </div>
+              </div>
+
+              <!-- Grilla de Horario -->
+              <div class="doc-schedule-grid-wrap">
+                <table class="doc-schedule-grid-table">
+                  <thead>
+                    <tr>
+                      <th class="doc-th-time">Bloque / Hora</th>
+                      <th v-for="d in [1, 2, 3, 4, 5]" :key="d">{{ dayNames[d] }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(slot, slotIdx) in timeSlots" :key="slotIdx">
+                      <td class="doc-td-time">
+                        <div class="doc-time-label">Bloque {{ slotIdx + 1 }}</div>
+                        <div class="doc-time-range">{{ slot.label }}</div>
+                      </td>
+                      <td v-for="day in [1, 2, 3, 4, 5]" :key="day" class="doc-td-slot">
+                        <!-- Celda de ocupación -->
+                        <div v-if="getOccupiedSlot(day, slot)" class="doc-slot-card">
+                          <div class="doc-slot-subject" :title="getOccupiedSlot(day, slot).materia">
+                            {{ getOccupiedSlot(day, slot).materia }}
+                          </div>
+                          <div class="doc-slot-room">
+                            Aula: <code>{{ getOccupiedSlot(day, slot).aula }}</code>
+                          </div>
+                          <div class="doc-slot-career" :title="getOccupiedSlot(day, slot).carrera">
+                            {{ getOccupiedSlot(day, slot).carrera }}
+                          </div>
+                          <div class="doc-slot-period">
+                            {{ getOccupiedSlot(day, slot).periodo }}
+                          </div>
+                        </div>
+                        <div v-else class="doc-slot-free">
+                          <span>Libre</span>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Horarios no estándar / personalizados -->
+              <div v-if="unmatchedSchedules.length > 0" class="doc-unmatched-section">
+                <h5 class="doc-unmatched-title">Otros Horarios de Clase (No Estándar)</h5>
+                <div class="doc-unmatched-list">
+                  <div v-for="(item, idx) in unmatchedSchedules" :key="idx" class="doc-unmatched-item">
+                    <span class="doc-unmatched-day">{{ dayNames[item.diaSemana] || 'Día ' + item.diaSemana }}</span>
+                    <span class="doc-unmatched-time">{{ item.horaInicio.substring(0, 5) }} - {{ item.horaFin.substring(0, 5) }}</span>
+                    <span class="doc-unmatched-details">
+                      <strong>{{ item.materia }}</strong> — Aula: <code>{{ item.aula }}</code> ({{ item.carrera }})
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+            </template>
           </div>
         </div>
       </template>
@@ -539,6 +685,7 @@ onMounted(obtenerCursos)
   border: 1px solid rgba(0,0,0,.06);
   border-radius: 14px;
   overflow: hidden;
+  flex-shrink: 0;
 }
 .doc-table-header {
   padding: 1.1rem 1.5rem;
@@ -585,4 +732,252 @@ onMounted(obtenerCursos)
   padding: .4rem .8rem; cursor: pointer; transition: all .2s; white-space: nowrap;
 }
 .doc-back-btn:hover { background: var(--color-linen); color: var(--color-black); }
+
+/* ── Estilos de Horario para el Docente ── */
+.doc-schedule-body {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.doc-schedule-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 4rem;
+  color: var(--uni-muted);
+  font-size: 13px;
+}
+
+.doc-spin {
+  animation: docSpin 0.8s linear infinite;
+}
+@keyframes docSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.doc-schedule-legend {
+  display: flex;
+  gap: 1.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.doc-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--uni-muted);
+}
+
+.doc-legend-color {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.doc-legend-color--occupied {
+  background: #edf4f2;
+  border-color: var(--color-mint-light);
+}
+
+.doc-legend-color--free {
+  background: #fafaf9;
+  border-color: #e8e8e5;
+}
+
+.doc-schedule-grid-wrap {
+  border: 1px solid #e8e8e5;
+  border-radius: 12px;
+  overflow-x: auto;
+}
+
+.doc-schedule-grid-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 900px;
+}
+
+.doc-schedule-grid-table th {
+  background: #fafaf9;
+  text-align: center;
+  padding: 10px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--uni-muted);
+  border-bottom: 2px solid var(--color-linen);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.doc-th-time {
+  width: 140px;
+}
+
+.doc-schedule-grid-table td {
+  border-bottom: 1px solid #e8e8e5;
+  border-right: 1px solid #e8e8e5;
+  padding: 8px;
+  vertical-align: top;
+}
+
+.doc-schedule-grid-table td:last-child {
+  border-right: none;
+}
+
+.doc-td-time {
+  background: #fafaf9;
+  text-align: center;
+  border-right: 2px solid var(--color-linen) !important;
+  vertical-align: middle !important;
+  padding: 12px 8px !important;
+}
+
+.doc-time-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #8c9f96;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.doc-time-range {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-black);
+  margin-top: 3px;
+}
+
+.doc-td-slot {
+  width: 17%;
+  height: 100px;
+  background: #fdfdfd;
+}
+
+.doc-slot-card {
+  background: #edf4f2;
+  border-left: 4px solid var(--color-mint-dark);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  height: 100%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  text-align: left;
+}
+
+.doc-slot-subject {
+  font-size: 11px;
+  font-weight: 700;
+  color: #2b3d36;
+  line-height: 1.35;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.doc-slot-room {
+  font-size: 10px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+.doc-slot-room code {
+  background: #d0cfca;
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.doc-slot-career {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--color-mint-light);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-slot-period {
+  font-size: 8px;
+  font-weight: 500;
+  color: #8c8c88;
+  margin-top: auto;
+}
+
+.doc-slot-free {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  border: 1px dashed #e8e8e5;
+  border-radius: 8px;
+  color: #c0c0bc;
+  font-size: 11px;
+  font-weight: 500;
+  background: #fafaf9;
+}
+
+/* ── Horarios no estándar ── */
+.doc-unmatched-section {
+  border-top: 1px solid var(--color-linen);
+  padding-top: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.doc-unmatched-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-black);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.doc-unmatched-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.doc-unmatched-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #fafaf9;
+  border: 1px solid #e8e8e5;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.doc-unmatched-day {
+  font-weight: 700;
+  color: var(--color-mint-dark);
+  min-width: 80px;
+}
+
+.doc-unmatched-time {
+  font-weight: 600;
+  color: #1a1a1a;
+  background: #f0f0ee;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.doc-unmatched-details {
+  color: var(--uni-muted);
+}
 </style>

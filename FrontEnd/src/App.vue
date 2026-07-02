@@ -14,6 +14,7 @@ import EstudianteCalificaciones from './components/EstudianteCalificaciones.vue'
 import EstudianteHistorial from './components/EstudianteHistorial.vue'
 import EstudianteMallaCurricular from './components/EstudianteMallaCurricular.vue'
 import EstudianteReportes from './components/EstudianteReportes.vue'
+import EstudianteHorario from './components/EstudianteHorario.vue'
 
 // Importamos la nueva vista independiente del perfil estético
 import PerfilView from './components/PerfilView.vue'
@@ -304,6 +305,7 @@ onMounted(loadProfile)
           <div class="uni-tab-bar">
             <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': studentSection === 'materias' }"  @click="goStudentSection('materias')"><i class="ti ti-book"></i>Inscripciones</button>
             <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': studentSection === 'inscritas' }" @click="goStudentSection('inscritas')"><i class="ti ti-clipboard-list"></i>Mis Materias</button>
+            <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': studentSection === 'horario' }"   @click="goStudentSection('horario')"><i class="ti ti-calendar"></i>Horario</button>
             <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': studentSection === 'notas' }"     @click="goStudentSection('notas')"><i class="ti ti-star"></i>Mis Notas</button>
             <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': studentSection === 'historial' }" @click="goStudentSection('historial')"><i class="ti ti-history"></i>Historial</button>
             <button class="uni-nav-btn" :class="{ 'uni-nav-btn--active': studentSection === 'malla' }"     @click="goStudentSection('malla')"><i class="ti ti-layout-columns"></i>Malla</button>
@@ -315,6 +317,7 @@ onMounted(loadProfile)
           <div class="uni-section-body">
             <EstudianteMaterias        v-if="studentSection === 'materias'"      :user="user" :api="api" @message="onStudentMessage" />
             <EstudianteCarga           v-else-if="studentSection === 'inscritas'" :user="user" :api="api" @message="onStudentMessage" />
+            <EstudianteHorario         v-else-if="studentSection === 'horario'"   :user="user" :api="api" />
             <EstudianteCalificaciones  v-else-if="studentSection === 'notas'"     :user="user" :api="api" @message="onStudentMessage" />
             <EstudianteHistorial       v-else-if="studentSection === 'historial'" :user="user" :api="api" @message="onStudentMessage" />
             <EstudianteMallaCurricular v-else-if="studentSection === 'malla'"     :user="user" :api="api" @message="onStudentMessage" />
@@ -452,7 +455,9 @@ button { cursor: pointer; }
 /* ══ WORKSPACE ══════════════════════════════════════════════════ */
 .uni-workspace {
   width: 100%; height: 100%;
-  display: grid; grid-template-columns: 1fr;
+  display: grid;
+  grid-template-rows: 1fr;
+  grid-template-columns: 1fr;
   overflow: hidden; background: #f4f4f2;
 }
 
@@ -557,6 +562,8 @@ button { cursor: pointer; }
   box-shadow: 0 4px 20px rgba(0,0,0,.04);
   display: flex; flex-direction: column;
   overflow: hidden;
+  flex: 1;
+  min-height: 0;
 }
 
 /* ── Tab bar (menú horizontal) ── */

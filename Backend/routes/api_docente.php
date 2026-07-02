@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth:sanctum', 'role:Docente'])->group(function () {
     // HU-DOC-04 / HU-DOC-05: Registrar y editar calificaciones
     Route::get('/docente/cursos',           [NotaController::class, 'cursos']);
+    Route::get('/docente/horario',          [NotaController::class, 'horario']);
     Route::get('/docente/estudiantes',      [NotaController::class, 'estudiantes']);
     Route::get('/docente/notas',            [NotaController::class, 'notas']);
     Route::post('/docente/notas',           [NotaController::class, 'store']);
